@@ -111,7 +111,7 @@ export default function Hero() {
                   data-anime="targets: >*; translateY: [48, 0]; opacity: [0, 1]; easing: easeOutCubic; duration: 500; delay: anime.stagger(100, {start: 200});"
                 >
                   <span className="fs-7 fw-bold py-narrow px-2 border rounded-pill text-primary dark:text-tertiary">
-                    Automate your workflow
+                      Unlock Your Interview Potential
                   </span>
                   {/* <h1 className="h3 sm:h2 md:h1 lg:display-6 lh-lg mb-1 xl:mb-2 mt-2">
                     Get more done in less time with
@@ -128,13 +128,13 @@ export default function Hero() {
                     className="h3 sm:h2 md:h1 lg:display-6 lh-lg mb-1 xl:mb-2 mt-2"
                     style={{ transform: "translateY(0px)", opacity: 1 }}
                   >
-                    Get more done in less time with{" "}
+                    Discover Your AI-Powered {" "}
                     <span
                       className="px-1 bg-primary text-tertiary dark:bg-tertiary dark:text-primary"
                       data-uc-typed="typeSpeed: 80; backSpeed: 50; backDelay: 1500; loop: true;"
                     >
                       <TyperComponent
-                        strings={["AI automation", "Chatbots", "AI management"]}
+                        strings={["Professional Mentor", "Career Consultant", "Vocational Advisor", "Career Counselor", "Executive Coach", "Career Ally", "Success Partner", "Growth Advocate"]}
                       />
                     </span>
                     <span className="typed-cursor" aria-hidden="true">
@@ -143,11 +143,11 @@ export default function Hero() {
                   </h1>
 
                   <p className="fs-6 xl:fs-3 xl:px-6">
-                    Unlock your <b className="dark:text-white">productivity</b>{" "}
-                    potential and automate as fast as you can type with our
-                    intuitive and powerful{" "}
-                    <b className="dark:text-white">AI automation</b> app.
+                    Unlock your <b className="dark:text-white">interview potential</b>{" "}
+                    and ace every interview with our intuitive and powerful{" "}
+                    <b className="dark:text-white">AI interview coach</b> app by Prepzo.
                   </p>
+
                   <div
                     className="vstack md:hstack justify-center gap-2 mt-3"
                     style={{ transform: "translateY(0px)", opacity: 1 }}
@@ -162,7 +162,7 @@ export default function Hero() {
                         width="20"
                         height="21"
                       />
-                      <span>Start free trial</span>
+                      <span>Talk to Prepzo</span>
                     </a>
                   </div>
 
@@ -187,7 +187,7 @@ export default function Hero() {
                             />
                           </span>
                           <span className="fs-7 fw-medium mb-narrow text-inherit">
-                            AI-Powered Automation
+                            AI-Powered Interview Coach
                           </span>
                         </div>
                       </div>
@@ -210,7 +210,7 @@ export default function Hero() {
                             />
                           </span>
                           <span className="fs-7 fw-medium mb-narrow text-inherit">
-                            Chatbots, Free forever
+                            Interview Preparation Guide
                           </span>
                         </div>
                       </div>
@@ -233,7 +233,7 @@ export default function Hero() {
                             />
                           </span>
                           <span className="fs-7 fw-medium mb-narrow text-inherit">
-                            Cutting-edge AI features
+                            AI- Powered Mock Interview Practice
                           </span>
                         </div>
                       </div>

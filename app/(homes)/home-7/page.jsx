@@ -13,10 +13,11 @@ import Testimonials from "@/components/homes/home-7/Testimonials";
 import React from "react";
 export const metadata = {
   title:
-    "Home 7 || Lexend - Full-featured, professional-looking software, saas and startup nextjs template.",
+    "Home || Prepzo - AI Interview Coach for Career Success",
   description:
-    "Lexend - Full-featured, professional-looking software, saas and startup nextjs template.",
-};
+    "Prepzo - Unlock your interview potential and ace every interview with our powerful AI interview coach app.",
+  };
+
 export default function page() {
   return (
     <>

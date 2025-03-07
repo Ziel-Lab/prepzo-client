@@ -126,7 +126,7 @@ export default function Header7() {
                             <a href="#">
                               <i className="fs-8 unicon-cloud-lightning" />
                               <span className="border-bottom hover:border-primary duration-150">
-                                Join Lexend Early Access
+                                Join Prepzo. Early Access
                               </span>
                             </a>
                           </li>
@@ -167,10 +167,10 @@ export default function Header7() {
                                 <div className="panel vstack gap-4 p-4">
                                   <div className="vstack gap-narrow flex-none">
                                     <h5 className="h5 xl:h4 m-0">
-                                      Workflow quick-start automation guide
+                                      Quick-start to your interview preparations.
                                     </h5>
                                     <p className="fs-7 opacity-60">
-                                      How Lexend can help you automate your work
+                                      How Prepzo can help you ace your interviewa.
                                     </p>
                                   </div>
                                   <div className="row child-cols-4 gx-4 col-match justify-between">

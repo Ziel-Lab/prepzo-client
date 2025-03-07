@@ -95,7 +95,7 @@ export default function Header1() {
                 className="btn btn-sm btn-primary text-white text-none d-none lg:d-inline-flex"
                 href={`/page-pricing`}
               >
-                Start free trial
+                Talk to Prepzo
               </Link>
               <LanguageSelect2 />
               <a
