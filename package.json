@@ -1,0 +1,48 @@
+{
+  "name": "prepzo-client",
+  "version": "2.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@chakra-ui/next-js": "^2.4.2",
+    "@chakra-ui/react": "^2.10.7",
+    "@chakra-ui/theme-tools": "^2.2.8",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@fontsource-variable/inter": "^5.2.5",
+    "@livekit/components-react": "^2.8.1",
+    "@livekit/components-styles": "^1.1.4",
+    "@saas-ui/auth": "^3.6.5",
+    "@saas-ui/react": "^2.11.4",
+    "@svgr/webpack": "^8.1.0",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.5.0",
+    "livekit-client": "^2.9.8",
+    "livekit-server-sdk": "^2.10.2",
+    "next": "^15.2.3",
+    "next-seo": "^6.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0",
+    "react-remove-scroll": "^2.6.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/node": "^20.17.24",
+    "@types/react": "^19.0.11",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9.22.0",
+    "eslint-config-next": "^15.2.3",
+    "prettier": "^3.5.3",
+    "tailwindcss": "^4",
+    "typescript": "^5.8.2"
+  }
+}
