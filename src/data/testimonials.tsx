@@ -1,4 +1,4 @@
-export default {
+const testimonials = {
   title: 'Loved by tech people',
   items: [
     {
@@ -8,9 +8,9 @@ export default {
         'https://pbs.twimg.com/profile_images/1470742164024008706/k-eXHtu0_normal.jpg',
       children: (
         <>
-          “With SaaS UI I am able to produce high quality dashboard apps and
+          &ldquo;With SaaS UI I am able to produce high quality dashboard apps and
           internal tools without a lot of design skills. The ROI really is
-          amazing.”
+          amazing.&rdquo;
         </>
       ),
     },
@@ -20,9 +20,9 @@ export default {
       avatar: '/static/images/avatar2.jpg',
       children: (
         <>
-          “Saas UI allows me to build beautiful and functional UI super fast.
+          &ldquo;Saas UI allows me to build beautiful and functional UI super fast.
           The components are very well thought out and the Next.js starter kit
-          saved me at least 100 hours of work.”
+          saved me at least 100 hours of work.&rdquo;
         </>
       ),
     },
@@ -32,11 +32,13 @@ export default {
       avatar: '/static/images/avatar3.jpg',
       children: (
         <>
-          “Saas UI gave us a perfect starting point for our project, having the
+          &ldquo;Saas UI gave us a perfect starting point for our project, having the
           storybooks already set up with beautifully crafted components and
-          fully mocked pages was a treat.”
+          fully mocked pages was a treat.&rdquo;
         </>
       ),
     },
   ],
 }
+
+export default testimonials

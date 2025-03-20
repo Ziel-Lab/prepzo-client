@@ -30,7 +30,7 @@ const SectionTitle = {
         color: 'gray.700',
       },
     },
-    light: (props: StyleFunctionProps) => ({
+    light: () => ({
       title: {
         color: 'white',
       },

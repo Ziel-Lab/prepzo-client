@@ -7,7 +7,7 @@ const baseStyle = {
   lineHeight: 'inherit',
 }
 
-const variantPrimary = defineStyle((props) => {
+const variantPrimary = defineStyle(() => {
   return {
     color: 'white',
     bg: 'primary.500',
@@ -23,8 +23,7 @@ const variantPrimary = defineStyle((props) => {
   }
 })
 
-const variantSecondary = defineStyle((props) => {
-  const { colorScheme: c } = props
+const variantSecondary = defineStyle(() => {
   return {
     color: 'white',
     bg: 'gray.500',

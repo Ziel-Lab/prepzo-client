@@ -1,6 +1,6 @@
 'use client'
 
-import { extendTheme, ThemeComponentProps } from '@chakra-ui/react'
+import { extendTheme } from '@chakra-ui/react'
 import '@fontsource-variable/inter'
 import { theme as baseTheme } from '@saas-ui/react'
 

@@ -9,7 +9,7 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, Text, VStack, Divider, useColorModeValue, IconButton, Tooltip } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, Divider, useColorModeValue, IconButton } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPhoneOff } from "react-icons/fi";
 
@@ -332,6 +332,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
         flex="1" 
         overflow="auto" 
         p="4" 
+        pt="20"
         ref={transcriptRef}
         bg="transparent"
       >

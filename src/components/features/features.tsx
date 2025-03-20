@@ -12,7 +12,6 @@ import {
   useMultiStyleConfig,
   ThemingProps,
   SystemProps,
-  IconProps,
 } from '@chakra-ui/react'
 
 import { Section, SectionTitle, SectionTitleProps } from '@/components/section'

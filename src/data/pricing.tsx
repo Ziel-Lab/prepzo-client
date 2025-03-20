@@ -1,6 +1,6 @@
 import { HStack, Text } from '@chakra-ui/react'
 
-export default {
+const pricingConfig = {
   title: 'Pricing for every stage',
   description:
     'Pay once and get life-time access to our high quality components.',
@@ -112,3 +112,5 @@ export default {
     },
   ],
 }
+
+export default pricingConfig
