@@ -11,7 +11,6 @@ import {
   Text,
   VStack,
   useClipboard,
-  Button,
   useColorModeValue,
 } from '@chakra-ui/react'
 import { Br } from '@saas-ui/react'

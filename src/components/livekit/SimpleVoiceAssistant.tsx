@@ -51,7 +51,7 @@ export interface TranscriptionMessage extends TranscriptionSegment {
 }
 
 // Message component with Chakra UI + Framer Motion
-const MotionBox = motion(Box);
+const MotionBox = motion.create(Box);
 
 const ThinkingIndicator = () => {
   const textColor = useColorModeValue("blue.500", "blue.300");
@@ -173,12 +173,13 @@ const CustomControlBar = () => {
       justifyContent="center" 
       alignItems="center" 
       width="auto"
-      maxWidth="fit-content"
+      minWidth="200px"
+      maxWidth="300px"
       mx="auto"
       bg={bgColor}
       borderRadius="full"
-      py="2"
-      px="4"
+      py="3"
+      px="6"
       borderWidth="1px"
       borderColor={borderColor}
       boxShadow="sm"
@@ -191,7 +192,7 @@ const CustomControlBar = () => {
         isRound
         aria-label="End call"
         onClick={handleDisconnect}
-        mr={2}
+        mr={3}
       />
       
       {/* Keep the original control bar for device settings but hide the disconnect button */}
@@ -225,9 +226,18 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
   const lastMessageTypeRef = useRef<"agent" | "user" | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Add logging to debug transcription issues
+  useEffect(() => {
+    console.log("Agent state:", state);
+    console.log("Agent transcriptions:", agentTranscriptions);
+    console.log("User transcriptions:", userTranscriptions);
+  }, [state, agentTranscriptions, userTranscriptions]);
+
   // Let the audio track create and attach its own audio element.
   useEffect(() => {
     if (!audioTrack) return; // Exit early if no audioTrack
+    
+    console.log("Audio track received:", audioTrack);
     
     let attachedAudio: HTMLAudioElement | undefined;
     if (audioTrack?.publication?.track) {
@@ -238,6 +248,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
         if (typeof audioTrack.publication.track.attach === 'function') {
           audioTrack.publication.track.attach(attachedAudio);
           document.body.appendChild(attachedAudio);
+          console.log("Audio track attached successfully");
         }
       } catch (error) {
         console.error("Error attaching audio track:", error);

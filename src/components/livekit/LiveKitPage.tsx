@@ -13,7 +13,7 @@ import "@livekit/components-styles";
 import SimpleVoiceAssistant from "@/components/livekit/SimpleVoiceAssistant";
 import { MediaDeviceFailure } from "livekit-client";
 import type { ConnectionDetails } from "@/app/api/connection-details/route";
-import { Box, Center, Text, useToast, useColorModeValue } from "@chakra-ui/react";
+import { Box, Center, Text, useToast } from "@chakra-ui/react";
 import { BackgroundGradient } from "@/components/gradients/background-gradient";
 
 // Error boundary class component
@@ -57,11 +57,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [roomKey, setRoomKey] = useState(Date.now()); // Add a key to force remount if needed
   const toast = useToast();
-  
-  // Define gradients similar to HeroSection
-  const gradientLight = "linear-gradient(180deg, rgba(87, 125, 178, 0.2) 0%, rgba(255, 255, 255, 0.9) 100%)";
-  const gradientDark = "linear-gradient(180deg, rgba(40, 70, 110, 0.3) 0%, rgba(23, 25, 35, 0.9) 100%)";
-  const backgroundGradient = useColorModeValue(gradientLight, gradientDark);
 
   const onDeviceFailure = (error?: MediaDeviceFailure) => {
     console.error(error);
@@ -96,12 +91,15 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   const onConnectButtonClicked = useCallback(async () => {
     try {
+      console.log("Attempting to connect to LiveKit server...");
       const url = new URL(
         process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
         window.location.origin
       );
+      console.log("Connection URL:", url.toString());
       const response = await fetch(url.toString());
       const connectionDetailsData = await response.json();
+      console.log("Connection details received:", connectionDetailsData);
       updateConnectionDetails(connectionDetailsData);
     } catch (error) {
       console.error("Failed to fetch connection details:", error);
@@ -168,7 +166,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               }}
               style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
             >
-              <SimpleVoiceAssistant onStateChange={() => {}} />
+              <SimpleVoiceAssistant 
+                onStateChange={(state) => {
+                  console.log("Voice assistant state changed:", state);
+                }} 
+              />
             </LiveKitRoom>
           </LiveKitErrorBoundary>
         )}

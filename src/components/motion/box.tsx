@@ -9,4 +9,4 @@ export interface MotionBoxProps
   children?: React.ReactNode
 }
 
-export const MotionBox = motion(chakra.div)
+export const MotionBox = motion.create(chakra.div)

@@ -1,12 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { Button, ButtonProps } from '@chakra-ui/react';
 
+// Extended props for the RippleButton component
 interface RippleButtonProps extends ButtonProps {
-  // Add any additional props specific to the ripple button
+  /** 
+   * Controls the ripple animation duration in milliseconds.
+   * Default is 600ms.
+   */
+  rippleDuration?: number;
 }
 
 export const RippleButton: React.FC<RippleButtonProps> = (props) => {
-  const { children, className = '', onClick, ...rest } = props;
+  const { children, className = '', onClick, rippleDuration = 600, ...rest } = props;
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Add subtle animation when component mounts
@@ -47,7 +52,7 @@ export const RippleButton: React.FC<RippleButtonProps> = (props) => {
     // Remove ripple after animation
     setTimeout(() => {
       ripple.remove();
-    }, 600);
+    }, rippleDuration);
   };
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
