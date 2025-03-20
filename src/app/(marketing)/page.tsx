@@ -13,7 +13,6 @@ import {
   useClipboard,
   Button,
   useColorModeValue,
-  chakra,
 } from '@chakra-ui/react'
 import { Br } from '@saas-ui/react'
 import {
@@ -47,14 +46,53 @@ import { Em } from '@/components/typography'
 import faq from '@/data/faq'
 import pricing from '@/data/pricing'
 import testimonials from '@/data/testimonials'
+import { RippleButton } from '@/components/ripple-button'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
 
+  // Add a class to the body when LiveKit is active, to hide the footer
+  useEffect(() => {
+    if (isLiveKitActive) {
+      document.body.classList.add('livekit-active');
+    } else {
+      document.body.classList.remove('livekit-active');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('livekit-active');
+    };
+  }, [isLiveKitActive]);
+  
+  const handleCloseLiveKit = () => {
+    setIsLiveKitActive(false);
+  };
+
   return (
-    <Box>
-      <HeroSection onLiveKitStateChange={setIsLiveKitActive} />
-      {!isLiveKitActive && (
+    <Box position="relative">
+      <HeroSection isLiveKitActive={isLiveKitActive} onLiveKitStateChange={setIsLiveKitActive} />
+      
+      {/* When LiveKit is active, show LiveKit overlay; otherwise show regular content */}
+      {isLiveKitActive ? (
+        <Box 
+          position="fixed" 
+          top="0" 
+          left="0" 
+          width="100%" 
+          height="100vh" 
+          zIndex="99999"
+          bg="transparent"
+          sx={{
+            // This will hide the footer and any other content
+            "& ~ footer": {
+              display: "none !important" 
+            }
+          }}
+        >
+          <LiveKitPage onClose={handleCloseLiveKit} />
+        </Box>
+      ) : (
         <>
           <HighlightsSection />
           <FeaturesSection />
@@ -67,8 +105,7 @@ export default function HomePage() {
   )
 }
 
-const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }> = ({ onLiveKitStateChange }) => {
-  const [showLiveKit, setShowLiveKit] = useState(false);
+const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (active: boolean) => void }> = ({ isLiveKitActive, onLiveKitStateChange }) => {
   const [isBackgroundChanged, setIsBackgroundChanged] = useState(false);
   const [isClient, setIsClient] = useState(false);
   
@@ -85,16 +122,14 @@ const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }>
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  const handleCloseLiveKit = () => {
-    setShowLiveKit(false);
-    setIsBackgroundChanged(false);
-    onLiveKitStateChange(false);
-  };
+  
+  // Sync isBackgroundChanged with parent isLiveKitActive state
+  useEffect(() => {
+    setIsBackgroundChanged(isLiveKitActive);
+  }, [isLiveKitActive]);
 
   const handleOpenLiveKit = () => {
     setIsBackgroundChanged(true);
-    setShowLiveKit(true);
     onLiveKitStateChange(true);
   };
 
@@ -110,21 +145,8 @@ const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }>
       backgroundImage={currentBgImage}
       transition="all 0.3s ease"
     >
-      {showLiveKit && (
-        <Box 
-          position="fixed" 
-          top="0" 
-          left="0" 
-          width="100%" 
-          height="100%" 
-          zIndex="9999"
-          bg="transparent"
-        >
-          <LiveKitPage onClose={handleCloseLiveKit} />
-        </Box>
-      )}
       <BackgroundGradient height="100%" zIndex="-1" opacity={isBackgroundChanged ? 0 : 1} transition="opacity 0.3s ease" />
-      <Container maxW="container.xl" pt={{ base: 40, lg: 60 }} pb="40">
+      <Container maxW="container.xl" pt={{ base: 20, lg: 40 }} pb="40">
         <Stack direction={{ base: 'column', lg: 'row' }} alignItems="center" justifyContent="center">
           <Hero
             id="home"
@@ -138,11 +160,11 @@ const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }>
               </>
             )}
             description={!isBackgroundChanged && (
-              <chakra.div fontWeight="medium">
-                Saas UI is a <Em>React component library</Em>
+              <Box fontWeight="medium" fontFamily="ui-serif, LibreBaskerville, Georgia, serif">
+                Saas UI is a <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">React component library</Em>
                 <Br /> that doesn&apos;t get in your way and helps you <Br />{' '}
                 build intuitive SaaS products with speed.
-              </chakra.div>
+              </Box>
             )}
           >
             <Box>
@@ -155,22 +177,11 @@ const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }>
               <ButtonGroup spacing={4} alignItems="center" justifyContent="center">
                 {!isBackgroundChanged && (
                   <>
-                    <Button
-                      size="lg"
-                      colorScheme="teal"
-                      variant="outline"
-                      fontWeight="bold"
-                      px={[3, 5]}
-                      borderRadius="full"
-                      py="6"
+                    <RippleButton
                       onClick={handleOpenLiveKit}
-                      _hover={{
-                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-                        transform: "translateY(-2px)"
-                      }}
                     >
                       ✨ Start Talking to Your AI Coach ✨
-                    </Button>
+                    </RippleButton>
                   </>
                 )}
               </ButtonGroup>
@@ -263,12 +274,12 @@ const HighlightsSection = () => {
             _dark={{ bg: 'gray.900' }}
           >
             <Box>
-              <chakra.span color="yellow.400" display="inline">
+              <Text color="yellow.400" display="inline">
                 yarn add
-              </chakra.span>{' '}
-              <chakra.span color="cyan.300" display="inline">
+              </Text>{' '}
+              <Text color="cyan.300" display="inline">
                 @saas-ui/react
-              </chakra.span>
+              </Text>
             </Box>
             <IconButton
               icon={hasCopied ? <FiCheck /> : <FiCopy />}
@@ -340,7 +351,12 @@ const TestimonialsSection = () => {
 
 const PricingSection = () => {
   return (
-    <Pricing {...pricing} />
+    <Pricing 
+      id="pricing"
+      title={pricing.title}
+      description={pricing.description}
+      plans={pricing.plans}
+    />
   )
 }
 

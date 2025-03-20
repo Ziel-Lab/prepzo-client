@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import '@fontsource-variable/inter'
+import '../styles/ripple.css'
 
 import { Provider } from './provider'
 

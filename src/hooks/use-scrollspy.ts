@@ -8,21 +8,9 @@ export function useScrollSpy(
   const observer = React.useRef<IntersectionObserver | null>(null)
   
   React.useEffect(() => {
-    // Get elements either by ID or by selector
-    const elements = selectors.map((selector) => {
-      if (selector.startsWith('#')) {
-        // If it's an ID selector, get element by ID directly
-        const id = selector.substring(1)
-        return document.getElementById(id)
-      }
-      // Otherwise use querySelector
-      return document.querySelector(selector)
-    }).filter(Boolean) // Filter out null elements
-    
-    if (elements.length === 0) {
-      // No elements found to observe
-      return
-    }
+    const elements = selectors.map((selector) =>
+      document.querySelector(selector)
+    )
     
     // Store intersection data for all elements
     const visibleElements = new Map<string, number>()
@@ -59,10 +47,7 @@ export function useScrollSpy(
         // If no elements are visible, clear active state
         setActiveId(null)
       }
-    }, { 
-      threshold: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5],  // Lower thresholds to detect sooner
-      ...options 
-    })
+    }, { threshold: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], ...options })
     
     elements.forEach((el) => {
       if (el) observer.current?.observe(el)

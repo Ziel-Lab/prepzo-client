@@ -16,14 +16,16 @@ const Navigation: React.FC = () => {
   const mobileNav = useDisclosure()
   const path = usePathname()
   
-  // Use direct IDs for sections we want to track
-  const sectionIds = ['features', 'benefits', 'pricing', 'faq']
+  // Make sure we're tracking the sections properly
+  const sectionsToTrack = siteConfig.header.links
+    .filter(({ id }) => id)
+    .map(({ id }) => `[id="${id}"]`)
   
   const activeId = useScrollSpy(
-    sectionIds.map(id => `#${id}`),
+    sectionsToTrack,
     {
-      rootMargin: '-10% 0px -40% 0px', // Adjust top/bottom margins
-      threshold: 0.1, // Lower threshold for quicker detection
+      rootMargin: '0px 0px -35% 0px', // Only consider top 65% of viewport
+      threshold: 0.4,                 // Element must be at least 40% visible
     },
   )
 

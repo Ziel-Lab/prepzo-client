@@ -4,7 +4,6 @@ import {
   VideoGrant,
 } from "livekit-server-sdk";
 import { NextResponse } from "next/server";
-import { randomUUID } from 'crypto';
 
 // NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
@@ -33,13 +32,9 @@ export async function GET() {
       throw new Error("LIVEKIT_API_SECRET is not defined");
     }
 
-    // Generate stable identifiers using UUIDs - server-side only
-    const uuid = randomUUID();
-    const shortId = uuid.substring(0, 8);
-    
     // Generate participant token
-    const participantIdentity = `voice_assistant_user_${shortId}`;
-    const roomName = `voice_assistant_room_${shortId}`;
+    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
     const participantToken = await createParticipantToken(
       { identity: participantIdentity },
       roomName,

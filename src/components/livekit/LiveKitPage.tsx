@@ -13,7 +13,8 @@ import "@livekit/components-styles";
 import SimpleVoiceAssistant from "@/components/livekit/SimpleVoiceAssistant";
 import { MediaDeviceFailure } from "livekit-client";
 import type { ConnectionDetails } from "@/app/api/connection-details/route";
-import { Box, Center, Text, useToast } from "@chakra-ui/react";
+import { Box, Center, Text, useToast, useColorModeValue } from "@chakra-ui/react";
+import { BackgroundGradient } from "@/components/gradients/background-gradient";
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<
@@ -53,10 +54,14 @@ interface LiveKitPageProps {
 }
 
 const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
-  const [touchStart, setTouchStart] = useState<number | null>(null);
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [roomKey, setRoomKey] = useState(Date.now()); // Add a key to force remount if needed
   const toast = useToast();
+  
+  // Define gradients similar to HeroSection
+  const gradientLight = "linear-gradient(180deg, rgba(87, 125, 178, 0.2) 0%, rgba(255, 255, 255, 0.9) 100%)";
+  const gradientDark = "linear-gradient(180deg, rgba(40, 70, 110, 0.3) 0%, rgba(23, 25, 35, 0.9) 100%)";
+  const backgroundGradient = useColorModeValue(gradientLight, gradientDark);
 
   const onDeviceFailure = (error?: MediaDeviceFailure) => {
     console.error(error);
@@ -67,23 +72,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       duration: 5000,
       isClosable: true,
     });
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    setTouchStart(e.touches[0].clientY);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const currentY = e.touches[0].clientY;
-    if (touchStart !== null && currentY - touchStart > 100) {
-      onClose();
-    }
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.deltaY > 0) {
-      onClose();
-    }
   };
 
   const handleError = (error: Error) => {
@@ -133,14 +121,14 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   }, [onConnectButtonClicked]);
 
   return (
-    <Box
-      w="100%"
-      h="100%"
-      onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
+    <Box 
+      w="100%" 
+      h="100%" 
+      position="relative"
+      zIndex="99999"
     >
-      <Box w="100%" h="calc(100% - 3rem)">
+      <BackgroundGradient height="100%" zIndex="-1" />
+      <Box w="100%" h="100%" display="flex" flexDirection="column" justifyContent="space-between">
         {!connectionDetails ? (
           <Center
             h="100%"

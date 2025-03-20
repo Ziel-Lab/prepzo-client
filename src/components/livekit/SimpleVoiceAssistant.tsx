@@ -9,7 +9,7 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, VStack, Divider, useColorModeValue, IconButton, chakra } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, Divider, useColorModeValue, IconButton } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPhoneOff } from "react-icons/fi";
 
@@ -66,7 +66,7 @@ const ThinkingIndicator = () => {
       exit={{ opacity: 0 }}
     >
       <Flex>
-        <chakra.div
+        <Text
           fontFamily="sans-serif"
           fontSize="xs"
           color={textColor}
@@ -93,7 +93,7 @@ const ThinkingIndicator = () => {
           >
             .
           </motion.span>
-        </chakra.div>
+        </Text>
       </Flex>
     </MotionBox>
   );
@@ -120,18 +120,18 @@ const Message: React.FC<{
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 0 }}
     >
-      <chakra.div
+      <Text
         fontFamily="sans-serif"
         fontSize="sm"
         color={textColor}
         whiteSpace="pre-wrap"
         pb="2"
       >
-        <chakra.span color={prefixColor} fontWeight="bold" display="inline">
+        <Box as="span" color={prefixColor} fontWeight="bold">
           {type === "agent" ? "Assistant: " : "You: "}
-        </chakra.span>
+        </Box>
         {text}
-      </chakra.div>
+      </Text>
       
       {showDivider && (
         <Divider borderColor={dividerColor} borderStyle="solid" opacity={0.7} mb="2" />
@@ -172,7 +172,9 @@ const CustomControlBar = () => {
     <Flex 
       justifyContent="center" 
       alignItems="center" 
-      width="full"
+      width="auto"
+      maxWidth="fit-content"
+      mx="auto"
       bg={bgColor}
       borderRadius="full"
       py="2"
@@ -189,12 +191,17 @@ const CustomControlBar = () => {
         isRound
         aria-label="End call"
         onClick={handleDisconnect}
+        mr={2}
       />
       
       {/* Keep the original control bar for device settings but hide the disconnect button */}
       <Box sx={{
         "& .lk-disconnect-button": {
           display: "none",
+        },
+        "& .lk-control-bar": {
+          padding: 0,
+          minWidth: "auto",
         }
       }}>
         <VoiceAssistantControlBar 
@@ -320,11 +327,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
     }
   }, [messages, showThinking]);
 
-  const bgGradient = useColorModeValue(
-    "linear(to-t, gray.50, rgba(247, 250, 252, 0.9), rgba(247, 250, 252, 0))",
-    "linear(to-t, gray.800, rgba(26, 32, 44, 0.9), rgba(26, 32, 44, 0))"
-  );
-
   return (
     <Flex height="100%" flexDirection="column">
       {/* Transcript Section */}
@@ -371,9 +373,10 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
       {/* Control Bar Section */}
       <Box
         p="4"
-        bgGradient={bgGradient}
+        bg="transparent"
+        backdropFilter="blur(4px)"
       >
-        <Box mb="4">
+        <Box mb="4" display="flex" justifyContent="center">
           <CustomControlBar />
         </Box>
       </Box>

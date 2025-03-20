@@ -1,0 +1,70 @@
+/* Ripple effect */
+.ripple-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #FF61D2, #FE9090, #BB4BF5);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 24px -6px rgba(187, 75, 245, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+/* Shimmer effect */
+.ripple-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shimmer 3s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+.ripple-button:hover {
+  box-shadow: 0 8px 25px rgba(187, 75, 245, 0.5);
+  transform: translateY(-3px) scale(1.02);
+  background: linear-gradient(135deg, #FF61D2, #FF9A9E, #BB4BF5);
+  filter: brightness(1.05);
+}
+
+.ripple-button:active {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(187, 75, 245, 0.4);
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  background-color: rgba(255, 255, 255, 0.7);
+  animation: ripple-animation 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+} 

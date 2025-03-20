@@ -22,11 +22,6 @@ export interface AnnouncementBannerProps {
   action?: string;
 }
 
-// Safe component to render HTML strings
-const SafeHtml: React.FC<{ html: string }> = ({ html }) => {
-  return <>{html}</>;
-};
-
 export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = (
   props
 ) => {
@@ -87,9 +82,8 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = (
                 </BannerTitle>
                 <BannerDescription
                   display={{ base: "none", md: "block" }}
-                >
-                  <SafeHtml html={description} />
-                </BannerDescription>
+                  dangerouslySetInnerHTML={{ __html: description }}
+                />
 
                 {action && (
                   <BannerActions>

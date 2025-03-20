@@ -1,9 +1,9 @@
 import {
   VStack,
   Heading,
+  Box,
   StackProps,
   useMultiStyleConfig,
-  chakra,
 } from '@chakra-ui/react'
 
 export interface SectionTitleProps extends Omit<StackProps, 'title'> {
@@ -28,9 +28,9 @@ export const SectionTitle: React.FC<SectionTitleProps> = (props) => {
         {title}
       </Heading>
       {description && (
-        <chakra.div sx={styles.description} textAlign={align}>
+        <Box sx={styles.description} textAlign={align}>
           {description}
-        </chakra.div>
+        </Box>
       )}
     </VStack>
   )

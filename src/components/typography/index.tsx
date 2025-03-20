@@ -1,19 +1,20 @@
 import {
   chakra,
   HTMLChakraProps,
+  Text,
   useColorModeValue,
 } from '@chakra-ui/react'
 
 export const Em: React.FC<HTMLChakraProps<'em'>> = ({ children, ...props }) => {
   return (
-    <chakra.em
+    <Text
       color={useColorModeValue('black', 'white')}
+      as="em"
       fontStyle="normal"
-      display="inline"
       {...props}
     >
       {children}
-    </chakra.em>
+    </Text>
   )
 }
 
