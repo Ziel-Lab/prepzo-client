@@ -10,26 +10,9 @@ import { theme } from '@/theme'
 export function Provider(props: { children: React.ReactNode }) {
   return (
     <>
-      {/* Script to ensure consistent color mode on initial load */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              try {
-                var mode = localStorage.getItem('chakra-ui-color-mode');
-                if (!mode) localStorage.setItem('chakra-ui-color-mode', 'light');
-              } catch (e) {}
-            })();
-          `
-        }}
-      />
-      <ColorModeScript initialColorMode="light" />
+      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       <CacheProvider>
-        <ChakraProvider theme={theme} resetCSS colorModeManager={{
-          get: () => 'light',
-          set: () => {},
-          type: 'localStorage',
-        }}>
+        <ChakraProvider theme={theme}>
           <SaasProvider theme={theme}>
             <AuthProvider>{props.children}</AuthProvider>
           </SaasProvider>

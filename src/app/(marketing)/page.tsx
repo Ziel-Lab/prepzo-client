@@ -13,6 +13,7 @@ import {
   useClipboard,
   Button,
   useColorModeValue,
+  chakra,
 } from '@chakra-ui/react'
 import { Br } from '@saas-ui/react'
 import {
@@ -137,11 +138,11 @@ const HeroSection: React.FC<{ onLiveKitStateChange: (active: boolean) => void }>
               </>
             )}
             description={!isBackgroundChanged && (
-              <Box fontWeight="medium">
+              <chakra.div fontWeight="medium">
                 Saas UI is a <Em>React component library</Em>
                 <Br /> that doesn&apos;t get in your way and helps you <Br />{' '}
                 build intuitive SaaS products with speed.
-              </Box>
+              </chakra.div>
             )}
           >
             <Box>
@@ -262,12 +263,12 @@ const HighlightsSection = () => {
             _dark={{ bg: 'gray.900' }}
           >
             <Box>
-              <Text color="yellow.400" display="inline">
+              <chakra.span color="yellow.400" display="inline">
                 yarn add
-              </Text>{' '}
-              <Text color="cyan.300" display="inline">
+              </chakra.span>{' '}
+              <chakra.span color="cyan.300" display="inline">
                 @saas-ui/react
-              </Text>
+              </chakra.span>
             </Box>
             <IconButton
               icon={hasCopied ? <FiCheck /> : <FiCopy />}

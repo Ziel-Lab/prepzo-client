@@ -7,6 +7,7 @@ import {
   GridItemProps,
   Heading,
   useTheme,
+  chakra,
 } from '@chakra-ui/react'
 import { transparentize } from '@chakra-ui/theme-tools'
 
@@ -77,9 +78,9 @@ export const HighlightsTestimonialItem: React.FC<
       <Testimonial
         name={name}
         description={
-          <Box as="span" color="whiteAlpha.700">
+          <chakra.span color="whiteAlpha.700">
             {description}
-          </Box>
+          </chakra.span>
         }
         avatar={avatar}
         border="0"

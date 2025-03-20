@@ -6,7 +6,7 @@ import {
   CardProps,
   Heading,
   Stack,
-  Text,
+  chakra,
 } from "@chakra-ui/react";
 import { Link } from "@saas-ui/react";
 import { FaTwitter } from "react-icons/fa";
@@ -33,9 +33,9 @@ export const Testimonial = ({
         <Avatar name={name} src={avatar} size="sm" bg="transparent" />
         <Stack spacing="1" ms="4">
           <Heading size="sm">{name}</Heading>
-          <Text color="muted" size="xs">
+          <chakra.span color="muted" fontSize="xs">
             {description}
-          </Text>
+          </chakra.span>
         </Stack>
       </CardHeader>
       <CardBody>

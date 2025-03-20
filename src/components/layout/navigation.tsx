@@ -15,12 +15,15 @@ import ThemeToggle from './theme-toggle'
 const Navigation: React.FC = () => {
   const mobileNav = useDisclosure()
   const path = usePathname()
+  
+  // Use direct IDs for sections we want to track
+  const sectionIds = ['features', 'benefits', 'pricing', 'faq']
+  
   const activeId = useScrollSpy(
-    siteConfig.header.links
-      .filter(({ id }) => id)
-      .map(({ id }) => `[id="${id}"]`),
+    sectionIds.map(id => `#${id}`),
     {
-      threshold: 0.75,
+      rootMargin: '-10% 0px -40% 0px', // Adjust top/bottom margins
+      threshold: 0.1, // Lower threshold for quicker detection
     },
   )
 

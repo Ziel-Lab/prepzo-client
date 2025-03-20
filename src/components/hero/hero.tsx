@@ -1,4 +1,4 @@
-import { Container, Flex, FlexProps, Text, VStack } from '@chakra-ui/react'
+import { Container, Flex, FlexProps, chakra, VStack } from '@chakra-ui/react'
 
 interface HeroProps extends Omit<FlexProps, 'title'> {
   title: string | React.ReactNode
@@ -10,18 +10,17 @@ export const Hero = ({ title, description, children, ...rest }: HeroProps) => {
     <Flex py="20" alignItems="center" {...rest}>
       <Container>
         <VStack spacing={[4, null, 8]} alignItems="flex-start">
-          <Text as="h1" textStyle="h1" textAlign="left">
+          <chakra.h1 textStyle="h1" textAlign="left">
             {title}
-          </Text>
-          <Text
-            as="div"
+          </chakra.h1>
+          <chakra.div
             textStyle="subtitle"
-            align="left"
+            textAlign="left"
             color="gray.500"
             _dark={{ color: 'gray.400' }}
           >
             {description}
-          </Text>
+          </chakra.div>
         </VStack>
         {children}
       </Container>

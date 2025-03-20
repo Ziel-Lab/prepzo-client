@@ -9,7 +9,7 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, Text, VStack, Divider, useColorModeValue, IconButton } from "@chakra-ui/react";
+import { Box, Flex, VStack, Divider, useColorModeValue, IconButton, chakra } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPhoneOff } from "react-icons/fi";
 
@@ -66,7 +66,7 @@ const ThinkingIndicator = () => {
       exit={{ opacity: 0 }}
     >
       <Flex>
-        <Text
+        <chakra.div
           fontFamily="sans-serif"
           fontSize="xs"
           color={textColor}
@@ -93,7 +93,7 @@ const ThinkingIndicator = () => {
           >
             .
           </motion.span>
-        </Text>
+        </chakra.div>
       </Flex>
     </MotionBox>
   );
@@ -120,18 +120,18 @@ const Message: React.FC<{
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 0 }}
     >
-      <Text
+      <chakra.div
         fontFamily="sans-serif"
         fontSize="sm"
         color={textColor}
         whiteSpace="pre-wrap"
         pb="2"
       >
-        <Box as="span" color={prefixColor} fontWeight="bold">
+        <chakra.span color={prefixColor} fontWeight="bold" display="inline">
           {type === "agent" ? "Assistant: " : "You: "}
-        </Box>
+        </chakra.span>
         {text}
-      </Text>
+      </chakra.div>
       
       {showDivider && (
         <Divider borderColor={dividerColor} borderStyle="solid" opacity={0.7} mb="2" />

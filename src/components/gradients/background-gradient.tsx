@@ -26,18 +26,16 @@ export const BackgroundGradient = ({ hideOverlay, ...props }: BackgroundGradient
   // Use the appropriate overlay based on color mode
   const gradientOverlay = useColorModeValue(lightModeOverlay, darkModeOverlay)
   
-  // Client-side only rendering to avoid hydration mismatch
-  const [isClient, setIsClient] = useState(false)
+  // Handle client-side only features
+  const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
-    setIsClient(true)
+    setMounted(true)
   }, [])
   
-  // Always call hooks unconditionally
+  // Always call hooks unconditionally at the top
   const opacityValue = useColorModeValue('0.3', '0.5')
-  // Then use the value conditionally
-  const opacity = isClient ? opacityValue : '0.3'
-
+  
   return (
     <Box
       backgroundImage={fallbackBackground}
@@ -46,7 +44,7 @@ export const BackgroundGradient = ({ hideOverlay, ...props }: BackgroundGradient
       top="0"
       left="0"
       zIndex="0"
-      opacity={opacity}
+      opacity={mounted ? opacityValue : '0.3'}
       height="100vh"
       width="100%"
       overflow="hidden"
@@ -54,7 +52,7 @@ export const BackgroundGradient = ({ hideOverlay, ...props }: BackgroundGradient
       {...props}
     >
       <Box
-        backgroundImage={!hideOverlay ? (isClient ? gradientOverlay : lightModeOverlay) : undefined}
+        backgroundImage={!hideOverlay ? (mounted ? gradientOverlay : lightModeOverlay) : undefined}
         position="absolute"
         top="0"
         right="0"
