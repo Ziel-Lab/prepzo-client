@@ -20,8 +20,8 @@ export const BackgroundGradient = ({ hideOverlay, ...props }: BackgroundGradient
         radial-gradient(at top right, ${colors[3]}, transparent), radial-gradient(at bottom right, ${colors[0]} 0%, transparent 50%);`
 
   // Separate gradient overlays for light and dark mode
-  const lightModeOverlay = `linear-gradient(0deg, var(--chakra-colors-white) 60%, rgba(87, 125, 178, 0.68) 100%);`
-  const darkModeOverlay = `linear-gradient(0deg, var(--chakra-colors-gray-900) 60%, rgba(40, 70, 110, 0.68) 100%);`
+  const lightModeOverlay = `linear-gradient(0deg, var(--chakra-colors-white) 60%, rgba(135, 173, 226, 0.68) 100%);`
+  const darkModeOverlay = `linear-gradient(0deg, var(--chakra-colors-gray-900) 60%, rgba(42, 84, 140, 0.68) 100%);`
   
   // Use the appropriate overlay based on color mode
   const gradientOverlay = useColorModeValue(lightModeOverlay, darkModeOverlay)

@@ -9,17 +9,26 @@ export interface NavLinkProps extends ButtonProps {
 }
 
 export const NavLink = forwardRef<NavLinkProps, "a">((props, ref) => {
-  const { href, isActive, ...rest } = props;
+  const { href, isActive, variant, ...rest } = props;
+
+  const isPrimary = variant === "primary";
 
   return (
     <Button
       as={Link}
       href={href}
       ref={ref}
-      variant="nav-link"
-      lineHeight="2rem"
+      variant={isPrimary ? "primary" : "nav-link"}
+      lineHeight={isPrimary ? "normal" : "2rem"}
       isActive={isActive}
       fontWeight="medium"
+      borderRadius={isPrimary ? "xl" : undefined}
+      px={isPrimary ? 6 : undefined}
+      py={isPrimary ? 2 : undefined}
+      height={isPrimary ? "auto" : undefined}
+      display={isPrimary ? "flex" : undefined}
+      alignItems={isPrimary ? "center" : undefined}
+      justifyContent={isPrimary ? "center" : undefined}
       {...rest}
     />
   );

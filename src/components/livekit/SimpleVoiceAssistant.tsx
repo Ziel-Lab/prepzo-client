@@ -9,9 +9,8 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, Text, VStack, Divider, useColorModeValue, IconButton } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, useColorModeValue, Button } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPhoneOff } from "react-icons/fi";
 
 // Custom hook to safely use voice assistant
 function useSafeVoiceAssistant() {
@@ -31,6 +30,7 @@ function useSafeVoiceAssistant() {
 
 interface SimpleVoiceAssistantProps {
   onStateChange: (state: AgentState) => void;
+  onEndCall?: () => void;
 }
 
 export interface TranscriptionSegment {
@@ -55,22 +55,46 @@ const MotionBox = motion.create(Box);
 
 const ThinkingIndicator = () => {
   const textColor = useColorModeValue("blue.500", "blue.300");
+  const bgColor = useColorModeValue("gray.50", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
   
   return (
     <MotionBox
       width="full"
-      textAlign="left"
-      p="1"
+      display="flex"
+      justifyContent="flex-start"
+      mb="2"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
     >
-      <Flex>
+      <Box
+        px="4"
+        py="2.5"
+        borderRadius="md"
+        bg={bgColor}
+        borderWidth="1px"
+        borderColor={borderColor}
+        boxShadow="xs"
+      >
+        <Box 
+          as="span" 
+          fontWeight="medium" 
+          display="block" 
+          fontSize="xs" 
+          mb="1"
+          color="gray.500"
+          letterSpacing="tight"
+        >
+          Assistant
+        </Box>
         <Text
-          fontFamily="sans-serif"
-          fontSize="xs"
+          fontSize="sm"
           color={textColor}
-          fontWeight="bold"
+          fontWeight="medium"
+          height="1.2em"
+          lineHeight="short"
         >
           <motion.span
             initial={{ opacity: 0.3 }}
@@ -94,7 +118,7 @@ const ThinkingIndicator = () => {
             .
           </motion.span>
         </Text>
-      </Flex>
+      </Box>
     </MotionBox>
   );
 };
@@ -102,40 +126,58 @@ const ThinkingIndicator = () => {
 const Message: React.FC<{ 
   type: "agent" | "user"; 
   text: string;
-  showDivider?: boolean;
-}> = ({ type, text, showDivider = false }) => {
-  const textColor = useColorModeValue("#333", "#ccc");
-  const prefixColor = useColorModeValue(
-    type === "agent" ? "blue.500" : "green.500", 
-    type === "agent" ? "blue.300" : "green.300"
-  );
-  const dividerColor = useColorModeValue("gray.400", "gray.600");
+}> = ({ type, text }) => {
+  const isUser = type === "user";
+  
+  // Refined, minimalistic colors
+  const userBgColor = useColorModeValue("blue.50", "blue.900");
+  const assistantBgColor = useColorModeValue("gray.50", "gray.800");
+  const userBorderColor = useColorModeValue("blue.200", "blue.700");
+  const assistantBorderColor = useColorModeValue("gray.200", "gray.700");
+  const userTextColor = useColorModeValue("gray.700", "white");
+  const assistantTextColor = useColorModeValue("gray.700", "white");
   
   return (
     <MotionBox
       width="full"
-      textAlign="left"
-      pb={showDivider ? "0" : "1"}
-      initial={{ opacity: 0, y: 10 }}
+      display="flex"
+      justifyContent={isUser ? "flex-end" : "flex-start"}
+      mb="2"
+      initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 0 }}
+      transition={{ duration: 0.2 }}
     >
-      <Text
-        fontFamily="sans-serif"
-        fontSize="sm"
-        color={textColor}
-        whiteSpace="pre-wrap"
-        pb="2"
+      <Box
+        maxWidth="75%"
+        bg={isUser ? userBgColor : assistantBgColor}
+        color={isUser ? userTextColor : assistantTextColor}
+        px="4"
+        py="2.5"
+        borderRadius="md"
+        borderWidth="1px"
+        borderColor={isUser ? userBorderColor : assistantBorderColor}
+        boxShadow="xs"
       >
-        <Box as="span" color={prefixColor} fontWeight="bold">
-          {type === "agent" ? "Assistant: " : "You: "}
+        <Box 
+          as="span" 
+          fontWeight="medium" 
+          display="block" 
+          fontSize="xs" 
+          mb="1"
+          color={isUser ? "blue.500" : "gray.500"}
+          letterSpacing="tight"
+        >
+          {isUser ? "You" : "Assistant"}
         </Box>
-        {text}
-      </Text>
-      
-      {showDivider && (
-        <Divider borderColor={dividerColor} borderStyle="solid" opacity={0.7} mb="2" />
-      )}
+        <Text
+          fontSize="sm"
+          whiteSpace="pre-wrap"
+          lineHeight="short"
+        >
+          {text}
+        </Text>
+      </Box>
     </MotionBox>
   );
 };
@@ -157,54 +199,184 @@ function useSafeTrackTranscription() {
 }
 
 // Custom Control Bar with End Call Icon
-const CustomControlBar = () => {
+const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const room = useRoomContext();
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    console.log("Handle disconnect called, showing confirmation dialog");
+    
+    // Show confirmation dialog first
+    const wantToFollowUpEmail = window.confirm("Do you want to catch up with us over email?");
+    
+    // Store response for later processing
+    if (wantToFollowUpEmail) {
+      // You could store this in localStorage or any other state management
+      localStorage.setItem('prepzo_email_followup', 'true');
+      console.log("User wants email follow-up");
+    } else {
+      console.log("User declined email follow-up");
+    }
+    
+    // Log and proceed with disconnection
+    console.log("Now stopping all audio capture");
+    
+    // Immediately stop all live tracks before doing anything else
+    if (room?.localParticipant) {
+      const publications = room.localParticipant.trackPublications;
+      publications.forEach(publication => {
+        try {
+          if (publication.track) {
+            publication.track.stop();
+            console.log("Stopped track:", publication.trackSid);
+          }
+        } catch (e) {
+          console.error("Error stopping publication track:", e);
+        }
+      });
+    }
+    
+    // Function to stop all microphone tracks
+    const stopAllMicrophoneTracks = async () => {
+      // Try to revoke microphone permissions or at least stop all tracks
+      try {
+        // First attempt: Get a list of all media devices to ensure we can stop them
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        console.log(`Found ${devices.length} media devices`);
+        
+        // Second attempt: Create and immediately stop a new stream to force permission reset
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => {
+          track.stop();
+          track.enabled = false;
+          console.log("Explicitly stopped track:", track.id);
+        });
+        
+        // Third attempt: Find any MediaRecorder instances that might be running
+        if (typeof window !== 'undefined') {
+          const globalAny = window as unknown as { 
+            mediaRecorders?: Array<{ 
+              stop: () => void 
+            }> 
+          };
+          if (globalAny.mediaRecorders && Array.isArray(globalAny.mediaRecorders)) {
+            globalAny.mediaRecorders.forEach((recorder) => {
+              try {
+                if (recorder && typeof recorder.stop === 'function') {
+                  recorder.stop();
+                  console.log("Stopped media recorder");
+                }
+              } catch (e) {
+                console.error("Error stopping media recorder:", e);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error stopping media tracks:", err);
+      }
+      
+      // Additionally, try to stop any Audio Context if it exists
+      if (typeof window !== 'undefined') {
+        try {
+          // Fourth attempt: Close any audio contexts
+          const AudioContextClass = window.AudioContext || 
+                                   ((window as unknown as { webkitAudioContext?: AudioContext }).webkitAudioContext);
+          if (AudioContextClass) {
+            const tempContext = new AudioContextClass();
+            await tempContext.close();
+            console.log("Closed temporary audio context");
+          }
+        } catch (e) {
+          console.error("Error handling audio context:", e);
+        }
+      }
+    };
+    
+    // First, disconnect the room before anything else
     if (room) {
-      room.disconnect();
+      try {
+        room.disconnect();
+        console.log("Disconnected from room");
+      } catch (e) {
+        console.error("Error disconnecting room:", e);
+      }
+    }
+    
+    // Then stop all microphone tracks
+    await stopAllMicrophoneTracks();
+    
+    // Force garbage collection of audio elements by nullifying references
+    if (typeof window !== 'undefined') {
+      // Find and remove any audio elements that might have been created
+      const audioElements = document.querySelectorAll('audio');
+      audioElements.forEach(el => {
+        try {
+          // Remove src and srcObject
+          if (el.srcObject) {
+            try {
+              const stream = el.srcObject as MediaStream;
+              if (stream && typeof stream.getTracks === 'function') {
+                stream.getTracks().forEach(track => {
+                  track.stop();
+                  console.log("Stopped track in audio element:", track.id);
+                });
+              }
+              el.srcObject = null;
+            } catch (err) {
+              console.error("Error stopping tracks in srcObject:", err);
+            }
+          }
+          el.removeAttribute('src');
+          el.load(); // Forces cleanup
+          el.remove(); // Remove from DOM
+          console.log("Removed audio element from DOM");
+        } catch (e) {
+          console.error("Error cleaning up audio element:", e);
+        }
+      });
+    }
+    
+    // Call the onEndCall callback if provided
+    if (onEndCall) {
+      // Add a small delay to ensure all cleanup has completed
+      setTimeout(() => {
+        if (onEndCall) onEndCall();
+      }, 100);
     }
   };
   
   return (
     <Flex 
-      justifyContent="center" 
+      justifyContent="space-between" 
       alignItems="center" 
       width="auto"
-      minWidth="200px"
-      maxWidth="300px"
+      minWidth="300px"
+      maxWidth="450px"
       mx="auto"
       bg={bgColor}
-      borderRadius="full"
-      py="3"
+      borderRadius="md"
+      py="2"
       px="6"
       borderWidth="1px"
       borderColor={borderColor}
-      boxShadow="sm"
+      boxShadow="xs"
     >
-      <IconButton
-        icon={<FiPhoneOff />}
-        colorScheme="red"
-        variant="solid"
-        size="md"
-        isRound
-        aria-label="End call"
-        onClick={handleDisconnect}
-        mr={3}
-      />
-      
       {/* Keep the original control bar for device settings but hide the disconnect button */}
-      <Box sx={{
-        "& .lk-disconnect-button": {
-          display: "none",
-        },
-        "& .lk-control-bar": {
-          padding: 0,
-          minWidth: "auto",
-        }
-      }}>
+      <Box 
+        sx={{
+          "& .lk-disconnect-button": {
+            display: "none",
+          },
+          "& .lk-control-bar": {
+            padding: 0,
+            minWidth: "180px",
+            width: "180px",
+          }
+        }}
+        width="180px"
+      >
         <VoiceAssistantControlBar 
           controls={{
             microphone: true,
@@ -212,11 +384,31 @@ const CustomControlBar = () => {
           }} 
         />
       </Box>
+      
+      <Button
+        colorScheme="red"
+        variant="solid"
+        size="md"
+        borderRadius="md"
+        aria-label="End call"
+        onClick={handleDisconnect}
+        ml={3}
+        px={6}
+        py={2}
+        height="auto"
+        fontWeight="normal"
+        color="white"
+        bg="#E53E3E"
+        _hover={{ bg: "#C53030" }}
+        boxShadow="0px 1px 2px rgba(0, 0, 0, 0.2)"
+      >
+        End Call
+      </Button>
     </Flex>
   );
 };
 
-const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChange }) => {
+const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChange, onEndCall }) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const { segments: userTranscriptions } = useSafeTrackTranscription();
 
@@ -225,6 +417,39 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
   const transcriptRef = useRef<HTMLDivElement>(null);
   const lastMessageTypeRef = useRef<"agent" | "user" | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Request fresh microphone permissions on mount
+  useEffect(() => {
+    const refreshMicrophonePermissions = async () => {
+      try {
+        console.log("Requesting fresh microphone permissions...");
+        // Close any existing streams first
+        const existingStreams = await navigator.mediaDevices.getUserMedia({ audio: true });
+        existingStreams.getTracks().forEach(track => track.stop());
+        
+        // Request permissions again
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+        
+        console.log("Microphone permissions granted:", stream.getAudioTracks());
+        
+        // Don't actually use this stream - LiveKit will handle that
+        // Just keeping the reference so it doesn't get garbage collected too soon
+        return () => {
+          stream.getTracks().forEach(track => track.stop());
+        };
+      } catch (error) {
+        console.error("Error requesting microphone permissions:", error);
+      }
+    };
+    
+    refreshMicrophonePermissions();
+  }, []);
 
   // Add logging to debug transcription issues
   useEffect(() => {
@@ -338,6 +563,22 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
     }
   }, [messages, showThinking]);
 
+  useEffect(() => {
+    return () => {
+      // Cleanup function that runs on component unmount
+      console.log("Component unmounting, cleaning up microphone...");
+      // Stop any active microphone tracks
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log("Stopped microphone track on unmount");
+          });
+        })
+        .catch(err => console.error("Error stopping microphone on unmount:", err));
+    };
+  }, []);
+
   return (
     <Flex height="100%" flexDirection="column">
       {/* Transcript Section */}
@@ -353,25 +594,29 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
           maxWidth="2xl" 
           mx="auto" 
           width="full" 
-          spacing="0" 
+          spacing="3" 
           pb="24"
-          align="flex-start"
+          align="stretch"
         >
+          {messages.length === 0 && (
+            <Box 
+              textAlign="center" 
+              py="10" 
+              color="gray.500" 
+              fontSize="sm"
+              fontStyle="italic"
+            >
+              Your conversation will appear here.
+            </Box>
+          )}
           <AnimatePresence mode="popLayout">
-            {messages.map((msg, index) => {
-              // Show a divider when we transition from user to agent or vice versa
-              const showDivider = index < messages.length - 1 && 
-                                 messages[index + 1].type !== msg.type;
-              
-              return (
-                <Message 
-                  key={msg.id || index} 
-                  type={msg.type} 
-                  text={msg.text} 
-                  showDivider={showDivider}
-                />
-              );
-            })}
+            {messages.map((msg, index) => (
+              <Message 
+                key={msg.id || index} 
+                type={msg.type} 
+                text={msg.text} 
+              />
+            ))}
             
             {/* Show thinking indicator when needed */}
             {showThinking && (
@@ -388,7 +633,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
         backdropFilter="blur(4px)"
       >
         <Box mb="4" display="flex" justifyContent="center">
-          <CustomControlBar />
+          <CustomControlBar onEndCall={onEndCall} />
         </Box>
       </Box>
     </Flex>

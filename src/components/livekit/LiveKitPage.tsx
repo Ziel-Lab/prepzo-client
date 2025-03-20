@@ -97,7 +97,18 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         window.location.origin
       );
       console.log("Connection URL:", url.toString());
-      const response = await fetch(url.toString());
+      
+      // Use cache-busting query parameter
+      url.searchParams.append('_', Date.now().toString());
+      
+      const response = await fetch(url.toString(), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       const connectionDetailsData = await response.json();
       console.log("Connection details received:", connectionDetailsData);
       updateConnectionDetails(connectionDetailsData);
@@ -115,8 +126,121 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // Automatically fetch connection details when the component mounts.
   useEffect(() => {
+    // Clear caches when the component mounts
+    if ('caches' in window) {
+      console.log('Clearing caches to ensure fresh connection...');
+      
+      // Clear fetch cache to ensure we get fresh connection details
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          console.log(`Clearing cache: ${cacheName}`);
+          caches.delete(cacheName);
+        });
+      }).catch(err => console.error('Error clearing caches:', err));
+    }
+    
+    // Clear localStorage items related to LiveKit if any
+    try {
+      const liveKitKeys = Object.keys(localStorage).filter(key => 
+        key.includes('livekit') || key.includes('voice') || key.includes('audio')
+      );
+      
+      liveKitKeys.forEach(key => {
+        console.log(`Clearing localStorage key: ${key}`);
+        localStorage.removeItem(key);
+      });
+    } catch (err) {
+      console.error('Error clearing localStorage:', err);
+    }
+    
+    // Get fresh connection details
     onConnectButtonClicked();
   }, [onConnectButtonClicked]);
+
+  // Function to forcefully stop all audio capturing
+  const forceStopAudioCapture = async () => {
+    console.log("Forcefully stopping all audio capture");
+    try {
+      // 1. Stop any active LiveKit tracks
+      if (typeof window !== 'undefined' && (window as unknown as { liveKitRoom?: { disconnect: () => void } }).liveKitRoom) {
+        try {
+          (window as unknown as { liveKitRoom: { disconnect: () => void } }).liveKitRoom.disconnect();
+          console.log("Forcefully disconnected LiveKit room from global reference");
+        } catch (e) {
+          console.error("Error forcefully disconnecting room:", e);
+        }
+      }
+      
+      // 2. Use getUserMedia to get and immediately stop all tracks
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log("Forcefully stopped audio track:", track.id);
+      });
+      
+      // 3. Find and stop all audio elements
+      document.querySelectorAll('audio').forEach(el => {
+        try {
+          if (el.srcObject) {
+            const stream = el.srcObject as MediaStream;
+            if (stream && typeof stream.getTracks === 'function') {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            el.srcObject = null;
+          }
+          el.pause();
+          el.removeAttribute('src');
+          el.load();
+          el.remove();
+        } catch (e) {
+          console.error("Error cleaning up audio element:", e);
+        }
+      });
+      
+      // 4. Check permissions status
+      if ('permissions' in navigator) {
+        try {
+          const status = await (navigator as unknown as { 
+            permissions: { 
+              query: (options: { name: string }) => Promise<{ state: string }> 
+            } 
+          }).permissions.query({ name: 'microphone' });
+          console.log("Microphone permission status after cleanup:", status.state);
+        } catch (e) {
+          console.error("Error checking microphone permission status:", e);
+        }
+      }
+      
+      console.log("Audio capture cleanup completed");
+      return true;
+    } catch (e) {
+      console.error("Error in forceStopAudioCapture:", e);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    // Save the original unload handler if any
+    const originalBeforeUnload = window.onbeforeunload;
+    
+    // Add our cleanup as a beforeunload handler to catch browser closes/refreshes
+    window.onbeforeunload = function(e: BeforeUnloadEvent) {
+      forceStopAudioCapture();
+      // Call the original handler if it existed
+      if (typeof originalBeforeUnload === 'function') {
+        return originalBeforeUnload.call(window, e);
+      }
+      return undefined;
+    };
+    
+    return () => {
+      // Restore the original handler when our component unmounts
+      window.onbeforeunload = originalBeforeUnload;
+      
+      // Run cleanup when component unmounts
+      forceStopAudioCapture();
+    };
+  }, []);
 
   return (
     <Box 
@@ -157,11 +281,13 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   isClosable: true,
                 });
               }}
-              onDisconnected={() => {
+              onDisconnected={async () => {
                 updateConnectionDetails(undefined);
-                if (window.confirm("Do you want to catch up with us over email?")) {
-                  // Optionally add logic for email follow-up here.
-                }
+                
+                // Use our comprehensive cleanup function
+                await forceStopAudioCapture();
+                
+                // Remove the popup dialog since it's now shown when End Call is clicked
                 onClose();
               }}
               style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
@@ -170,6 +296,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 onStateChange={(state) => {
                   console.log("Voice assistant state changed:", state);
                 }} 
+                onEndCall={() => {
+                  console.log("End call button clicked, closing LiveKit page");
+                  updateConnectionDetails(undefined);
+                  onClose();
+                }}
               />
             </LiveKitRoom>
           </LiveKitErrorBoundary>

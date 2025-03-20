@@ -2,7 +2,6 @@ import { defineStyle, defineStyleConfig } from '@chakra-ui/styled-system'
 import { mode, StyleFunctionProps } from '@chakra-ui/theme-tools'
 
 const baseStyle = {
-  borderRadius: 'full',
   fontWeight: 'medium',
   lineHeight: 'inherit',
 }
@@ -11,6 +10,7 @@ const variantPrimary = defineStyle(() => {
   return {
     color: 'white',
     bg: 'primary.500',
+    borderRadius: 'xl',
     _hover: {
       bg: 'primary.600',
     },
@@ -93,22 +93,25 @@ const sizes = {
     fontSize: 'md',
     h: '48px',
     px: '40px',
-    borderRadius: 'full',
+    borderRadius: 'xl',
   },
   md: {
     fontSize: 'sm',
     h: '40px',
     px: '30px',
+    borderRadius: 'xl',
   },
   sm: {
     fontSize: 'xs',
     h: '34px',
     px: '26px',
+    borderRadius: 'xl',
   },
   xs: {
     fontSize: 'xs',
     h: '30px',
     px: '16px',
+    borderRadius: 'xl',
   },
 }
 

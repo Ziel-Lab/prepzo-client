@@ -64,8 +64,70 @@ export default function HomePage() {
     };
   }, [isLiveKitActive]);
   
-  const handleCloseLiveKit = () => {
-    setIsLiveKitActive(false);
+  const handleCloseLiveKit = async () => {
+    console.log("Closing LiveKit and stopping all audio capture");
+    
+    // Check if user requested email follow-up
+    const wantsEmailFollowUp = localStorage.getItem('prepzo_email_followup') === 'true';
+    if (wantsEmailFollowUp) {
+      console.log("User requested email follow-up - could trigger email capture flow here");
+      // Here you would add code to handle the email follow-up request
+      // For example, show a form to capture email, or redirect to a contact page
+      
+      // Clear the flag after processing
+      localStorage.removeItem('prepzo_email_followup');
+    }
+    
+    // Force release of any microphone permissions
+    try {
+      // First: Set state to inactive immediately
+      setIsLiveKitActive(false);
+      
+      // Second: Add a forced cleanup of browser permissions
+      if ('permissions' in navigator) {
+        try {
+          const permissionStatus = await (navigator as unknown as { 
+            permissions: { 
+              query: (options: { name: string }) => Promise<{ state: string }> 
+            } 
+          }).permissions.query({ name: 'microphone' });
+          console.log("Microphone permission status:", permissionStatus.state);
+        } catch (err) {
+          console.error("Error querying permissions:", err);
+        }
+      }
+      
+      // Third: Create a dummy stream and stop all tracks
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => {
+        track.stop();
+        track.enabled = false;
+        console.log("Stopped audio track after LiveKit closed:", track.id);
+      });
+      
+      // Fourth: Remove any hidden audio elements that might still be capturing
+      document.querySelectorAll('audio').forEach(el => {
+        if (el.srcObject) {
+          try {
+            const stream = el.srcObject as MediaStream;
+            if (stream && typeof stream.getTracks === 'function') {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            el.srcObject = null;
+          } catch (e) {
+            console.error("Error cleaning audio element:", e);
+          }
+        }
+        // Force element cleanup
+        el.removeAttribute('src');
+        el.load();
+        el.remove();
+      });
+      
+      console.log("Successfully released all microphone permissions");
+    } catch (err) {
+      console.error("Error releasing microphone access:", err);
+    }
   };
 
   return (
@@ -178,6 +240,14 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                   <>
                     <RippleButton
                       onClick={handleOpenLiveKit}
+                      borderRadius="xl"
+                      px={8}
+                      py={4}
+                      width="auto"
+                      height="auto"
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
                     >
                       ✨ Start Talking to Your AI Coach ✨
                     </RippleButton>
