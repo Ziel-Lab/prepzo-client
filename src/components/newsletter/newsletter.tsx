@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Container,
-  Flex,
   Heading,
   Input,
   Stack,
@@ -24,11 +23,17 @@ export interface CustomSectionProps extends Omit<SectionProps, 'title' | 'childr
   children?: React.ReactNode
 }
 
-export interface NewsletterProps extends CustomSectionProps {}
+export interface NewsletterProps extends CustomSectionProps {
+  /* Newsletter specific properties */
+  id?: string;
+  onSubscribe?: (email: string) => Promise<void>;
+}
 
 export const Newsletter: React.FC<NewsletterProps> = (props) => {
   const { title, description, ...rest } = props
   const [email, setEmail] = useState('')
+  // Commented out unused variable
+  // const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const toast = useToast()
   
@@ -67,7 +72,10 @@ export const Newsletter: React.FC<NewsletterProps> = (props) => {
       })
       
       setEmail('')
-    } catch (error) {
+    } catch (
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _error
+    ) {
       toast({
         title: 'Error subscribing',
         description: 'Please try again later.',

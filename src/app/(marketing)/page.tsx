@@ -4,28 +4,19 @@ import {
   Box,
   ButtonGroup,
   Container,
-  Flex,
   HStack,
-  IconButton,
   Stack,
   Text,
   VStack,
-  useClipboard,
   useColorModeValue,
-  Wrap,
   UnorderedList,
   ListItem,
 } from '@chakra-ui/react'
-import { Br } from '@saas-ui/react'
+
 import {
-  FiCheck,
-  FiCopy,
-  FiGrid,
-  FiLock,
   FiSliders,
   FiSmile,
   FiThumbsUp,
-  FiUserPlus,
   FiBox,
   FiPackage,
   FiSearch,
@@ -50,8 +41,6 @@ import {
   HighlightsItem,
   HighlightsTestimonialItem,
 } from '@/components/highlights'
-import { ChakraLogo, NextjsLogo } from '@/components/logos'
-import { FallInPlace } from '@/components/motion/fall-in-place'
 import { Pricing } from '@/components/pricing/pricing'
 import { Testimonial, Testimonials } from '@/components/testimonials'
 import { Em } from '@/components/typography'
@@ -59,7 +48,6 @@ import faq from '@/data/faq'
 import pricing from '@/data/pricing'
 import testimonials from '@/data/testimonials'
 import { RippleButton } from '@/components/ripple-button'
-import { FeatureTag } from '@/components/feature-tag'
 import { Newsletter } from '@/components/newsletter'
 
 export default function HomePage() {
@@ -297,8 +285,6 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
 }
 
 const HighlightsSection = () => {
-  const { onCopy, hasCopied } = useClipboard('yarn add @saas-ui/react')
-
   return (
     <Highlights>
       <HighlightsItem colSpan={[12, null, 6]} title="Evolving with Your Journey">
@@ -334,7 +320,7 @@ const HighlightsSection = () => {
         gradient={['purple.500', 'purple.300']}
         description="Founder"
       >
-        "At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively."
+        &ldquo;At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively.&rdquo;
       </HighlightsTestimonialItem>
 
       <HighlightsItem colSpan={[12, null, 7]} title="Engaging Conversations">

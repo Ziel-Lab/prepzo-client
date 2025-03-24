@@ -1,4 +1,4 @@
-import { chakra, HTMLChakraProps, useColorModeValue, Image } from '@chakra-ui/react'
+import { HTMLChakraProps, useColorModeValue, Image } from '@chakra-ui/react'
 
 export const Logo: React.FC<HTMLChakraProps<'img'>> = (props) => {
   const logoSrc = useColorModeValue('/static/images/prepzo-dark.svg', '/static/images/prepzo-light.svg')

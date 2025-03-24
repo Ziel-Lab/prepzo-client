@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, useTheme, useColorModeValue, BoxProps } from '@chakra-ui/react'
+import { Box, useColorModeValue, BoxProps } from '@chakra-ui/react'
 import { useEffect, useState, useRef } from 'react'
 
 interface ParticleBackgroundProps extends BoxProps {

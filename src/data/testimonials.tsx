@@ -17,7 +17,7 @@ const testimonials = {
       avatar: '/static/images/avatar2.jpg',
       children: (
         <>
-          &ldquo;It's like having a personal career mentor available 24/7. Highly recommend!&rdquo;
+          &ldquo;It&apos;s like having a personal career mentor available 24/7. Highly recommend!&rdquo;
         </>
       ),
     },

@@ -54,13 +54,16 @@ export interface FeatureProps {
   iconColor?: string
 }
 
-export const Feature: React.FC<FeatureProps> = (props) => {
+export function Feature(props: FeatureProps) {
   const {
     title,
     description,
     icon,
+    // Unused variables with underscore prefix
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     iconPosition,
     iconSize = 4,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ip,
     variant,
     titleColor = "gray.900",
@@ -69,7 +72,6 @@ export const Feature: React.FC<FeatureProps> = (props) => {
   } = props
   const styles = useMultiStyleConfig('Feature', { variant })
 
-  const pos = iconPosition || ip
   const direction = 'column'
 
   return (
@@ -118,21 +120,19 @@ export const Feature: React.FC<FeatureProps> = (props) => {
   )
 }
 
-export const UseCaseGallery: React.FC<UseCaseGalleryProps> = (props) => {
+export function UseCaseGallery(props: UseCaseGalleryProps) {
   const {
     title,
     description,
     features,
     columns = [1, 2, 3],
-    spacing = 8,
     align: alignProp = 'center',
     iconSize = 4,
     aside,
     reveal: Wrap = Revealer,
-    innerWidth = "container.xl",
     maxFeatures,
     ...rest
-  } = props
+  } = props;
 
   const align = !!aside ? 'left' : alignProp
   const ip = align === 'left' ? 'left' : 'top'
