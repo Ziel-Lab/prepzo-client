@@ -1,40 +1,33 @@
 const testimonials = {
-  title: 'Loved by tech people',
+  title: 'What Our Users Say',
   items: [
     {
-      name: 'Eelco Wiersma',
-      description: 'Founder Saas UI',
-      avatar:
-        'https://pbs.twimg.com/profile_images/1470742164024008706/k-eXHtu0_normal.jpg',
+      name: 'Sarah J.',
+      description: 'Product Manager',
+      avatar: '/static/images/avatar1.jpg',
       children: (
         <>
-          &ldquo;With SaaS UI I am able to produce high quality dashboard apps and
-          internal tools without a lot of design skills. The ROI really is
-          amazing.&rdquo;
+          &ldquo;This AI coaching platform has transformed my approach to career advancement. The personalized advice is invaluable.&rdquo;
         </>
       ),
     },
     {
-      name: 'Caroline Yahaya',
-      description: 'Fullstack Developer',
+      name: 'Mark R.',
+      description: 'Sales Lead',
       avatar: '/static/images/avatar2.jpg',
       children: (
         <>
-          &ldquo;Saas UI allows me to build beautiful and functional UI super fast.
-          The components are very well thought out and the Next.js starter kit
-          saved me at least 100 hours of work.&rdquo;
+          &ldquo;It's like having a personal career mentor available 24/7. Highly recommend!&rdquo;
         </>
       ),
     },
     {
-      name: 'Alberto Vazquez',
-      description: 'Frontend Engineer',
+      name: 'Priya S.',
+      description: 'UX Designer',
       avatar: '/static/images/avatar3.jpg',
       children: (
         <>
-          &ldquo;Saas UI gave us a perfect starting point for our project, having the
-          storybooks already set up with beautifully crafted components and
-          fully mocked pages was a treat.&rdquo;
+          &ldquo;Empathetic, intelligent, and tailored exactly to my professional needs.&rdquo;
         </>
       ),
     },

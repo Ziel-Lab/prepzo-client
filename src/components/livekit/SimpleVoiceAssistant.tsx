@@ -467,12 +467,12 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
     let attachedAudio: HTMLAudioElement | undefined;
     if (audioTrack?.publication?.track) {
       try {
-        attachedAudio = new Audio();
-        attachedAudio.style.display = "none";
+      attachedAudio = new Audio();
+      attachedAudio.style.display = "none";
         // Check if the track has an attach method before calling it
         if (typeof audioTrack.publication.track.attach === 'function') {
-          audioTrack.publication.track.attach(attachedAudio);
-          document.body.appendChild(attachedAudio);
+      audioTrack.publication.track.attach(attachedAudio);
+      document.body.appendChild(attachedAudio);
           console.log("Audio track attached successfully");
         }
       } catch (error) {
@@ -484,9 +484,9 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
         try {
           // Check if the track and detach method exist before calling it
           if (audioTrack?.publication?.track && typeof audioTrack.publication.track.detach === 'function') {
-            audioTrack.publication.track.detach(attachedAudio);
+        audioTrack.publication.track.detach(attachedAudio);
           }
-          attachedAudio.remove();
+        attachedAudio.remove();
         } catch (error) {
           console.error("Error detaching audio track:", error);
         }

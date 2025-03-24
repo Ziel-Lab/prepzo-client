@@ -25,7 +25,7 @@ const Revealer = ({ children }: RevealerProps) => {
   return children
 }
 
-export interface FeaturesProps
+export interface UseCaseGalleryProps
   extends Omit<SectionTitleProps, 'title' | 'variant'>,
     ThemingProps<'Features'> {
   title?: React.ReactNode
@@ -37,6 +37,7 @@ export interface FeaturesProps
   reveal?: React.FC<RevealerProps>
   iconSize?: SystemProps['boxSize']
   innerWidth?: SystemProps['maxW']
+  maxFeatures?: number
 }
 
 export interface FeatureProps {
@@ -48,6 +49,9 @@ export interface FeatureProps {
   ip?: 'left' | 'top'
   variant?: string
   delay?: number
+  titleColor?: string
+  iconBgColor?: string
+  iconColor?: string
 }
 
 export const Feature: React.FC<FeatureProps> = (props) => {
@@ -56,31 +60,65 @@ export const Feature: React.FC<FeatureProps> = (props) => {
     description,
     icon,
     iconPosition,
-    iconSize = 8,
+    iconSize = 4,
     ip,
     variant,
+    titleColor = "gray.900",
+    iconBgColor = "purple.50",
+    iconColor = "purple.500"
   } = props
   const styles = useMultiStyleConfig('Feature', { variant })
 
   const pos = iconPosition || ip
-  const direction = pos === 'left' ? 'row' : 'column'
+  const direction = 'column'
 
   return (
-    <Stack sx={styles.container} direction={direction}>
+    <Stack 
+      sx={styles.container} 
+      direction={direction} 
+      spacing={1} 
+      py={1}
+      width="100%"
+      maxW="280px"
+      height="140px"
+      align="center"
+    >
       {icon && (
-        <Circle sx={styles.icon}>
-          <Icon as={icon} boxSize={iconSize} />
+        <Circle sx={styles.icon} bg={iconBgColor} size="24px" flexShrink={0}>
+          <Icon as={icon} boxSize={iconSize} color={iconColor} />
         </Circle>
       )}
-      <Box>
-        <Heading sx={styles.title}>{title}</Heading>
-        <Text sx={styles.description}>{description}</Text>
+      <Box width="100%" textAlign="center">
+        <Heading 
+          sx={styles.title} 
+          color={titleColor} 
+          fontSize="sm" 
+          fontWeight="semibold" 
+          mb={0.5}
+          as="span"
+          display="inline"
+        >
+          {title}
+        </Heading>
+        {description && (
+          <Text 
+            sx={styles.description} 
+            color="gray.500" 
+            fontSize="xs"
+            lineHeight="shorter"
+            ml={1}
+            as="span"
+            display="inline"
+          >
+            - {description}
+          </Text>
+        )}
       </Box>
     </Stack>
   )
 }
 
-export const Features: React.FC<FeaturesProps> = (props) => {
+export const UseCaseGallery: React.FC<UseCaseGalleryProps> = (props) => {
   const {
     title,
     description,
@@ -88,41 +126,53 @@ export const Features: React.FC<FeaturesProps> = (props) => {
     columns = [1, 2, 3],
     spacing = 8,
     align: alignProp = 'center',
-    iconSize = 8,
+    iconSize = 4,
     aside,
     reveal: Wrap = Revealer,
+    innerWidth = "container.xl",
+    maxFeatures,
     ...rest
   } = props
 
   const align = !!aside ? 'left' : alignProp
-
   const ip = align === 'left' ? 'left' : 'top'
+  
+  // If maxFeatures is set, only show that many features
+  const displayFeatures = maxFeatures ? features.slice(0, maxFeatures) : features
 
   return (
-    <Section {...rest}>
-      <Stack direction="row" height="full" align="flex-start">
-        <VStack flex="1" spacing={[4, null, 8]} alignItems="stretch">
+    <Section maxW="1400px" py={8} display="flex" justifyContent="center" {...rest}>
+      <Stack direction="row" height="full" align="center" width="100%" justifyContent="center" mx="auto">
+        <VStack flex="1" spacing={4} alignItems="center" width="100%">
           {(title || description) && (
             <Wrap>
               <SectionTitle
                 title={title}
                 description={description}
-                align={align}
+                align="center"
               />
             </Wrap>
           )}
-          <SimpleGrid columns={columns} spacing={spacing}>
-            {features.map((feature, i) => {
+          <SimpleGrid 
+            columns={columns} 
+            spacing={[2, 3, 4]} 
+            px={[0, 1]}
+            width="100%"
+            justifyItems="center"
+          >
+            {displayFeatures.map((feature, i) => {
               return (
                 <Wrap key={i} delay={feature.delay}>
-                  <Feature iconSize={iconSize} {...feature} ip={ip} />
+                  <Box px={1} py={1} width="100%" textAlign="center">
+                    <Feature iconSize={iconSize} {...feature} ip={ip} />
+                  </Box>
                 </Wrap>
               )
             })}
           </SimpleGrid>
         </VStack>
         {aside && (
-          <Box flex="1" p="8">
+          <Box flex="1" p="4">
             {aside}
           </Box>
         )}
@@ -130,3 +180,6 @@ export const Features: React.FC<FeaturesProps> = (props) => {
     </Section>
   )
 }
+
+// For backwards compatibility
+export const Features = UseCaseGallery;

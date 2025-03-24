@@ -12,6 +12,9 @@ import {
   VStack,
   useClipboard,
   useColorModeValue,
+  Wrap,
+  UnorderedList,
+  ListItem,
 } from '@chakra-ui/react'
 import { Br } from '@saas-ui/react'
 import {
@@ -23,6 +26,15 @@ import {
   FiSmile,
   FiThumbsUp,
   FiUserPlus,
+  FiBox,
+  FiPackage,
+  FiSearch,
+  FiUsers,
+  FiFlag,
+  FiTrendingUp,
+  FiLayout,
+  FiCode,
+  FiArchive,
 } from 'react-icons/fi'
 import LiveKitPage from '@/components/livekit/LiveKitPage'
 
@@ -36,6 +48,7 @@ import { Hero } from '@/components/hero'
 import {
   Highlights,
   HighlightsItem,
+  HighlightsTestimonialItem,
 } from '@/components/highlights'
 import { ChakraLogo, NextjsLogo } from '@/components/logos'
 import { FallInPlace } from '@/components/motion/fall-in-place'
@@ -46,6 +59,8 @@ import faq from '@/data/faq'
 import pricing from '@/data/pricing'
 import testimonials from '@/data/testimonials'
 import { RippleButton } from '@/components/ripple-button'
+import { FeatureTag } from '@/components/feature-tag'
+import { Newsletter } from '@/components/newsletter'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
@@ -155,11 +170,12 @@ export default function HomePage() {
         </Box>
       ) : (
         <>
-          <HighlightsSection />
-          <FeaturesSection />
-          <TestimonialsSection />
-          <PricingSection />
-          <FaqSection />
+      <UseCaseGallerySection />
+      <HighlightsSection />
+      <TestimonialsSection />
+      <PricingSection />
+      <FaqSection />
+      <NewsletterSection />
         </>
       )}
     </Box>
@@ -207,35 +223,34 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
       transition="all 0.3s ease"
     >
       <BackgroundGradient height="100%" zIndex="-1" opacity={isBackgroundChanged ? 0 : 1} transition="opacity 0.3s ease" />
-      <Container maxW="container.xl" pt={{ base: 20, lg: 40 }} pb="40">
-        <Stack direction={{ base: 'column', lg: 'row' }} alignItems="center" justifyContent="center">
+      <Container maxW="container.2xl" pt={{ base: 20, lg: 40 }} pb="40" textAlign="center">
+        <Stack direction={{ base: 'column', lg: 'row' }} alignItems="center" justifyContent="center" width="100%">
           <Hero
             id="home"
             justifyContent="center"
             px="0"
             textAlign="center"
+            width="100%"
             title={!isBackgroundChanged && (
-              <>
-                Build beautiful
-                <Br /> software faster
-              </>
+              <Box textAlign="center" width="100%" mx="auto" maxW="container.lg">
+                Discover Your AI-Powered Career Coach
+              </Box>
             )}
             description={!isBackgroundChanged && (
-              <Box fontWeight="medium" fontFamily="ui-serif, LibreBaskerville, Georgia, serif">
-                Saas UI is a <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">React component library</Em>
-                <Br /> that doesn&apos;t get in your way and helps you <Br />{' '}
-                build intuitive SaaS products with speed.
+              <Box fontWeight="medium" fontFamily="ui-serif, LibreBaskerville, Georgia, serif" textAlign="center" width="100%" mx="auto" maxW="container.lg">
+                Embark on a journey of <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">professional growth</Em>
+                <br />with an AI coach that understands,{' '}
+                remembers, and evolves with YOU.
               </Box>
             )}
           >
-            <Box>
+            <Box width="100%" textAlign="center" mx="auto">
               {!isBackgroundChanged && (
                 <HStack pt="4" pb="12" spacing="8" justifyContent="center">
-                  <NextjsLogo height="28px" /> <ChakraLogo height="20px" />
                 </HStack>
               )}
 
-              <ButtonGroup spacing={4} alignItems="center" justifyContent="center">
+              <ButtonGroup spacing={4} alignItems="center" justifyContent="center" mb={10}>
                 {!isBackgroundChanged && (
                   <>
                     <RippleButton
@@ -254,65 +269,29 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                   </>
                 )}
               </ButtonGroup>
+              
+              {!isBackgroundChanged && (
+                <div className="panel max-w-1200px mx-auto mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden">
+                  <video
+                    width="100%" 
+                    height="auto"
+                    preload="auto"
+                    playsInline
+                    muted
+                    loop
+                    autoPlay
+                    poster="/media/lexend-home-7.png"
+                    style={{ borderRadius: '12px' }}
+                  >
+                    <source src="/media/home.webm" type="video/webm" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
             </Box>
           </Hero>
-          <Box
-            height="600px"
-            position="absolute"
-            display={{ base: 'none', lg: 'block' }}
-            left={{ lg: '60%', xl: '55%' }}
-            width="80vw"
-            maxW="1100px"
-            margin="0 auto"
-          >
-            
-          </Box>
         </Stack>
       </Container>
-
-      {!isBackgroundChanged && (
-        <Features
-          id="benefits"
-          columns={[1, 2, 4]}
-          iconSize={4}
-          innerWidth="container.xl"
-          pt="20"
-          features={[
-            {
-              title: 'Accessible',
-              icon: FiSmile,
-              description: 'All components strictly follow WAI-ARIA standards.',
-              iconPosition: 'left',
-              delay: 0.6,
-            },
-            {
-              title: 'Themable',
-              icon: FiSliders,
-              description:
-                'Fully customize all components to your brand with theme support and style props.',
-              iconPosition: 'left',
-              delay: 0.8,
-            },
-            {
-              title: 'Composable',
-              icon: FiGrid,
-              description:
-                'Compose components to fit your needs and mix them together to create new ones.',
-              iconPosition: 'left',
-              delay: 1,
-            },
-            {
-              title: 'Productive',
-              icon: FiThumbsUp,
-              description:
-                'Designed to reduce boilerplate and fully typed, build your product at speed.',
-              iconPosition: 'left',
-              delay: 1.1,
-            },
-          ]}
-          reveal={FallInPlace}
-        />
-      )}
     </Box>
   )
 }
@@ -322,82 +301,182 @@ const HighlightsSection = () => {
 
   return (
     <Highlights>
-      <HighlightsItem colSpan={[1, null, 2]} title="Core components">
+      <HighlightsItem colSpan={[12, null, 6]} title="Evolving with Your Journey">
         <VStack alignItems="flex-start" spacing="8">
-          <Text color="muted" fontSize="xl">
-            Get started for free with <Em>30+ open source components</Em>.
-            Including authentication screens with Clerk, Supabase and Magic.
-            Fully functional forms with React Hook Form. Data tables with React
-            Table.
+          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+          Each session builds upon the last, ensuring your coaching experience grows with your career progression.
           </Text>
-
-          <Flex
-            rounded="full"
-            borderWidth="1px"
-            flexDirection="row"
-            alignItems="center"
-            py="1"
-            ps="8"
-            pe="2"
-            bg="primary.900"
-            _dark={{ bg: 'gray.900' }}
-          >
-            <Box>
-              <Text color="yellow.400" display="inline">
-                yarn add
-              </Text>{' '}
-              <Text color="cyan.300" display="inline">
-                @saas-ui/react
-              </Text>
-            </Box>
-            <IconButton
-              icon={hasCopied ? <FiCheck /> : <FiCopy />}
-              aria-label="Copy install command"
-              onClick={onCopy}
-              variant="ghost"
-              ms="4"
-              isRound
-              color="white"
-            />
-          </Flex>
+          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+            <ListItem>Reflect on past discussions to inform future decisions</ListItem>
+            <ListItem>Develop a coherent and personalized career plan</ListItem>
+          </UnorderedList>
         </VStack>
       </HighlightsItem>
 
-      {/* Rest of the components (FeaturesSection, TestimonialsSection, PricingSection, FaqSection) */}
-      {/* should be implemented here following the original code */}
+      <HighlightsItem colSpan={[12, null, 6]} title="Curated Resources Just for You">
+        <VStack alignItems="flex-start" spacing="8">
+          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+            Receive up-to-date resources specifically selected to match your evolving professional needs.
+          </Text>
+          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+            <ListItem>Explore job opportunities aligned with your goals</ListItem>
+            <ListItem>Engage with tailored skills training materials</ListItem>
+            <ListItem>Gain insights to foster professional growth</ListItem>
+          </UnorderedList>
+        </VStack>
+      </HighlightsItem>
+
+      <HighlightsTestimonialItem
+        colSpan={[12, null, 5]}
+        name="Abhishek Singla"
+        customTitle="Founder"
+        avatar="/testimonial-avatar.jpg"
+        gradient={['purple.500', 'purple.300']}
+        description="Founder"
+      >
+        "At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively."
+      </HighlightsTestimonialItem>
+
+      <HighlightsItem colSpan={[12, null, 7]} title="Engaging Conversations">
+        <VStack alignItems="flex-start" spacing="8">
+          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+            Interact in real-time with an AI that offers empathetic support, helping you navigate professional challenges and seize opportunities.
+          </Text>
+
+          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+            <ListItem>Immediate, relevant advice</ListItem>
+            <ListItem>Continuous learning to better understand your needs</ListItem>
+            <ListItem>Access to professional insights instantly</ListItem>
+          </UnorderedList>
+        </VStack>
+      </HighlightsItem>
     </Highlights>
   )
 }
 
-const FeaturesSection = () => {
+const UseCaseGallerySection = () => {
   return (
     <Features
       id="features"
-      title={
-        <>
-          Not your standard dashboard template
-        </>
-      }
-      description="Saas UI Pro includes everything you need to build modern SaaS products."
-      align="left"
-      columns={[1, 2, 3]}
-      iconSize={4}
+      title="Use Case Gallery"
+      columns={[2, 3, 4, 4]}
+      spacing={4}
+      py={6}
+      align="center"
+      maxW="1800px"
+      mx="auto"
+      px={0}
+      iconSize={3}
+      maxFeatures={12}
       features={[
         {
-          title: 'Authentication',
-          icon: FiLock,
-          description:
-            'Complete authentication flows including signup, login and reset password. Supports social authentication and OAuth.',
-          variant: 'inline',
+          title: "Resume Preparation",
+          description: "Create compelling resumes with AI-driven personalization to showcase your skills effectively.",
+          icon: FiBox,
+          iconBgColor: "purple.50",
+          iconColor: "purple.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
         },
         {
-          title: 'User Management',
-          icon: FiUserPlus,
-          description:
-            'Manage your team and user roles. Invite new team members and manage their permissions.',
-          variant: 'inline',
+          title: "Interview Preparation",
+          description: "Prepare for job interviews with mock interviews, practice questions, and personalized feedback.",
+          icon: FiPackage,
+          iconBgColor: "blue.50",
+          iconColor: "blue.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
         },
-        // Add more features as in the original code
+        {
+          title: "Skill Development",
+          description: "Identify skill gaps and access targeted learning resources to stay competitive in your field.",
+          icon: FiSearch,
+          iconBgColor: "pink.50",
+          iconColor: "pink.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Cover Letters",
+          description: "Craft personalized cover letters that align with job descriptions and highlight your strengths.",
+          icon: FiUsers,
+          iconBgColor: "purple.50",
+          iconColor: "purple.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Career Planning",
+          description: "Plan your career path with personalized guidance and strategic growth opportunities.",
+          icon: FiFlag,
+          iconBgColor: "blue.50",
+          iconColor: "blue.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Career Path Navigation",
+          description: "Discover potential career paths aligned with your skills, interests, and long-term goals.",
+          icon: FiTrendingUp,
+          iconBgColor: "pink.50",
+          iconColor: "pink.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Office Politics",
+          description: "Navigate complex workplace dynamics and build strong professional relationships.",
+          icon: FiLayout,
+          iconBgColor: "purple.50",
+          iconColor: "purple.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Salary Negotiation",
+          description: "Negotiate salary and benefits effectively to secure the compensation you deserve.",
+          icon: FiCode,
+          iconBgColor: "blue.50",
+          iconColor: "blue.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Professional Traits",
+          description: "Understand your strengths and leverage your unique capabilities for career success.",
+          icon: FiArchive,
+          iconBgColor: "pink.50",
+          iconColor: "pink.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Upskilling",
+          description: "Identify opportunities for skill development to remain relevant in your industry.",
+          icon: FiSliders,
+          iconBgColor: "purple.50",
+          iconColor: "purple.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Stress Management",
+          description: "Learn strategies to manage workplace stress and maintain a healthy work-life balance.",
+          icon: FiSmile,
+          iconBgColor: "blue.50",
+          iconColor: "blue.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
+        {
+          title: "Growth Framework",
+          description: "Build a personal growth framework to achieve your long-term career goals.",
+          icon: FiThumbsUp,
+          iconBgColor: "pink.50",
+          iconColor: "pink.500",
+          titleColor: "gray.900",
+          variant: 'left-icon',
+        },
       ]}
     />
   )
@@ -406,8 +485,8 @@ const FeaturesSection = () => {
 const TestimonialsSection = () => {
   return (
     <Testimonials
-      title="Testimonials"
-      description="People love our components, you will too."
+      title={testimonials.title}
+      description="Hear from professionals who have accelerated their careers with our AI coach."
       columns={[1, 2, 3]}
       innerWidth="container.xl"
     >
@@ -432,5 +511,15 @@ const PricingSection = () => {
 const FaqSection = () => {
   return (
     <Faq {...faq} />
+  )
+}
+
+const NewsletterSection = () => {
+  return (
+    <Newsletter
+      id="newsletter"
+      title="Stay updated with our newsletter"
+      description="Get the latest news, features and updates delivered to your inbox."
+    />
   )
 } 
