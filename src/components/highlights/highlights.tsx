@@ -131,6 +131,7 @@ export const HighlightsTestimonialItem: React.FC<
         pointerEvents="none"
         zIndex="0"
         borderRadius="md"
+        
       />
       <Testimonial
         name={name}

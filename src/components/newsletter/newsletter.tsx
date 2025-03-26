@@ -11,11 +11,12 @@ import {
   useColorModeValue,
   useToast,
   FormControl,
-  HStack,
+  
 } from '@chakra-ui/react'
 import { FiSend } from 'react-icons/fi'
 import { Section, SectionProps } from '@/components/section'
 import { Em } from '@/components/typography'
+import Link from 'next/link'
 
 export interface CustomSectionProps extends Omit<SectionProps, 'title' | 'children'> {
   title?: React.ReactNode
@@ -142,15 +143,15 @@ export const Newsletter: React.FC<NewsletterProps> = (props) => {
                 _hover={{ bg: buttonHoverBg }}
                 isLoading={isSubmitting}
                 type="submit"
-                leftIcon={<FiSend />}
+                rightIcon={<FiSend />}
                 borderRadius="md"
               >
-                Subscribe
+                Submit
               </Button>
             </Stack>
           </Box>
           
-          <HStack spacing={4} pt={4} justify="center" wrap="wrap">
+          {/* <HStack spacing={4} pt={4} justify="center" wrap="wrap">
             <Box px={3} py={1} bg="purple.50" color="purple.600" borderRadius="full" fontSize="sm" fontWeight="medium" _dark={{ bg: 'purple.900', color: 'purple.200' }}>
               Accessible
             </Box>
@@ -163,10 +164,23 @@ export const Newsletter: React.FC<NewsletterProps> = (props) => {
             <Box px={3} py={1} bg="green.50" color="green.600" borderRadius="full" fontSize="sm" fontWeight="medium" _dark={{ bg: 'green.900', color: 'green.200' }}>
               Productive
             </Box>
-          </HStack>
+          </HStack> */}
           
           <Text fontSize="sm" color="gray.500" pt={2}>
-            By subscribing, you agree to our <Em>Privacy Policy</Em> and <Em>Terms of Service</Em>.
+            By subscribing, you agree to our
+            <Link 
+              href="/privacy-policy" 
+              target="_blank"
+            >
+              {" "}<Em> Privacy Policy</Em>
+            </Link> 
+            {" "}and{" "} 
+            <Link 
+              href="/terms-of-service" 
+              target="_blank"
+            >
+              <Em>Terms of Service</Em>
+            </Link>.
           </Text>
         </VStack>
       </Container>

@@ -5,26 +5,28 @@ const faq = {
   // description: '',
   items: [
     {
-      q: 'How many products can I use Saas UI Pro for?',
+      q: 'Who can benefit from your AI career coaching?',
       a: (
         <>
-          The single license can be used for one commercial application or SaaS
-          product and unlimited internal tools. You can buy as many licenses as
-          you need. <br /> The unlimited license does not have any restrictions.
+          Any professional seeking to advance their career, explore new opportunities, or overcome workplace challenges can benefit.
         </>
       ),
     },
     {
-      q: 'Can I use Saas UI Pro for client work?',
-      a: "Yes, that's totally up to you, as long as it fits the license you purchase.",
+      q: 'Is my data secure and private?',
+      a: "Yes, we implement industry-leading security measures to protect your information.",
     },
     {
-      q: 'Can I use Saas UI Pro for Open Source projects?',
-      a: 'No currently not. A large part of Saas UI is already released under MIT license. We try to give back to the community as much as possible.',
+      q: 'Can your coaching adapt to my specific professional challenges?',
+      a: 'Absolutely. Our AI tailors its guidance based on your unique needs and goals.',
     },
     {
-      q: 'Does Saas UI include Figma, Sketch or other design files?',
-      a: 'No, Saas UI does not include any design assets. Maintaining design resources costs a lot of extra effort. We believe small teams can move much faster by designing directly in code, with help of Storybooks.',
+      q: 'Do I receive ongoing support if needed?',
+      a: 'Yes, our team is available to ensure you have a seamless coaching experience.',
+    },
+    {
+      q: 'How can I start using the AI coach?',
+      a: 'Sign up for a demo or choose a subscription to begin your personalized coaching journey.',
     },
   ],
 }

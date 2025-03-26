@@ -41,11 +41,11 @@ import {
   HighlightsItem,
   HighlightsTestimonialItem,
 } from '@/components/highlights'
-import { Pricing } from '@/components/pricing/pricing'
+// import { Pricing } from '@/components/pricing/pricing'
 import { Testimonial, Testimonials } from '@/components/testimonials'
 import { Em } from '@/components/typography'
 import faq from '@/data/faq'
-import pricing from '@/data/pricing'
+// import pricing from '@/data/pricing'
 import testimonials from '@/data/testimonials'
 import { RippleButton } from '@/components/ripple-button'
 import { Newsletter } from '@/components/newsletter'
@@ -161,7 +161,7 @@ export default function HomePage() {
       <UseCaseGallerySection />
       <HighlightsSection />
       <TestimonialsSection />
-      <PricingSection />
+      {/* <PricingSection /> */}
       <FaqSection />
       <NewsletterSection />
         </>
@@ -289,10 +289,10 @@ const HighlightsSection = () => {
     <Highlights>
       <HighlightsItem colSpan={[12, null, 6]} title="Evolving with Your Journey">
         <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+          <Text color="gray.500" fontSize="lg" lineHeight="tall">
           Each session builds upon the last, ensuring your coaching experience grows with your career progression.
           </Text>
-          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
             <ListItem>Reflect on past discussions to inform future decisions</ListItem>
             <ListItem>Develop a coherent and personalized career plan</ListItem>
           </UnorderedList>
@@ -301,10 +301,10 @@ const HighlightsSection = () => {
 
       <HighlightsItem colSpan={[12, null, 6]} title="Curated Resources Just for You">
         <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+          <Text color="gray.500" fontSize="lg" lineHeight="tall">
             Receive up-to-date resources specifically selected to match your evolving professional needs.
           </Text>
-          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
             <ListItem>Explore job opportunities aligned with your goals</ListItem>
             <ListItem>Engage with tailored skills training materials</ListItem>
             <ListItem>Gain insights to foster professional growth</ListItem>
@@ -325,11 +325,11 @@ const HighlightsSection = () => {
 
       <HighlightsItem colSpan={[12, null, 7]} title="Engaging Conversations">
         <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.600" fontSize="lg" lineHeight="tall">
+          <Text color="gray.500" fontSize="lg" lineHeight="tall">
             Interact in real-time with an AI that offers empathetic support, helping you navigate professional challenges and seize opportunities.
           </Text>
 
-          <UnorderedList color="gray.600" fontSize="lg" spacing={2} pl={2}>
+          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
             <ListItem>Immediate, relevant advice</ListItem>
             <ListItem>Continuous learning to better understand your needs</ListItem>
             <ListItem>Access to professional insights instantly</ListItem>
@@ -483,16 +483,16 @@ const TestimonialsSection = () => {
   )
 }
 
-const PricingSection = () => {
-  return (
-    <Pricing 
-      id="pricing"
-      title={pricing.title}
-      description={pricing.description}
-      plans={pricing.plans}
-    />
-  )
-}
+// const PricingSection = () => {
+//   return (
+//     <Pricing 
+//       id="pricing"
+//       title={pricing.title}
+//       description={pricing.description}
+//       plans={pricing.plans}
+//     />
+//   )
+// }
 
 const FaqSection = () => {
   return (
@@ -504,8 +504,8 @@ const NewsletterSection = () => {
   return (
     <Newsletter
       id="newsletter"
-      title="Stay updated with our newsletter"
-      description="Get the latest news, features and updates delivered to your inbox."
+      title="Stay Ahead Professionally"
+      description="Join our newsletter for career tips, insights, and exclusive growth strategies."
     />
   )
 } 

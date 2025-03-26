@@ -1,14 +1,16 @@
-import { Link } from '@saas-ui/react'
 import { NextSeoProps } from 'next-seo'
-import { FaGithub, FaTwitter } from 'react-icons/fa'
+import { FaTwitter } from 'react-icons/fa'
+import { CgMail } from "react-icons/cg";
+import { CiLinkedin } from "react-icons/ci";
 import { FiCheck } from 'react-icons/fi'
 import { Logo } from './logo'
+import { RiDiscordFill } from "react-icons/ri";
 
 const siteConfig = {
   logo: Logo,
   seo: {
     title: 'perpzo.',
-    description: 'The React component library for startups',
+    description: '',
   } as NextSeoProps,
   termsUrl: '#',
   privacyUrl: '#',
@@ -40,22 +42,25 @@ const siteConfig = {
   footer: {
     copyright: (
       <>
-        Built by{' '}
-        <Link href="https://twitter.com/Pagebakers">Eelco Wiersma</Link>
+        © {new Date().getFullYear()} CareerAI Coach. All rights reserved.
       </>
     ),
     links: [
       {
-        href: 'mailto:hello@saas-ui.dev',
-        label: 'Contact',
+        href: 'mailto:hello@prepzo.co',
+        label: <CgMail size="22" />,
+      },
+      {
+        href: 'https://discord.gg/prepzo',
+        label: <RiDiscordFill size="20"/>,
       },
       {
         href: 'https://twitter.com/saas_js',
-        label: <FaTwitter size="14" />,
+        label: <FaTwitter size="20" />,
       },
       {
-        href: 'https://github.com/saas-js/saas-ui',
-        label: <FaGithub size="14" />,
+        href: 'https://www.linkedin.com/company/prepzo-ai/',
+        label: <CiLinkedin size="22" />,
       },
     ],
   },

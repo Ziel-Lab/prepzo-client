@@ -29,7 +29,8 @@ export const Footer: React.FC<FooterProps> = (props) => {
       }}
       {...rest}
     >
-      <Container maxW="container.2xl" px="8" py="8">
+      <hr className='border-gray-200 mb-10'/>
+      <Container maxW="container.xl" px="8" py="8">
         <SimpleGrid columns={columns}>
           <Stack spacing="8">
             <Stack alignItems="flex-start">
@@ -50,7 +51,9 @@ export const Footer: React.FC<FooterProps> = (props) => {
             ))}
           </HStack>
         </SimpleGrid>
+      
       </Container>
+      
     </Box>
   )
 }
