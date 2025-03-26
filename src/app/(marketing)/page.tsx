@@ -13,27 +13,13 @@ import {
   ListItem,
 } from '@chakra-ui/react'
 
-import {
-  FiSliders,
-  FiSmile,
-  FiThumbsUp,
-  FiBox,
-  FiPackage,
-  FiSearch,
-  FiUsers,
-  FiFlag,
-  FiTrendingUp,
-  FiLayout,
-  FiCode,
-  FiArchive,
-} from 'react-icons/fi'
 import LiveKitPage from '@/components/livekit/LiveKitPage'
-
+// import { features } from '@/data/casegallery'
 import * as React from 'react'
 import { useState, useEffect } from 'react'
 
 import { Faq } from '@/components/faq'
-import { Features } from '@/components/features'
+// import { Features } from '@/components/features'
 import { BackgroundGradient } from '@/components/gradients/background-gradient'
 import { Hero } from '@/components/hero'
 import {
@@ -49,6 +35,7 @@ import faq from '@/data/faq'
 import testimonials from '@/data/testimonials'
 import { RippleButton } from '@/components/ripple-button'
 import { Newsletter } from '@/components/newsletter'
+import { UseCaseGallerySection } from '@/components/useCaseGallerySection/useCaseGallery'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
@@ -259,7 +246,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
               </ButtonGroup>
               
               {!isBackgroundChanged && (
-                <div className="panel max-w-1200px mx-auto mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden">
+                <div className="panel max-w-1600px mx-auto mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden">
                   <video
                     width="100%" 
                     height="auto"
@@ -316,7 +303,7 @@ const HighlightsSection = () => {
         colSpan={[12, null, 5]}
         name="Abhishek Singla"
         customTitle="Founder"
-        avatar="/testimonial-avatar.jpg"
+        avatar="/static/images/abhishek.png"
         gradient={['purple.500', 'purple.300']}
         description="Founder"
       >
@@ -340,133 +327,26 @@ const HighlightsSection = () => {
   )
 }
 
-const UseCaseGallerySection = () => {
-  return (
-    <Features
-      id="features"
-      title="Use Case Gallery"
-      columns={[2, 3, 4, 4]}
-      spacing={4}
-      py={6}
-      align="center"
-      maxW="1800px"
-      mx="auto"
-      px={0}
-      iconSize={3}
-      maxFeatures={12}
-      features={[
-        {
-          title: "Resume Preparation",
-          description: "Create compelling resumes with AI-driven personalization to showcase your skills effectively.",
-          icon: FiBox,
-          iconBgColor: "purple.50",
-          iconColor: "purple.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Interview Preparation",
-          description: "Prepare for job interviews with mock interviews, practice questions, and personalized feedback.",
-          icon: FiPackage,
-          iconBgColor: "blue.50",
-          iconColor: "blue.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Skill Development",
-          description: "Identify skill gaps and access targeted learning resources to stay competitive in your field.",
-          icon: FiSearch,
-          iconBgColor: "pink.50",
-          iconColor: "pink.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Cover Letters",
-          description: "Craft personalized cover letters that align with job descriptions and highlight your strengths.",
-          icon: FiUsers,
-          iconBgColor: "purple.50",
-          iconColor: "purple.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Career Planning",
-          description: "Plan your career path with personalized guidance and strategic growth opportunities.",
-          icon: FiFlag,
-          iconBgColor: "blue.50",
-          iconColor: "blue.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Career Path Navigation",
-          description: "Discover potential career paths aligned with your skills, interests, and long-term goals.",
-          icon: FiTrendingUp,
-          iconBgColor: "pink.50",
-          iconColor: "pink.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Office Politics",
-          description: "Navigate complex workplace dynamics and build strong professional relationships.",
-          icon: FiLayout,
-          iconBgColor: "purple.50",
-          iconColor: "purple.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Salary Negotiation",
-          description: "Negotiate salary and benefits effectively to secure the compensation you deserve.",
-          icon: FiCode,
-          iconBgColor: "blue.50",
-          iconColor: "blue.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Professional Traits",
-          description: "Understand your strengths and leverage your unique capabilities for career success.",
-          icon: FiArchive,
-          iconBgColor: "pink.50",
-          iconColor: "pink.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Upskilling",
-          description: "Identify opportunities for skill development to remain relevant in your industry.",
-          icon: FiSliders,
-          iconBgColor: "purple.50",
-          iconColor: "purple.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Stress Management",
-          description: "Learn strategies to manage workplace stress and maintain a healthy work-life balance.",
-          icon: FiSmile,
-          iconBgColor: "blue.50",
-          iconColor: "blue.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-        {
-          title: "Growth Framework",
-          description: "Build a personal growth framework to achieve your long-term career goals.",
-          icon: FiThumbsUp,
-          iconBgColor: "pink.50",
-          iconColor: "pink.500",
-          titleColor: "gray.900",
-          variant: 'left-icon',
-        },
-      ]}
-    />
-  )
-}
+// const UseCaseGallerySection = () => {
+//   return (
+//     <Features
+//       id="features"
+//       title="Use Case Gallery"
+//       columns={[1, 2, 3]}
+//       spacing={8}
+//       py={16}
+//       align="center"
+//       maxW="1400px"
+//       mx="auto"
+//       px={[6, 8]}
+//       iconSize={5}
+//       maxFeatures={12}
+//       features={features}
+//     />
+//   )
+// }
+
+<UseCaseGallerySection/>
 
 const TestimonialsSection = () => {
   return (
