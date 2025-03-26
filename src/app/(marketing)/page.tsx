@@ -6,11 +6,11 @@ import {
   Container,
   HStack,
   Stack,
-  Text,
-  VStack,
+  
+  
   useColorModeValue,
-  UnorderedList,
-  ListItem,
+  
+  
 } from '@chakra-ui/react'
 
 import LiveKitPage from '@/components/livekit/LiveKitPage'
@@ -22,11 +22,7 @@ import { Faq } from '@/components/faq'
 // import { Features } from '@/components/features'
 import { BackgroundGradient } from '@/components/gradients/background-gradient'
 import { Hero } from '@/components/hero'
-import {
-  Highlights,
-  HighlightsItem,
-  HighlightsTestimonialItem,
-} from '@/components/highlights'
+
 // import { Pricing } from '@/components/pricing/pricing'
 import { Testimonial, Testimonials } from '@/components/testimonials'
 import { Em } from '@/components/typography'
@@ -36,6 +32,7 @@ import testimonials from '@/data/testimonials'
 import { RippleButton } from '@/components/ripple-button'
 import { Newsletter } from '@/components/newsletter'
 import { UseCaseGallerySection } from '@/components/useCaseGallerySection/useCaseGallery'
+import { HighlightsSection } from '@/components/highlightsSection/highlightsSection'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
@@ -208,8 +205,34 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
       transition="all 0.3s ease"
     >
       <BackgroundGradient height="100%" zIndex="-1" opacity={isBackgroundChanged ? 0 : 1} transition="opacity 0.3s ease" />
-      <Container maxW="container.2xl" pt={{ base: 20, lg: 40 }} pb="40" textAlign="center">
-        <Stack direction={{ base: 'column', lg: 'row' }} alignItems="center" justifyContent="center" width="100%">
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        zIndex="0"
+        backdropFilter="blur(2px)"
+        bg={useColorModeValue(
+          "rgba(255, 255, 255, 0.02)",
+          "rgba(0, 0, 0, 0.02)"
+        )}
+        borderBottom="1px solid"
+        borderColor={useColorModeValue(
+          "rgba(255, 255, 255, 0.05)",
+          "rgba(255, 255, 255, 0.01)"
+        )}
+      />
+      <Container 
+        maxW="container.2xl" 
+        pt={{ base: 12, sm: 16, md: 20, lg: 40 }} 
+        pb={{ base: 20, md: 30, lg: 40 }} 
+        px={{ base: 4, sm: 6, md: 8 }}
+        textAlign="center" 
+        position="relative" 
+        zIndex="1"
+      >
+        <Stack direction={{ base: 'column', lg: 'row' }} alignItems="center" justifyContent="center" width="100%" spacing={{ base: 6, md: 8 }}>
           <Hero
             id="home"
             justifyContent="center"
@@ -217,7 +240,16 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
             textAlign="center"
             width="100%"
             title={!isBackgroundChanged && (
-              <Box textAlign="center" width="100%" mx="auto" maxW="container.lg"  backdropFilter="blur(100px)">
+              <Box 
+                textAlign="center" 
+                width="100%" 
+                mx="auto" 
+                maxW="container.lg"
+                fontSize={{ base: "3xl", sm: "4xl", md: "5xl", lg: "6xl" }}
+                lineHeight={{ base: "1.2", md: "1.1" }}
+                fontWeight="bold"
+                mb={{ base: 4, md: 6 }}
+              >
                 Discover Your <br/> AI-Powered Career Coach
               </Box>
             )}
@@ -230,41 +262,45 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                 width="100%"
                 mx="auto"
                 maxW="container.lg"
+                fontSize={{ base: "lg", md: "xl", lg: "2xl" }}
+                lineHeight={{ base: "1.6", md: "1.8" }}
+                px={{ base: 4, md: 6 }}
                 _dark={{
                   color: "white",
                 }}
-                
-                backdropFilter="blur(100px)" // blur the background behind the box
               >
               Embark on a journey of{" "}
-                <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">
+                <Em 
+                  fontFamily="ui-serif, LibreBaskerville, Georgia, serif"
+                  fontSize={{ base: "lg", md: "xl", lg: "2xl" }}
+                >
                     professional growth
                 </Em>
-              
+              {" "}
               with an AI coach that understands, remembers, and evolves with YOU.
               </Box>
-
             )}
           >
             <Box width="100%" textAlign="center" mx="auto">
               {!isBackgroundChanged && (
-                <HStack pt="4" pb="12" spacing="8" justifyContent="center">
+                <HStack pt={{ base: 2, md: 4 }} pb={{ base: 8, md: 12 }} spacing={{ base: 4, md: 8 }} justifyContent="center">
                 </HStack>
               )}
 
-              <ButtonGroup spacing={4} alignItems="center" justifyContent="center" mb={10}>
+              <ButtonGroup spacing={{ base: 2, md: 4 }} alignItems="center" justifyContent="center" mb={{ base: 6, md: 10 }}>
                 {!isBackgroundChanged && (
                   <>
                     <RippleButton
                       onClick={handleOpenLiveKit}
                       borderRadius="xl"
-                      px={8}
-                      py={4}
+                      px={{ base: 6, md: 8 }}
+                      py={{ base: 3, md: 4 }}
                       width="auto"
                       height="auto"
                       display="flex"
                       justifyContent="center"
                       alignItems="center"
+                      fontSize={{ base: "md", md: "lg" }}
                     >
                       ✨ Start Talking to Your AI Coach ✨
                     </RippleButton>
@@ -298,63 +334,136 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
   )
 }
 
-const HighlightsSection = () => {
-  return (
-    <Highlights>
-      <HighlightsItem colSpan={[12, null, 6]} title="Evolving with Your Journey">
-        <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.500" fontSize="lg" lineHeight="tall">
-          Each session builds upon the last, ensuring your coaching experience grows with your career progression.
-          </Text>
-          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
-            <ListItem>Reflect on past discussions to inform future decisions</ListItem>
-            <ListItem>Develop a coherent and personalized career plan</ListItem>
-          </UnorderedList>
-        </VStack>
-      </HighlightsItem>
+// const HighlightsSection = () => {
+//   return (
+//     <Highlights
+//       py={{ base: 8, md: 12, lg: 16 }}
+//       px={{ base: 4, md: 6, lg: 8 }}
+//       gap={{ base: 6, md: 8 }}
+//       mx="auto"
+//       maxW="7xl"
+//     >
+//       <HighlightsItem 
+//         colSpan={[12, null, 6]} 
+//         title="Evolving with Your Journey"
+//         py={{ base: 6, md: 8 }}
+//         px={{ base: 6, md: 8 }}
+//         bg={useColorModeValue('white', 'gray.800')}
+//         borderRadius="xl"
+//         shadow="sm"
+//       >
+//         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
+//           <Text 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             lineHeight="tall"
+//           >
+//             Each session builds upon the last, ensuring your coaching experience grows with your career progression.
+//           </Text>
+//           <UnorderedList 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             spacing={{ base: 3, md: 4 }} 
+//             pl={{ base: 4, md: 6 }}
+//             width="100%"
+//           >
+//             <ListItem>Reflect on past discussions to inform future decisions</ListItem>
+//             <ListItem>Develop a coherent and personalized career plan</ListItem>
+//           </UnorderedList>
+//         </VStack>
+//       </HighlightsItem>
 
-      <HighlightsItem colSpan={[12, null, 6]} title="Curated Resources Just for You">
-        <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.500" fontSize="lg" lineHeight="tall">
-            Receive up-to-date resources specifically selected to match your evolving professional needs.
-          </Text>
-          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
-            <ListItem>Explore job opportunities aligned with your goals</ListItem>
-            <ListItem>Engage with tailored skills training materials</ListItem>
-            <ListItem>Gain insights to foster professional growth</ListItem>
-          </UnorderedList>
-        </VStack>
-      </HighlightsItem>
+//       <HighlightsItem 
+//         colSpan={[12, null, 6]} 
+//         title="Curated Resources Just for You"
+//         py={{ base: 6, md: 8 }}
+//         px={{ base: 6, md: 8 }}
+//         bg={useColorModeValue('white', 'gray.800')}
+//         borderRadius="xl"
+//         shadow="sm"
+//       >
+//         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
+//           <Text 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             lineHeight="tall"
+//           >
+//             Receive up-to-date resources specifically selected to match your evolving professional needs.
+//           </Text>
+//           <UnorderedList 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             spacing={{ base: 3, md: 4 }} 
+//             pl={{ base: 4, md: 6 }}
+//             width="100%"
+//           >
+//             <ListItem>Explore job opportunities aligned with your goals</ListItem>
+//             <ListItem>Engage with tailored skills training materials</ListItem>
+//             <ListItem>Gain insights to foster professional growth</ListItem>
+//           </UnorderedList>
+//         </VStack>
+//       </HighlightsItem>
 
-      <HighlightsTestimonialItem
-        colSpan={[12, null, 5]}
-        name="Abhishek Singla"
-        customTitle="Founder"
-        avatar="/static/images/abhishek.png"
-        gradient={['purple.500', 'purple.300']}
-        description="Founder"
-      >
-        &ldquo;At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively.&rdquo;
-      </HighlightsTestimonialItem>
+//       <HighlightsTestimonialItem
+//         colSpan={[12, null, 5]}
+//         name="Abhishek Singla"
+//         customTitle="Founder"
+//         avatar="/static/images/abhishek.png"
+//         gradient={['purple.500', 'purple.300']}
+//         description="Founder"
+//         py={{ base: 8, md: 10 }}
+//         px={{ base: 6, md: 8 }}
+//         borderRadius="xl"
+//         shadow="lg"
+//       >
+//         <Text
+//           fontSize={{ base: "md", md: "lg" }}
+//           fontStyle="italic"
+//           lineHeight="tall"
+//         >
+//           &ldquo;At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively.&rdquo;
+//         </Text>
+//       </HighlightsTestimonialItem>
 
-      <HighlightsItem colSpan={[12, null, 7]} title="Engaging Conversations">
-        <VStack alignItems="flex-start" spacing="8">
-          <Text color="gray.500" fontSize="lg" lineHeight="tall">
-            Interact in real-time with an AI that offers empathetic support, helping you navigate professional challenges and seize opportunities.
-          </Text>
+//       <HighlightsItem 
+//         colSpan={[12, null, 7]} 
+//         title="Engaging Conversations"
+//         py={{ base: 6, md: 8 }}
+//         px={{ base: 6, md: 8 }}
+//         bg={useColorModeValue('white', 'gray.800')}
+//         borderRadius="xl"
+//         shadow="sm"
+//       >
+//         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
+//           <Text 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             lineHeight="tall"
+//           >
+//             Interact in real-time with an AI that offers empathetic support, helping you navigate professional challenges and seize opportunities.
+//           </Text>
 
-          <UnorderedList color="gray.500" fontSize="lg" spacing={2} pl={2}>
-            <ListItem>Immediate, relevant advice</ListItem>
-            <ListItem>Continuous learning to better understand your needs</ListItem>
-            <ListItem>Access to professional insights instantly</ListItem>
-          </UnorderedList>
-        </VStack>
-      </HighlightsItem>
-    </Highlights>
-  )
-}
+//           <UnorderedList 
+//             color={useColorModeValue("gray.600", "gray.300")}
+//             fontSize={{ base: "md", md: "lg" }} 
+//             spacing={{ base: 3, md: 4 }} 
+//             pl={{ base: 4, md: 6 }}
+//             width="100%"
+//           >
+//             <ListItem>Immediate, relevant advice</ListItem>
+//             <ListItem>Continuous learning to better understand your needs</ListItem>
+//             <ListItem>Access to professional insights instantly</ListItem>
+//           </UnorderedList>
+//         </VStack>
+//       </HighlightsItem>
+//     </Highlights>
+//   )
+// }
+<>
+<HighlightsSection/>
 
 <UseCaseGallerySection/>
+</>
 
 const TestimonialsSection = () => {
   return (
