@@ -7,6 +7,18 @@ import { Provider } from './provider'
 export const metadata: Metadata = {
   title: 'Prepzo AI Coach',
   description: 'AI coaching for personal growth',
+  icons: {
+    apple: [
+      { url: '/static/favicons/apple-touch-icon.png', sizes: '76x76', type: 'image/png' },
+    ],
+    icon: [
+      { url: '/static/favicons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/static/favicons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    other: [
+      { rel: 'manifest', url: '/static/favicons/manifest.json' },
+    ],
+  },
 }
 
 export default function RootLayout({
@@ -15,27 +27,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          rel="apple-touch-icon"
-          sizes="76x76"
-          href="/static/favicons/apple-touch-icon.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/static/favicons/favicon-32x32.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/static/favicons/favicon-16x16.png"
-        />
-        <link rel="manifest" href="/static/favicons/manifest.json" />
-      </head>
+    <html lang="en" suppressHydrationWarning>
       <body>
         <Provider>{children}</Provider>
       </body>

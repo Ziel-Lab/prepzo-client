@@ -39,36 +39,41 @@ import { UseCaseGallerySection } from '@/components/useCaseGallerySection/useCas
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set isClient to true on the client-side only
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Add a class to the body when LiveKit is active, to hide the footer
   useEffect(() => {
-    if (isLiveKitActive) {
+    if (isClient && isLiveKitActive) {
       document.body.classList.add('livekit-active');
-    } else {
+    } else if (isClient) {
       document.body.classList.remove('livekit-active');
     }
     
     // Cleanup on unmount
     return () => {
-      document.body.classList.remove('livekit-active');
+      if (isClient) {
+        document.body.classList.remove('livekit-active');
+      }
     };
-  }, [isLiveKitActive]);
+  }, [isLiveKitActive, isClient]);
   
   const handleCloseLiveKit = async () => {
+    if (!isClient) return;
+
     console.log("Closing LiveKit and stopping all audio capture");
     
     // Check if user requested email follow-up
     const wantsEmailFollowUp = localStorage.getItem('prepzo_email_followup') === 'true';
     if (wantsEmailFollowUp) {
       console.log("User requested email follow-up - could trigger email capture flow here");
-      // Here you would add code to handle the email follow-up request
-      // For example, show a form to capture email, or redirect to a contact page
-      
-      // Clear the flag after processing
       localStorage.removeItem('prepzo_email_followup');
     }
     
-    // Force release of any microphone permissions
     try {
       // First: Set state to inactive immediately
       setIsLiveKitActive(false);
@@ -108,7 +113,6 @@ export default function HomePage() {
             console.error("Error cleaning audio element:", e);
           }
         }
-        // Force element cleanup
         el.removeAttribute('src');
         el.load();
         el.remove();
@@ -125,7 +129,7 @@ export default function HomePage() {
       <HeroSection isLiveKitActive={isLiveKitActive} onLiveKitStateChange={setIsLiveKitActive} />
       
       {/* When LiveKit is active, show LiveKit overlay; otherwise show regular content */}
-      {isLiveKitActive ? (
+      {isClient && isLiveKitActive ? (
         <Box 
           position="fixed" 
           top="0" 
@@ -135,7 +139,6 @@ export default function HomePage() {
           zIndex="99999"
           bg="transparent"
           sx={{
-            // This will hide the footer and any other content
             "& ~ footer": {
               display: "none !important" 
             }
@@ -145,12 +148,11 @@ export default function HomePage() {
         </Box>
       ) : (
         <>
-      <UseCaseGallerySection />
-      <HighlightsSection />
-      <TestimonialsSection />
-      {/* <PricingSection /> */}
-      <FaqSection />
-      <NewsletterSection />
+          <UseCaseGallerySection />
+          <HighlightsSection />
+          <TestimonialsSection />
+          <FaqSection />
+          <NewsletterSection />
         </>
       )}
     </Box>
@@ -177,17 +179,25 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
   
   // Sync isBackgroundChanged with parent isLiveKitActive state
   useEffect(() => {
-    setIsBackgroundChanged(isLiveKitActive);
-  }, [isLiveKitActive]);
+    if (isClient) {
+      setIsBackgroundChanged(isLiveKitActive);
+    }
+  }, [isLiveKitActive, isClient]);
 
   const handleOpenLiveKit = () => {
-    setIsBackgroundChanged(true);
-    onLiveKitStateChange(true);
+    if (isClient) {
+      setIsBackgroundChanged(true);
+      onLiveKitStateChange(true);
+    }
   };
 
-  // Use light mode values for server-side rendering, but apply the values conditionally after hooks are called
-  const currentBgColor = isClient && isBackgroundChanged ? bgColor : "transparent";
-  const currentBgImage = isClient && isBackgroundChanged ? backgroundGradient : "none";
+  // Default values for server-side rendering
+  const defaultBgColor = "transparent";
+  const defaultBgImage = "none";
+
+  // Use client-side values only after hydration
+  const currentBgColor = !isClient ? defaultBgColor : (isBackgroundChanged ? bgColor : defaultBgColor);
+  const currentBgImage = !isClient ? defaultBgImage : (isBackgroundChanged ? backgroundGradient : defaultBgImage);
 
   return (
     <Box 
@@ -207,16 +217,33 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
             textAlign="center"
             width="100%"
             title={!isBackgroundChanged && (
-              <Box textAlign="center" width="100%" mx="auto" maxW="container.lg">
-                Discover Your AI-Powered Career Coach
+              <Box textAlign="center" width="100%" mx="auto" maxW="container.lg"  backdropFilter="blur(100px)">
+                Discover Your <br/> AI-Powered Career Coach
               </Box>
             )}
             description={!isBackgroundChanged && (
-              <Box fontWeight="medium" fontFamily="ui-serif, LibreBaskerville, Georgia, serif" textAlign="center" width="100%" mx="auto" maxW="container.lg">
-                Embark on a journey of <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">professional growth</Em>
-                <br />with an AI coach that understands,{' '}
-                remembers, and evolves with YOU.
+              <Box
+                color="black"
+                fontWeight="medium"
+                fontFamily="ui-serif, LibreBaskerville, Georgia, serif"
+                textAlign="center"
+                width="100%"
+                mx="auto"
+                maxW="container.lg"
+                _dark={{
+                  color: "white",
+                }}
+                
+                backdropFilter="blur(100px)" // blur the background behind the box
+              >
+              Embark on a journey of{" "}
+                <Em fontFamily="ui-serif, LibreBaskerville, Georgia, serif">
+                    professional growth
+                </Em>
+              
+              with an AI coach that understands, remembers, and evolves with YOU.
               </Box>
+
             )}
           >
             <Box width="100%" textAlign="center" mx="auto">
@@ -245,7 +272,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                 )}
               </ButtonGroup>
               
-              {!isBackgroundChanged && (
+              {!isBackgroundChanged && isClient && (
                 <div className="panel max-w-1600px mx-auto mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden">
                   <video
                     width="100%" 
@@ -326,25 +353,6 @@ const HighlightsSection = () => {
     </Highlights>
   )
 }
-
-// const UseCaseGallerySection = () => {
-//   return (
-//     <Features
-//       id="features"
-//       title="Use Case Gallery"
-//       columns={[1, 2, 3]}
-//       spacing={8}
-//       py={16}
-//       align="center"
-//       maxW="1400px"
-//       mx="auto"
-//       px={[6, 8]}
-//       iconSize={5}
-//       maxFeatures={12}
-//       features={features}
-//     />
-//   )
-// }
 
 <UseCaseGallerySection/>
 
