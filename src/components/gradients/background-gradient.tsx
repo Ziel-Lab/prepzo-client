@@ -134,6 +134,7 @@ export const BackgroundGradient = ({ particleColor, particleCount = 100, lineCol
       width="100%"
       overflow="hidden"
       pointerEvents="none"
+      style={{ backdropFilter: 'blur(20px)' }}
       {...props}
     >
       {isClient && <canvas ref={canvasRef} style={{ display: 'block' }} />}

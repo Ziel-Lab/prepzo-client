@@ -10,7 +10,7 @@ import { fontSizes } from './foundations/typography'
 export const theme = extendTheme(
   {
     config: {
-      initialColorMode: 'light',
+      initialColorMode: 'system',
       useSystemColorMode: false,
     },
     styles: {

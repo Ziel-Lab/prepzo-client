@@ -3,6 +3,7 @@ import '@fontsource-variable/inter'
 import '../styles/ripple.css'
 
 import { Provider } from './provider'
+import { ColorModeInitializer } from '@/theme/colormodescript'
 
 export const metadata: Metadata = {
   title: 'Prepzo AI Coach',
@@ -28,7 +29,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <head>
+        <ColorModeInitializer />
+      </head>
+      <body className="chakra-ui-light">
         <Provider>{children}</Provider>
       </body>
     </html>
