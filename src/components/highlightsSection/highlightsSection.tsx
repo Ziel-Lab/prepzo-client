@@ -149,7 +149,7 @@ export const HighlightsSection = () => {
         px={{ base: 6, md: 8 }}
         bg={bgColor}
         borderRadius="xl"
-        shadow="sm"
+        shadow="md"
       >
         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
           <Text 
@@ -179,7 +179,7 @@ export const HighlightsSection = () => {
         px={{ base: 6, md: 8 }}
         bg={bgColor}
         borderRadius="xl"
-        shadow="sm"
+        shadow="md"
       >
         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
           <Text 
@@ -213,7 +213,7 @@ export const HighlightsSection = () => {
         py={{ base: 8, md: 10 }}
         px={{ base: 6, md: 8 }}
         borderRadius="xl"
-        shadow="lg"
+        shadow="xl"
       >
         <Text
           fontSize={{ base: "md", md: "lg" }}
@@ -232,7 +232,7 @@ export const HighlightsSection = () => {
         px={{ base: 6, md: 8 }}
         bg={bgColor}
         borderRadius="xl"
-        shadow="sm"
+        shadow="md"
       >
         <VStack alignItems="flex-start" spacing={{ base: 4, md: 6 }} width="100%">
           <Text 

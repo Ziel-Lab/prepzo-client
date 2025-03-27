@@ -1,15 +1,16 @@
 'use client'
 
-import { Box, Center, Stack, Text } from '@chakra-ui/react'
+import { Box, Center, Stack, Text, IconButton } from '@chakra-ui/react'
 import { Auth } from '@saas-ui/auth'
 import { Link } from '@saas-ui/react'
-import { FaGithub, FaGoogle } from 'react-icons/fa'
+import { FaGithub, FaGoogle, FaArrowLeft } from 'react-icons/fa'
+import { useRouter } from 'next/navigation'
 
-
-import { BackgroundGradient } from '@/components/gradients/background-gradient'
+// import { BackgroundGradient } from '@/components/gradients/background-gradient'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Section } from '@/components/section'
 import siteConfig from '@/data/config'
+
 
 const providers = {
   google: {
@@ -24,9 +25,36 @@ const providers = {
 }
 
 export default function SignupPage() {
+  const router = useRouter()
+
+  const handleGoBack = () => {
+    router.push('/')
+  }
+
   return (
-    <Section height="100vh" innerWidth="container.xl">
-      <BackgroundGradient height="100%" zIndex="-1"  transition="opacity 0.3s ease" />
+    <Section height="100vh" innerWidth="container.xl" position="relative">
+      <IconButton
+        icon={<FaArrowLeft />}
+        aria-label="Go back to homepage"
+        position="absolute"
+        top={{ base: 4, md: 8 }}
+        left={{ base: 4, md: 8 }}
+        variant="ghost"
+        onClick={handleGoBack}
+        zIndex="10"
+        rounded="full"
+        size="lg"
+        _hover={{
+          bg: 'rgba(255,255,255,0.1)',
+          border: '2px solid',
+          borderColor: 'purple.500',
+          color: 'purple.500',
+        }}
+        bg="gray.100"
+        _dark={{
+          bg: 'gray.900',
+        }}
+      />
       <PageTransition height="100%" display="flex" alignItems="center">
         <Stack
           width="100%"
@@ -59,4 +87,4 @@ export default function SignupPage() {
       </PageTransition>
     </Section>
   )
-} 
+}

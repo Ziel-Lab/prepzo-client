@@ -7,6 +7,8 @@ import LiveKitPage from '@/components/livekit/LiveKitPage'
 // import { features } from '@/data/casegallery'
 import * as React from 'react'
 import { useState, useEffect } from 'react'
+import { IconButton } from '@chakra-ui/react'
+import { ArrowBackIcon } from '@chakra-ui/icons'
 
 import { Faq } from '@/components/faq'
 // import { Features } from '@/components/features'
@@ -126,9 +128,24 @@ export default function HomePage() {
           sx={{
             "& ~ footer": {
               display: "none !important" 
+            },
+            "& header": {
+              display: "none !important"
             }
           }}
         >
+          <IconButton
+            aria-label="Back to home"
+            icon={<ArrowBackIcon />}
+            position="absolute"
+            top="4"
+            left="4"
+            zIndex="100000"
+            size="lg"
+            colorScheme="gray"
+            variant="solid"
+            onClick={handleCloseLiveKit}
+          />
           <LiveKitPage onClose={handleCloseLiveKit} />
         </Box>
       ) : (

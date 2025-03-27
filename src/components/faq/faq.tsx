@@ -38,7 +38,7 @@ const FaqItem: React.FC<FaqItemProps> = ({ question, answer }) => {
       
       _hover={{
         bg: {
-          light: "gray.50",
+          light: "gray.100",
           dark: "gray.700"
         },
         transform: "scale(1.02)",

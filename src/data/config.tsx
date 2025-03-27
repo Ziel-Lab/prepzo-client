@@ -61,7 +61,7 @@ const siteConfig = {
     ],
   },
   signup: {
-    title: 'Start building with Saas UI',
+    title: 'Unlock your career potential !',
     features: [
       {
         icon: FiCheck,

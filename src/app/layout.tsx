@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import '@fontsource-variable/inter'
 import '../styles/ripple.css'
+import './globals.css'
 
 import { Provider } from './provider'
 import { ColorModeInitializer } from '@/theme/colormodescript'

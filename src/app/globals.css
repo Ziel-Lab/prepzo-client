@@ -1,3 +1,7 @@
 body.livekit-active footer {
   display: none !important;
+}
+
+body.livekit-active header {
+  display: none !important;
 } 

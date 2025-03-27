@@ -28,7 +28,16 @@ export const Testimonial = ({
   ...rest
 }: TestimonialProps) => {
   return (
-    <Card position="relative" {...rest}>
+    <Card 
+      position="relative" 
+      height="100%" 
+      display="flex"
+      flexDirection="column"
+      minH="200px"
+      boxShadow="md"
+      borderRadius="lg"
+      {...rest}
+    >
       <CardHeader display="flex" flexDirection="row" alignItems="center">
         <Avatar name={name} src={avatar} size="sm" bg="transparent" />
         <Stack spacing="1" ms="4">
@@ -38,8 +47,15 @@ export const Testimonial = ({
           </Text>
         </Stack>
       </CardHeader>
-      <CardBody>
-        {children}
+      <CardBody 
+        flex="1" 
+        display="flex" 
+        flexDirection="column" 
+        justifyContent="center"
+      >
+        <Text fontSize="md" fontStyle="italic">
+          {children}
+        </Text>
 
         {href && (
           <Link href={href} position="absolute" top="4" right="4">

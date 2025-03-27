@@ -158,7 +158,21 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                 </ButtonGroup>
                 
                 {!isBackgroundChanged && isClient && (
-                  <div className="panel max-w-1600px mx-auto mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden">
+                  
+                  <Box 
+                    width={{ base: '100%', md: '110%', lg: '120%' }} 
+                    maxWidth="1920px" 
+                    mx="auto" 
+                    px={{ base: 4, md: 0 }}
+                    position="relative"
+                    left={{ base: 0, md: '-5%', lg: '-10%' }}
+                    marginTop="16px"
+                  >
+                  <Box 
+                  className="panel mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden"
+                  width="100%" 
+                  borderRadius="12px"
+                >
                     <video
                       width="100%" 
                       height="auto"
@@ -173,7 +187,8 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                       <source src="/media/home.webm" type="video/webm" />
                       Your browser does not support the video tag.
                     </video>
-                  </div>
+                  </Box>
+                  </Box>
                 )}
               </Box>
             </Hero>

@@ -84,7 +84,7 @@ export function Feature(props: FeatureProps) {
       align="flex-start"
       borderRadius="xl"
       border="1px solid"
-      borderColor="whiteAlpha.100"
+      borderColor="gray.200"
       bg="gray.50"
       backdropFilter="blur(10px)"
       _dark={{
