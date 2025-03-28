@@ -1,4 +1,4 @@
-import * as React from 'react'
+
 
 const faq = {
   title: 'Frequently asked questions',
@@ -31,4 +31,7 @@ const faq = {
   ],
 }
 
-export default faq
+
+
+
+export default faq;

@@ -39,10 +39,10 @@ export const Testimonial = ({
       {...rest}
     >
       <CardHeader display="flex" flexDirection="row" alignItems="center">
-        <Avatar name={name} src={avatar} size="sm" bg="transparent" />
+        <Avatar name={name} src={avatar} size="lg" bg="transparent" />
         <Stack spacing="1" ms="4">
-          <Heading size="sm">{name}</Heading>
-          <Text color="muted" size="xs">
+          <Heading size="md">{name}</Heading>
+          <Text color="muted" size="lg">
             {description}
           </Text>
         </Stack>

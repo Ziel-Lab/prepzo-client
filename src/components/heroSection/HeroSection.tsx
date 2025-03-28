@@ -73,9 +73,9 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
           )}
         />
         <Container 
-          maxW="container.xl" 
+          maxW="container.2xl" 
           pt={{ base: 12, sm: 16, md: 20, lg: 40 }} 
-          pb={{ base: 20, md: 30, lg: 40 }} 
+          pb={{ base: 10, md: 15, lg: 20 }} 
           px={{ base: 4, sm: 6, md: 8 }}
           textAlign="center" 
           position="relative" 
@@ -93,27 +93,37 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                   textAlign="center" 
                   width="100%" 
                   mx="auto" 
-                  maxW="container.xl"
+                  maxW={{ base: "100%", lg: "80%" }}
                   fontSize={{ base: "3xl", sm: "4xl", md: "5xl", lg: "6xl" }}
-                  lineHeight={{ base: "1.1", md: "1.0" }}
+                  lineHeight={{ base: "1.2", md: "1.1" }}
                   fontWeight="bold"
-                  mb={{ base: 4, md: 6 }}
+                  mb={{ base: 2, md: 3 }}
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  fontFamily="ui-serif, LibreBaskerville, Georgia, serif"
                 >
-                  Discover Your <br/>AI-Powered Career Coach
+                  <Box as="span" display="inline-block" whiteSpace="nowrap">
+                    Discover Your
+                  </Box>
+                  <Box as="span" display="inline-block" whiteSpace="nowrap">
+                   AI-Powered Career Coach
+                  </Box>
                 </Box>
               )}
               description={!isBackgroundChanged && (
                 <Box
                   color="black"
-                  fontWeight="medium"
+                  fontWeight="normal"
                   fontFamily="ui-serif, LibreBaskerville, Georgia, serif"
                   textAlign="center"
                   width="100%"
                   mx="auto"
-                  maxW="container.xl"
+                  maxW={{ base: "90%", md: "80%", lg: "70%" }}
                   fontSize={{ base: "lg", md: "xl", lg: "2xl" }}
                   lineHeight={{ base: "1.6", md: "1.8" }}
                   px={{ base: 4, md: 6 }}
+                  mt={2}
                   _dark={{
                     color: "white",
                   }}
@@ -158,36 +168,38 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                 </ButtonGroup>
                 
                 {!isBackgroundChanged && isClient && (
-                  
                   <Box 
-                    width={{ base: '100%', md: '110%', lg: '120%' }} 
-                    maxWidth="1920px" 
+                    width={{ base: '100%', md: '85%', lg: '75%' }} 
+                    maxWidth="1200px" 
                     mx="auto" 
-                    px={{ base: 4, md: 0 }}
                     position="relative"
-                    left={{ base: 0, md: '-5%', lg: '-10%' }}
-                    marginTop="16px"
+                    marginTop={{ base: "8", md: "12" }}
                   >
-                  <Box 
-                  className="panel mt-16 rounded lg:rounded-1-5 xl:rounded-2 border border-dark overflow-hidden"
-                  width="100%" 
-                  borderRadius="12px"
-                >
-                    <video
+                    <Box 
                       width="100%" 
-                      height="auto"
-                      preload="auto"
-                      playsInline
-                      muted
-                      loop
-                      autoPlay
-                      poster="/media/lexend-home-7.png"
-                      style={{ borderRadius: '12px' }}
+                      borderRadius="xl"
+                      overflow="hidden"
+                      boxShadow="xl"
                     >
-                      <source src="/media/home.webm" type="video/webm" />
-                      Your browser does not support the video tag.
-                    </video>
-                  </Box>
+                      <video
+                        width="100%" 
+                        height="auto"
+                        preload="auto"
+                        playsInline
+                        muted
+                        loop
+                        autoPlay
+                        poster="/media/lexend-home-7.png"
+                        style={{ 
+                          borderRadius: '12px',
+                          aspectRatio: '16/9',
+                          objectFit: 'cover'
+                        }}
+                      >
+                        <source src="/media/home.webm" type="video/webm" />
+                        Your browser does not support the video tag.
+                      </video>
+                    </Box>
                   </Box>
                 )}
               </Box>

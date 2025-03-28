@@ -178,7 +178,14 @@ export default function HomePage() {
 
 const FaqSection = () => {
   return (
-    <Faq {...faq} />
+    <Faq 
+      id="faq"
+      title="Frequently Asked Questions"
+      items={faq.items.map(item => ({
+        question: item.q,
+        answer: item.a
+      }))}
+    />
   )
 }
 

@@ -23,8 +23,8 @@ export const NavLink = forwardRef<NavLinkProps, "a">((props, ref) => {
       isActive={isActive}
       fontWeight="medium"
       borderRadius={isPrimary ? "xl" : undefined}
-      px={isPrimary ? 6 : undefined}
-      py={isPrimary ? 2 : undefined}
+      px={isPrimary ? 3 : undefined}
+      py={isPrimary ? 3 : undefined}
       height={isPrimary ? "auto" : undefined}
       display={isPrimary ? "flex" : undefined}
       alignItems={isPrimary ? "center" : undefined}

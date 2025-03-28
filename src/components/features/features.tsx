@@ -14,7 +14,7 @@ import {
   SystemProps,
 } from '@chakra-ui/react'
 
-import { Section, SectionTitle, SectionTitleProps } from '@/components/section'
+import { Section, SectionTitleProps } from '@/components/section'
 
 interface RevealerProps {
   children: React.ReactNode;
@@ -30,6 +30,7 @@ export interface UseCaseGalleryProps
     ThemingProps<'Features'> {
   title?: React.ReactNode
   description?: React.ReactNode
+  subheading?: React.ReactNode
   features: Array<FeatureProps>
   columns?: ResponsiveValue<number>
   spacing?: string | number
@@ -77,6 +78,7 @@ export function Feature(props: FeatureProps) {
       direction={direction} 
       spacing={4} 
       p={3}
+      pt={5}
       width="100%"
       maxW="480px"
       minH="200px"
@@ -106,7 +108,7 @@ export function Feature(props: FeatureProps) {
         <Circle 
           sx={styles.icon} 
           bg={iconBgColor} 
-          size="40px" 
+          size="36px" 
           flexShrink={0}
           _dark={{
             bg: "whiteAlpha.200"
@@ -115,13 +117,13 @@ export function Feature(props: FeatureProps) {
           <Icon as={icon} boxSize={5} color={iconColor} />
         </Circle>
       )}
-      <Box width="100%">
+      <Box width="100%" pt={1}>
         <Heading 
           sx={styles.title} 
           color="gray.900" 
-          fontSize="lg" 
+          fontSize="md" 
           fontWeight="semibold" 
-          mb={3}
+          mb={4}
           as="h3"
           display="block"
           _dark={{
@@ -135,7 +137,7 @@ export function Feature(props: FeatureProps) {
             sx={styles.description} 
             color="whiteAlpha.700" 
             fontSize="sm"
-            lineHeight="1.7"
+            lineHeight="1.6"
             display="block"
             _dark={{
               color: "whiteAlpha.700"
@@ -153,6 +155,7 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
   const {
     title,
     description,
+    subheading,
     features,
     columns = [1, 2, 3],
     align: alignProp = 'center',
@@ -169,16 +172,43 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
   const displayFeatures = maxFeatures ? features.slice(0, maxFeatures) : features
 
   return (
-    <Section maxW="1400px" py={16} display="flex" justifyContent="center" {...rest}>
+    <Section maxW="1400px" py={10} display="flex" justifyContent="center" {...rest}>
       <Stack direction="row" height="full" align="center" width="100%" justifyContent="center" mx="auto">
         <VStack flex="1" spacing={12} alignItems="center" width="100%">
-          {(title || description) && (
+          {(title || description || subheading) && (
             <Wrap>
-              <SectionTitle
-                title={title}
-                description={description}
-                align="center"
-              />
+              <Box textAlign="center" width="100%">
+                <Heading 
+                  as="h2" 
+                  fontSize="4xl" 
+                  fontWeight="bold" 
+                  mb={1}
+                  _dark={{
+                    color: "white"
+                  }}
+                >
+                  {title}
+                </Heading>
+                {subheading && (
+                  <Text 
+                    fontSize="lg" 
+                    color="gray.600" 
+                    maxW="800px"
+                    mx="auto"
+                    mt={3}
+                    _dark={{
+                      color: "gray.400"
+                    }}
+                  >
+                    {subheading}
+                  </Text>
+                )}
+                {description && (
+                  <Text mt={4} maxW="container.md" mx="auto">
+                    {description}
+                  </Text>
+                )}
+              </Box>
             </Wrap>
           )}
           <SimpleGrid 

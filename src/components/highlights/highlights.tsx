@@ -136,7 +136,7 @@ export const HighlightsTestimonialItem: React.FC<
         name={name}
         // @ts-expect-error - We're passing a React element instead of string
         title={
-          <Text as="span" fontWeight="normal" fontSize="sm" color="whiteAlpha.800">
+          <Text as="span" fontWeight="thin" fontSize="sm" color="whiteAlpha.800">
             {customTitle}
           </Text>
         }

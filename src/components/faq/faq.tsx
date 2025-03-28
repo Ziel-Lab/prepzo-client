@@ -1,73 +1,115 @@
-import { chakra, SimpleGrid } from '@chakra-ui/react'
-import { Section, SectionProps, SectionTitle } from '@/components/section'
+import React from 'react'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  Box,
+  Container,
+  Heading,
+  Text,
+  VStack,
+  useColorModeValue
+} from '@chakra-ui/react'
 
-interface FaqProps extends Omit<SectionProps, 'title' | 'children'> {
-  title?: React.ReactNode
-  description?: React.ReactNode
-  items: { q: React.ReactNode; a: React.ReactNode }[]
+interface FaqItem {
+  question: string;
+  answer: string | React.ReactNode;
 }
 
-export const Faq: React.FC<FaqProps> = (props) => {
-  const {
-    title = 'Frequently asked questions',
-    description,
-    items = [],
-  } = props
-  return (
-    <Section id="faq">
-      <SectionTitle title={title} description={description} />
+interface FaqProps {
+  id?: string;
+  title?: string;
+  description?: string;
+  items: FaqItem[];
+}
 
-      <SimpleGrid columns={[1, null, 2]} spacingY={10} spacingX="20">
-        {items?.map(({ q, a }, i) => {
-          return <FaqItem key={i} question={q} answer={a} />
-        })}
-      </SimpleGrid>
-    </Section>
+export const Faq: React.FC<FaqProps> = ({
+  title = 'Frequently asked questions',
+  description,
+  items,
+  id
+}) => {
+  // Color mode values
+  const bgColor = useColorModeValue('white', 'gray.900')
+  const textColor = useColorModeValue('gray.800', 'white')
+  const borderColor = useColorModeValue('gray.200', 'gray.700')
+  const expandedColor = useColorModeValue('purple.500', 'purple.300')
+  const answerBgColor = useColorModeValue('gray.50', 'gray.800')
+  const answerTextColor = useColorModeValue('gray.600', 'gray.300')
+  const hoverBgColor = useColorModeValue('gray.100', 'gray.800')
+
+  return (
+    <Container maxW="container.lg" py={12} id={id} bg={bgColor}>
+      <VStack spacing={8} align="stretch">
+        {/* Section Header */}
+        <VStack textAlign="center" spacing={4}>
+          <Heading 
+            as="h2" 
+            size="xl" 
+            color={textColor}
+          >
+            {title}
+          </Heading>
+          {description && (
+            <Text color="gray.500" maxW="2xl">
+              {description}
+            </Text>
+          )}
+        </VStack>
+
+        {/* Accordion */}
+        <Accordion 
+          allowMultiple 
+          variant="unstyled"
+        >
+          {items.map((item, index) => (
+            <AccordionItem 
+              key={index} 
+              borderTop="1px solid" 
+              borderBottom="1px solid" 
+              borderColor={borderColor}
+              _last={{ 
+                borderBottom: "1px solid", 
+                borderColor: borderColor 
+              }}
+            >
+              {({ isExpanded }) => (
+                <>
+                  <AccordionButton
+                    py={4}
+                    _hover={{ 
+                      bg: hoverBgColor,
+                      transition: "background 0.3s ease"
+                    }}
+                  >
+                    <Box 
+                      flex="1" 
+                      textAlign="left" 
+                      fontWeight="semibold"
+                      color={isExpanded ? expandedColor : textColor}
+                    >
+                      {item.question}
+                    </Box>
+                    <AccordionIcon color={isExpanded ? expandedColor : textColor} />
+                  </AccordionButton>
+                  <AccordionPanel 
+                    pb={4} 
+                    color={answerTextColor}
+                    bg={answerBgColor}
+                  >
+                    {item.answer}
+                  </AccordionPanel>
+                </>
+              )}
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </VStack>
+    </Container>
   )
 }
 
-export interface FaqItemProps {
-  question: React.ReactNode
-  answer: React.ReactNode
-}
+// Example usage
 
-const FaqItem: React.FC<FaqItemProps> = ({ question, answer }) => {
-  return (
-    <chakra.dl 
-      transition="all 0.3s ease"
-      
-      _hover={{
-        bg: {
-          light: "gray.100",
-          dark: "gray.700"
-        },
-        transform: "scale(1.02)",
-        boxShadow: {
-          light: "md",
-          dark: "dark-lg"
-        },
-        borderRadius: "md",
-        p: "2"
-      }}
-    >
-      <chakra.dt 
-        fontWeight="semibold" 
-        mb="2"
-        color={{
-          light: "gray.800",
-          dark: "white"
-        }}
-      >
-        {question}
-      </chakra.dt>
-      <chakra.dd 
-        color={{
-          light: "gray.600",
-          dark: "gray.300"
-        }}
-      >
-        {answer}
-      </chakra.dd>
-    </chakra.dl>
-  )
-}

@@ -17,7 +17,7 @@ export const HighlightsSection = () => {
   const bgColor = useColorModeValue('white', 'gray.800')
   const textColor = useColorModeValue("gray.600", "gray.300")
   const headingColor = useColorModeValue('gray.900', 'white')
-  const testimonialTextColor = useColorModeValue("gray.700", "gray.200")
+  // const testimonialTextColor = useColorModeValue("gray.700", "gray.200")
 
   const MobileHighlightCard = ({ title, description, items }: { title: string; description: string; items: string[] }) => (
     <Box
@@ -219,7 +219,7 @@ export const HighlightsSection = () => {
           fontSize={{ base: "md", md: "lg" }}
           fontStyle="italic"
           lineHeight="tall"
-          color={testimonialTextColor}
+          color="white"
         >
           &ldquo;At Prepzo, we recognize that finding the right mentor can be challenging. Leveraging advanced AI technology, Prepzo serves as a personalized mentor, offering tailored guidance to help you navigate your career journey effectively.&rdquo;
         </Text>

@@ -64,9 +64,11 @@ export const UseCaseGallerySection = () => {
         <Features
           id="features"
           title="Use Case Gallery"
+          subheading="Explore our range of professional development tools designed to elevate your career journey"
           columns={[1, 2, 3]}
           spacing={6}
-          py={6}
+          py={0}
+          mt={2}
           align="center"
           maxW="1800px"
           mx="auto"
