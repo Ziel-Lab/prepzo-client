@@ -1,6 +1,6 @@
 'use client'
 
-import { ResponsiveValue, SimpleGrid, Box } from '@chakra-ui/react'
+import { ResponsiveValue, SimpleGrid, Box, Container } from '@chakra-ui/react'
 import React from 'react'
 import {
   Section,
@@ -78,32 +78,35 @@ export const Testimonials: React.FC<TestimonialsProps> = (props) => {
   });
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial="hidden"
-        whileInView="visible"
-        variants={containerVariants}
-        viewport={{ once: true, margin: "-100px" }}
-      >
-        <Section {...rest}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-          >
-            <SectionTitle title={title} />
-          </motion.div>
-          <SimpleGrid 
-            columns={columns} 
-            spacing="8" 
-            templateColumns={{ base: "1fr", md: "repeat(auto-fill, minmax(300px, 1fr))" }}
-            autoRows="1fr"
-          >
-            {wrappedChildren}
-          </SimpleGrid>
-        </Section>
-      </motion.div>
-    </AnimatePresence>
+    <Container maxW="1200px" px={0} overflow="hidden">
+      <AnimatePresence>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          variants={containerVariants}
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <Section innerWidth="1200px" {...rest}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              viewport={{ once: true }}
+            >
+              <SectionTitle title={title} />
+            </motion.div>
+            <SimpleGrid 
+              columns={columns} 
+              spacing="8" 
+              templateColumns={{ base: "1fr", md: "repeat(auto-fill, minmax(300px, 1fr))" }}
+              autoRows="1fr"
+              px={[4, 5, 6]}
+            >
+              {wrappedChildren}
+            </SimpleGrid>
+          </Section>
+        </motion.div>
+      </AnimatePresence>
+    </Container>
   )
 }

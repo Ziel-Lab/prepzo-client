@@ -12,6 +12,8 @@ import {
   useMultiStyleConfig,
   ThemingProps,
   SystemProps,
+  Card,
+  CardBody,
 } from '@chakra-ui/react'
 
 import { Section, SectionTitleProps } from '@/components/section'
@@ -60,35 +62,24 @@ export function Feature(props: FeatureProps) {
     title,
     description,
     icon,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    iconPosition,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ip,
     variant,
     iconBgColor = "whiteAlpha.200",
     iconColor = "purple.500"
   } = props
   const styles = useMultiStyleConfig('Feature', { variant })
 
-  const direction = 'column'
-
   return (
-    <Stack 
-      sx={styles.container} 
-      direction={direction} 
-      spacing={4} 
-      p={3}
-      pt={5}
+    <Card
       width="100%"
-      maxW="480px"
-      minH="200px"
-      height="auto"
-      align="flex-start"
+      maxW="500px"
+      minH="300px"
+      height="100%"
       borderRadius="xl"
       border="1px solid"
       borderColor="gray.200"
       bg="gray.50"
       backdropFilter="blur(10px)"
+      overflow="hidden"
       _dark={{
         bg: "rgba(17, 17, 17, 0.75)",
         borderColor: "whiteAlpha.100"
@@ -100,54 +91,58 @@ export function Feature(props: FeatureProps) {
         borderColor: "#7A37E6",
         bg: "white",
         _dark: {
-          bg: "rgba(25, 25, 25, 0.85)"
+          bg: "rgba(25, 25, 25, 0.85)",
+          borderColor: "purple.400"
         }
       }}
     >
-      {icon && (
-        <Circle 
-          sx={styles.icon} 
-          bg={iconBgColor} 
-          size="36px" 
-          flexShrink={0}
-          _dark={{
-            bg: "whiteAlpha.200"
-          }}
-        >
-          <Icon as={icon} boxSize={5} color={iconColor} />
-        </Circle>
-      )}
-      <Box width="100%" pt={1}>
-        <Heading 
-          sx={styles.title} 
-          color="gray.900" 
-          fontSize="md" 
-          fontWeight="semibold" 
-          mb={4}
-          as="h3"
-          display="block"
-          _dark={{
-            color: "white"
-          }}
-        >
-          {title}
-        </Heading>
-        {description && (
-          <Text 
-            sx={styles.description} 
-            color="whiteAlpha.700" 
-            fontSize="sm"
-            lineHeight="1.6"
-            display="block"
+      <CardBody display="flex" flexDirection="column" alignItems="flex-start" gap={4} p={8} height="100%">
+        {icon && (
+          <Circle 
+            sx={styles.icon} 
+            bg={iconBgColor} 
+            size="60px" 
+            flexShrink={0}
+            alignSelf="flex-start"
             _dark={{
-              color: "whiteAlpha.700"
+              bg: "whiteAlpha.200"
             }}
           >
-            {description}
-          </Text>
+            <Icon as={icon} boxSize={7} color={iconColor} />
+          </Circle>
         )}
-      </Box>
-    </Stack>
+        <Box width="100%" textAlign="left">
+          <Heading 
+            sx={styles.title} 
+            color="gray.900" 
+            fontSize="lg" 
+            fontWeight="semibold" 
+            mb={3}
+            as="h3"
+            display="block"
+            _dark={{
+              color: "white"
+            }}
+          >
+            {title}
+          </Heading>
+          {description && (
+            <Text 
+              sx={styles.description} 
+              color="gray.600" 
+              fontSize="sm"
+              lineHeight="1.6"
+              display="block"
+              _dark={{
+                color: "whiteAlpha.700"
+              }}
+            >
+              {description}
+            </Text>
+          )}
+        </Box>
+      </CardBody>
+    </Card>
   )
 }
 
@@ -172,8 +167,8 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
   const displayFeatures = maxFeatures ? features.slice(0, maxFeatures) : features
 
   return (
-    <Section maxW="1400px" py={10} display="flex" justifyContent="center" {...rest}>
-      <Stack direction="row" height="full" align="center" width="100%" justifyContent="center" mx="auto">
+    <Section maxW="100vw" width="100%" py={10} display="flex" justifyContent="center" px={0} overflow="hidden" innerWidth="1200px" {...rest}>
+      <Stack direction="row" height="full" align="center" width="100%" justifyContent="center" mx="auto" maxW="100%">
         <VStack flex="1" spacing={12} alignItems="center" width="100%">
           {(title || description || subheading) && (
             <Wrap>
@@ -193,7 +188,7 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
                   <Text 
                     fontSize="lg" 
                     color="gray.600" 
-                    maxW="800px"
+                    maxW="1200px"
                     mx="auto"
                     mt={3}
                     _dark={{
@@ -204,7 +199,7 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
                   </Text>
                 )}
                 {description && (
-                  <Text mt={4} maxW="container.md" mx="auto">
+                  <Text mt={4} maxW="1200px" mx="auto">
                     {description}
                   </Text>
                 )}
@@ -213,15 +208,16 @@ export function UseCaseGallery(props: UseCaseGalleryProps) {
           )}
           <SimpleGrid 
             columns={columns} 
-            spacing={8} 
-            px={[6, 8]}
+            spacing={6} 
+            px={[4, 5, 6]}
             width="100%"
+            maxW="100%"
             justifyItems="center"
           >
             {displayFeatures.map((feature, i) => {
               return (
                 <Wrap key={i} delay={feature.delay}>
-                  <Box width="100%">
+                  <Box width="100%" height="100%">
                     <Feature iconSize={iconSize} {...feature} ip={ip} />
                   </Box>
                 </Wrap>

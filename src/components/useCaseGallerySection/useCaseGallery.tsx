@@ -4,6 +4,7 @@ import { Features } from "../features"
 import { features } from '@/data/casegallery'
 import { motion, AnimatePresence } from "framer-motion"
 import { ReactNode } from "react"
+import { Container } from '@chakra-ui/react'
 
 interface RevealerProps {
   children: ReactNode;
@@ -54,31 +55,35 @@ const enhancedFeatures = features.map((feature, index) => ({
 
 export const UseCaseGallerySection = () => {
   return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      variants={containerVariants}
-      viewport={{ once: true, margin: "-100px" }}
-    >
-      <AnimatePresence>
-        <Features
-          id="features"
-          title="Use Case Gallery"
-          subheading="Explore our range of professional development tools designed to elevate your career journey"
-          columns={[1, 2, 3]}
-          spacing={6}
-          py={0}
-          mt={2}
-          align="center"
-          maxW="1800px"
-          mx="auto"
-          px={0}
-          iconSize={3}
-          maxFeatures={12}
-          features={enhancedFeatures}
-          reveal={FeatureRevealer}
-        />
-      </AnimatePresence>
-    </motion.div>
+    <Container maxW="1200px" px={0} overflow="hidden">
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        variants={containerVariants}
+        viewport={{ once: true, margin: "-100px" }}
+        style={{ width: "100%", maxWidth: "100%" }}
+      >
+        <AnimatePresence>
+          <Features
+            id="features"
+            title="Use Case Gallery"
+            subheading="Explore our range of professional development tools designed to elevate your career journey"
+            columns={[1, 2, 3]}
+            spacing={6}
+            py={8}
+            mt={4}
+            align="center"
+            maxW="100%"
+            width="100%"
+            mx="auto"
+            px={[4, 5, 6]}
+            iconSize={4}
+            maxFeatures={12}
+            features={enhancedFeatures}
+            reveal={FeatureRevealer}
+          />
+        </AnimatePresence>
+      </motion.div>
+    </Container>
   )
 }

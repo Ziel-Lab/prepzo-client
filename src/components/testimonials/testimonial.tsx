@@ -31,11 +31,31 @@ export const Testimonial = ({
     <Card 
       position="relative" 
       height="100%" 
+      width="100%"
+      maxW="500px"
       display="flex"
       flexDirection="column"
-      minH="200px"
+      minH="240px"
       boxShadow="md"
-      borderRadius="lg"
+      borderRadius="xl"
+      border="1px solid"
+      borderColor="gray.200"
+      bg="gray.50"
+      _dark={{
+        bg: "rgba(17, 17, 17, 0.75)",
+        borderColor: "whiteAlpha.100"
+      }}
+      transition="all 0.3s ease-in-out"
+      _hover={{
+        transform: "translateY(-2px)",
+        boxShadow: "0 0 30px -5px rgba(122, 55, 230, 0.5)",
+        borderColor: "#7A37E6",
+        bg: "white",
+        _dark: {
+          bg: "rgba(25, 25, 25, 0.85)",
+          borderColor: "purple.400"
+        }
+      }}
       {...rest}
     >
       <CardHeader display="flex" flexDirection="row" alignItems="center">
