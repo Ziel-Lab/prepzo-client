@@ -66,7 +66,7 @@ export const UseCaseGallerySection = () => {
         <AnimatePresence>
           <Features
             id="features"
-            title="Use Case Gallery"
+            title="Use Cases"
             subheading="Explore our range of professional development tools designed to elevate your career journey"
             columns={[1, 2, 3]}
             spacing={6}

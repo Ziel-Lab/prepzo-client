@@ -9,8 +9,16 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, Text, VStack, useColorModeValue, Button } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, useColorModeValue, Button, useToast, Input } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Declare types for window properties
+declare global {
+  interface Window {
+    emailRequested?: boolean;
+    emailSent?: string;
+  }
+}
 
 // Custom hook to safely use voice assistant
 function useSafeVoiceAssistant() {
@@ -204,20 +212,116 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
   
+  // Add state for email collection
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
+  
+  const dialogBgColor = useColorModeValue("white", "gray.800");
+  const dialogBorderColor = useColorModeValue("gray.200", "gray.700");
+  const inputBgColor = useColorModeValue("gray.50", "gray.700");
+  const inputBorderColor = useColorModeValue("gray.300", "gray.600");
+  const labelColor = useColorModeValue("gray.700", "gray.300");
+  const cancelButtonColor = useColorModeValue("gray.500", "gray.400");
+  const cancelButtonHoverBg = useColorModeValue("gray.100", "gray.700");
+  
+  const handleSubmitEmail = async () => {
+    if (!email || !email.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Get the current session ID from the room
+      const sessionId = room?.name;
+      if (!sessionId) {
+        throw new Error('No active session');
+      }
+
+      // Extract just the room ID part if it's a voice assistant room
+      const cleanSessionId = sessionId.startsWith('voice_assistant_room_') 
+        ? sessionId 
+        : `voice_assistant_room_${sessionId}`;
+      
+      // Call the API to store the email
+      const response = await fetch('/api/store-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: cleanSessionId,
+          recipient_email: email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to store email');
+      }
+
+      // Store the email for potential future use
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('prepzo_user_email', email);
+      }
+      
+      // Show success message
+      toast({
+        title: "Email Saved",
+        description: "Your email has been saved successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Set a flag so the voice assistant knows the email was stored
+      window.emailSent = email;
+      
+      // Close the dialog
+      setShowEmailInput(false);
+      setEmail("");
+    } catch (error) {
+      console.error('Error storing email:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your email. Please try again later.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     console.log("Handle disconnect called, showing confirmation dialog");
     
-    // Show confirmation dialog first
-    const wantToFollowUpEmail = window.confirm("Do you want to catch up with us over email?");
+    // Show email input dialog
+    setShowEmailInput(true);
+    
+    // Legacy code: prompt for email input using window.prompt
+    // This is now replaced with the custom dialog
+    /*
+    const email = window.prompt("Please enter your email to catch up with us:");
     
     // Store response for later processing
-    if (wantToFollowUpEmail) {
+    if (email) {
       // You could store this in localStorage or any other state management
-      localStorage.setItem('prepzo_email_followup', 'true');
-      console.log("User wants email follow-up");
+      localStorage.setItem('prepzo_user_email', email);
+      console.log("User provided email for follow-up:", email);
     } else {
-      console.log("User declined email follow-up");
+      console.log("User declined to provide an email for follow-up");
     }
+    */
     
     // Log and proceed with disconnection
     console.log("Now stopping all audio capture");
@@ -348,63 +452,129 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   };
   
   return (
-    <Flex 
-      justifyContent="space-between" 
-      alignItems="center" 
-      width="auto"
-      minWidth="300px"
-      maxWidth="450px"
-      mx="auto"
-      bg={bgColor}
-      borderRadius="md"
-      py="2"
-      px="6"
-      borderWidth="1px"
-      borderColor={borderColor}
-      boxShadow="xs"
-    >
-      {/* Keep the original control bar for device settings but hide the disconnect button */}
-      <Box 
-        sx={{
-          "& .lk-disconnect-button": {
-            display: "none",
-          },
-          "& .lk-control-bar": {
-            padding: 0,
-            minWidth: "180px",
-            width: "180px",
-          }
-        }}
-        width="180px"
-      >
-        <VoiceAssistantControlBar 
-          controls={{
-            microphone: true,
-            leave: false
-          }} 
-        />
-      </Box>
-      
-      <Button
-        colorScheme="red"
-        variant="solid"
-        size="md"
+    <>
+      <Flex 
+        justifyContent="space-between" 
+        alignItems="center" 
+        width="auto"
+        minWidth="300px"
+        maxWidth="450px"
+        mx="auto"
+        bg={bgColor}
         borderRadius="md"
-        aria-label="End call"
-        onClick={handleDisconnect}
-        ml={3}
-        px={6}
-        py={2}
-        height="auto"
-        fontWeight="normal"
-        color="white"
-        bg="#E53E3E"
-        _hover={{ bg: "#C53030" }}
-        boxShadow="0px 1px 2px rgba(0, 0, 0, 0.2)"
+        py="2"
+        px="6"
+        borderWidth="1px"
+        borderColor={borderColor}
+        boxShadow="xs"
       >
-        End Call
-      </Button>
-    </Flex>
+        {/* Keep the original control bar for device settings but hide the disconnect button */}
+        <Box 
+          sx={{
+            "& .lk-disconnect-button": {
+              display: "none",
+            },
+            "& .lk-control-bar": {
+              padding: 0,
+              minWidth: "180px",
+              width: "180px",
+            }
+          }}
+          width="180px"
+        >
+          <VoiceAssistantControlBar 
+            controls={{
+              microphone: true,
+              leave: false
+            }} 
+          />
+        </Box>
+        
+        <Button
+          colorScheme="red"
+          variant="solid"
+          size="md"
+          borderRadius="md"
+          aria-label="End call"
+          onClick={handleDisconnect}
+          ml={3}
+          px={6}
+          py={2}
+          height="auto"
+          fontWeight="normal"
+          color="white"
+          bg="#E53E3E"
+          _hover={{ bg: "#C53030" }}
+          boxShadow="0px 1px 2px rgba(0, 0, 0, 0.2)"
+        >
+          End Call
+        </Button>
+      </Flex>
+      
+      {/* Email Input Dialog with proper light/dark mode styling */}
+      {showEmailInput && (
+        <Box
+          position="absolute"
+          top="unset"
+          bottom="120px"
+          left="50%"
+          transform="translateX(-50%)"
+          bg={dialogBgColor}
+          p={4}
+          borderRadius="md"
+          boxShadow="lg"
+          zIndex="100000"
+          width="90%"
+          maxW="500px"
+          backdropFilter="blur(10px)"
+          borderWidth="1px"
+          borderColor={dialogBorderColor}
+        >
+          <Text mb={3} fontWeight="medium" fontSize="md" textAlign="center" color={labelColor}>
+            Please enter your email to stay connected
+          </Text>
+          <Box mb={3}>
+            <Input
+              type="email"
+              placeholder="your.email@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              size="md"
+              bg={inputBgColor}
+              borderColor={inputBorderColor}
+              _hover={{ borderColor: "blue.300" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
+              height="40px"
+              borderRadius="md"
+              isDisabled={isSubmitting}
+            />
+          </Box>
+          <Flex justify="flex-end">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowEmailInput(false)}
+              mr={2}
+              size="sm"
+              color={cancelButtonColor}
+              _hover={{ bg: cancelButtonHoverBg }}
+              isDisabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitEmail} 
+              colorScheme="blue"
+              size="sm"
+              isDisabled={!email.includes('@') || isSubmitting}
+              isLoading={isSubmitting}
+              loadingText="Submitting"
+            >
+              Submit
+            </Button>
+          </Flex>
+        </Box>
+      )}
+    </>
   );
 };
 
@@ -417,6 +587,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
   const transcriptRef = useRef<HTMLDivElement>(null);
   const lastMessageTypeRef = useRef<"agent" | "user" | null>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const emailSentRef = useRef<string | null>(null);
 
   // Request fresh microphone permissions on mount
   useEffect(() => {
@@ -548,6 +719,22 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
     // Track the last message type to help determine when to show thinking indicator
     if (allMessages.length > 0) {
       lastMessageTypeRef.current = allMessages[allMessages.length - 1].type;
+      
+      // Email request detection based on semantic understanding
+      if (allMessages[allMessages.length - 1].type === "agent") {
+        const lastAgentMessage = allMessages[allMessages.length - 1].text;
+        
+        // Check if the agent is explicitly requesting an email from context
+        if (lastAgentMessage) {
+          // Use an intent-based approach rather than just keywords
+          const isEmailRequest = checkIfMessageRequestsEmail(lastAgentMessage);
+          
+          if (isEmailRequest) {
+            console.log("Contextual email request detected");
+            window.emailRequested = true;
+          }
+        }
+      }
     }
     
     onStateChange(state);
@@ -577,6 +764,41 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
         })
         .catch(err => console.error("Error stopping microphone on unmount:", err));
     };
+  }, []);
+
+  // Check if an email was sent and handle it
+  useEffect(() => {
+    const checkEmailSent = () => {
+      if (window.emailSent && window.emailSent !== emailSentRef.current) {
+        emailSentRef.current = window.emailSent;
+        
+        // Add a "system" message to the conversation about the email
+        const emailSentMessage: TranscriptionMessage = {
+          id: `email-sent-${Date.now()}`,
+          text: `Got it! Your email has been saved. I'll continue to assist you.`,
+          type: "agent",
+          language: "en-US",
+          startTime: Date.now(),
+          endTime: Date.now(),
+          final: true,
+          firstReceivedTime: Date.now(),
+          lastReceivedTime: Date.now(),
+          receivedAtMediaTimestamp: Date.now(),
+          receivedAt: Date.now()
+        };
+        
+        setMessages(prev => [...prev, emailSentMessage]);
+        
+        // Clear the flag
+        window.emailSent = undefined;
+      }
+    };
+    
+    // Check immediately and set up an interval
+    checkEmailSent();
+    const intervalId = setInterval(checkEmailSent, 1000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   return (
@@ -638,6 +860,63 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
       </Box>
     </Flex>
   );
+};
+
+// Helper function to check if a message is requesting an email based on context
+const checkIfMessageRequestsEmail = (message: string): boolean => {
+  message = message.toLowerCase();
+  
+  // Check for our special marker first - highest priority detection
+  if (message.includes('[request_email]')) {
+    console.log("Detected direct [REQUEST_EMAIL] marker in message");
+    return true;
+  }
+  
+  // Check for direct email requests with more sophisticated patterns
+  const emailRequestPatterns = [
+    // Question about providing email
+    /would you (like|want|mind|be willing) to (provide|share|give) your email/i,
+    /can (i|we) (have|get|collect) your email/i,
+    /your email (address|please)/i,
+    // Requests for sending something
+    /send you (a|the|this) (summary|transcript|record|recording|conversation)/i,
+    /email you (a|the|this) (summary|transcript|record|recording|conversation)/i,
+    // Statements of intent
+    /i('d| would) (like|love|want) to (send|email) you/i,
+    /i can send (it|this|that|the summary|the transcript) to your email/i,
+    // Direct requests
+    /please (provide|share|enter|type) your email/i,
+    /may i (have|ask for|request|get) your email/i
+  ];
+  
+  // Test against each pattern
+  for (const pattern of emailRequestPatterns) {
+    if (pattern.test(message)) {
+      return true;
+    }
+  }
+  
+  // Check for combination of keywords in context
+  const emailKeywords = ['email', 'send', 'address', 'contact', 'reach'];
+  const requestKeywords = ['would you', 'can i', 'please', 'could you', 'mind', 'would like'];
+  const purposeKeywords = ['summary', 'transcript', 'record', 'conversation', 'chat', 'interview', 'session'];
+  
+  // Count how many of each category appears in the message
+  const emailCount = emailKeywords.filter(word => message.includes(word)).length;
+  const requestCount = requestKeywords.filter(word => message.includes(word)).length;
+  const purposeCount = purposeKeywords.filter(word => message.includes(word)).length;
+  
+  // If we have matches in all three categories, likely a contextual email request
+  if (emailCount > 0 && requestCount > 0 && purposeCount > 0) {
+    return true;
+  }
+  
+  // Check if message ends with a question mark and contains email
+  if (message.includes('email') && message.trim().endsWith('?')) {
+    return true;
+  }
+  
+  return false;
 };
 
 export default SimpleVoiceAssistant;

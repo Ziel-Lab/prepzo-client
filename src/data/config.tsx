@@ -12,8 +12,8 @@ const siteConfig = {
     title: 'perpzo.',
     description: '',
   } as NextSeoProps,
-  termsUrl: '#',
-  privacyUrl: '#',
+  termsUrl: 'https://prepzo-client.vercel.app/terms-of-service',
+  privacyUrl: 'https://prepzo-client.vercel.app/privacy-policy',
   header: {
     links: [
       {
