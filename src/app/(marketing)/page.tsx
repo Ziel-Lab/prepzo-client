@@ -13,17 +13,18 @@ import { ArrowBackIcon } from '@chakra-ui/icons'
 import { Faq } from '@/components/faq'
 // import { Features } from '@/components/features'
 // import { Pricing } from '@/components/pricing/pricing'
-// import { Testimonial, Testimonials } from '@/components/testimonials'
+
 
 import faq from '@/data/faq'
 // import pricing from '@/data/pricing'
-// import testimonials from '@/data/testimonials'
+
 
 import { Newsletter } from '@/components/newsletter'
 import { UseCaseGallerySection } from '@/components/useCaseGallerySection/useCaseGallery'
 import { HighlightsSection } from '@/components/highlightsSection/highlightsSection'
 import HeroSection from '@/components/heroSection/HeroSection'
 import TestimonialsSection from '@/components/testimonialsSection/TestimonialsSection'
+import HowItWorkSection from '@/components/howItworkSection/howItworkSection'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
@@ -150,6 +151,7 @@ export default function HomePage() {
         </Box>
       ) : (
         <>
+      <HowItWorkSection />
       <UseCaseGallerySection />
       <HighlightsSection />
       <TestimonialsSection />
