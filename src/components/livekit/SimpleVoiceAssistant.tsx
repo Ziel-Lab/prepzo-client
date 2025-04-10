@@ -9,7 +9,7 @@ import {
 } from "@livekit/components-react";
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
-import { Box, Flex, Text, VStack, useColorModeValue, Button, useToast, Input } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, useColorModeValue, Button } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Declare types for window properties
@@ -213,100 +213,18 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const borderColor = useColorModeValue("gray.200", "gray.700");
   
   // Add state for email collection
-  const [showEmailInput, setShowEmailInput] = useState(false);
-  const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const toast = useToast();
   
-  const dialogBgColor = useColorModeValue("white", "gray.800");
-  const dialogBorderColor = useColorModeValue("gray.200", "gray.700");
-  const inputBgColor = useColorModeValue("gray.50", "gray.700");
-  const inputBorderColor = useColorModeValue("gray.300", "gray.600");
-  const labelColor = useColorModeValue("gray.700", "gray.300");
-  const cancelButtonColor = useColorModeValue("gray.500", "gray.400");
-  const cancelButtonHoverBg = useColorModeValue("gray.100", "gray.700");
   
-  const handleSubmitEmail = async () => {
-    if (!email || !email.includes('@')) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Get the current session ID from the room
-      const sessionId = room?.name;
-      if (!sessionId) {
-        throw new Error('No active session');
-      }
-
-      // Extract just the room ID part if it's a voice assistant room
-      const cleanSessionId = sessionId.startsWith('voice_assistant_room_') 
-        ? sessionId 
-        : `voice_assistant_room_${sessionId}`;
-      
-      // Call the API to store the email
-      const response = await fetch('/api/store-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: cleanSessionId,
-          recipient_email: email,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to store email');
-      }
-
-      // Store the email for potential future use
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('prepzo_user_email', email);
-      }
-      
-      // Show success message
-      toast({
-        title: "Email Saved",
-        description: "Your email has been saved successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      // Set a flag so the voice assistant knows the email was stored
-      window.emailSent = email;
-      
-      // Close the dialog
-      setShowEmailInput(false);
-      setEmail("");
-    } catch (error) {
-      console.error('Error storing email:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save your email. Please try again later.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+  
+  
+  
+  
+  
   const handleDisconnect = async () => {
     console.log("Handle disconnect called, showing confirmation dialog");
     
     // Show email input dialog
-    setShowEmailInput(true);
+    
     
     // Legacy code: prompt for email input using window.prompt
     // This is now replaced with the custom dialog
@@ -512,7 +430,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       </Flex>
       
       {/* Email Input Dialog with proper light/dark mode styling */}
-      {showEmailInput && (
+      {/* {showEmailInput && (
         <Box
           position="absolute"
           top="unset"
@@ -573,7 +491,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
             </Button>
           </Flex>
         </Box>
-      )}
+      )} */}
     </>
   );
 };

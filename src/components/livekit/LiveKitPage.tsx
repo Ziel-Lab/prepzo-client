@@ -98,6 +98,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     console.log("Voice assistant state changed:", state);
     
     // Check if this is our custom email request event
+    if (state === "email_requested") {
+      handleRequestEmail();
+    }
     if (window.emailRequested) {
       window.emailRequested = false;
       handleRequestEmail();
@@ -413,7 +416,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 // Use our comprehensive cleanup function
                 await forceStopAudioCapture();
                 // Remove the popup dialog since it's now shown when End Call is clicked
-                onClose();
+                // onClose();
+                setShowEmailInput(false);
               }}
               style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
             >
