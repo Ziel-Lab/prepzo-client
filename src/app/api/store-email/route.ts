@@ -12,11 +12,19 @@ export async function POST(request: Request) {
     const { session_id, recipient_email } = await request.json();
 
     // Update the conversation_histories table with the email
-    const { data, error } = await supabase
-      .from('conversation_histories')
-      .update({ user_email: recipient_email })
-      .eq('session_id', session_id)
+    const {data,error}= await supabase
+      .from('user_emails')
+      .insert({
+        session_id, 
+        email: recipient_email,
+      })
       .select();
+
+    // const { data, error } = await supabase
+    //   .from('conversation_histories')
+    //   .update({ user_email: recipient_email })
+    //   .eq('session_id', session_id)
+    //   .select();
 
     if (error) {
       console.error('Error updating Supabase:', error);

@@ -8,7 +8,10 @@ import { NextResponse } from "next/server";
 // NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const LIVEKIT_URL =  process.env.LIVEKIT_URL;
+
+// Log the API keys (with sensitive parts masked)
+console.log("LIVEKIT_URL:", LIVEKIT_URL);
 
 // don't cache the results
 export const revalidate = 0;
