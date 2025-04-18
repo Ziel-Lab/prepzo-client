@@ -5,8 +5,12 @@ import { Em } from '../typography';
 import { RippleButton } from '../ripple-button';
 import { BackgroundGradient } from '@/components/gradients/background-gradient'
 
-const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (active: boolean) => void }> = ({ isLiveKitActive, onLiveKitStateChange }) => {
-    const [isBackgroundChanged, setIsBackgroundChanged] = useState(false);
+interface HeroSectionProps {
+  isLiveKitActive: boolean;
+  onOpenModal: () => void;
+}
+
+const HeroSection: React.FC<HeroSectionProps> = ({ isLiveKitActive, onOpenModal }) => {
     const [isClient, setIsClient] = useState(false);
     
     // Define color values outside of JSX
@@ -22,28 +26,14 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
     useEffect(() => {
       setIsClient(true);
     }, []);
-    
-    // Sync isBackgroundChanged with parent isLiveKitActive state
-    useEffect(() => {
-      if (isClient) {
-      setIsBackgroundChanged(isLiveKitActive);
-      }
-    }, [isLiveKitActive, isClient]);
-  
-    const handleOpenLiveKit = () => {
-      if (isClient) {
-      setIsBackgroundChanged(true);
-      onLiveKitStateChange(true);
-      }
-    };
   
     // Default values for server-side rendering
     const defaultBgColor = "transparent";
     const defaultBgImage = "none";
   
     // Use client-side values only after hydration
-    const currentBgColor = !isClient ? defaultBgColor : (isBackgroundChanged ? bgColor : defaultBgColor);
-    const currentBgImage = !isClient ? defaultBgImage : (isBackgroundChanged ? backgroundGradient : defaultBgImage);
+    const currentBgColor = !isClient ? defaultBgColor : (isLiveKitActive ? bgColor : defaultBgColor);
+    const currentBgImage = !isClient ? defaultBgImage : (isLiveKitActive ? backgroundGradient : defaultBgImage);
   
     return (
       <Box 
@@ -53,7 +43,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
         backgroundImage={currentBgImage}
         transition="all 0.3s ease"
       >
-        <BackgroundGradient height="100%" zIndex="-1" opacity={isBackgroundChanged ? 0 : 1} transition="opacity 0.3s ease" />
+        <BackgroundGradient height="100%" zIndex="-1" opacity={isLiveKitActive ? 0 : 1} transition="opacity 0.3s ease" />
         <Box
           position="absolute"
           top="0"
@@ -88,7 +78,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
               px="0"
               textAlign="center"
               width="100%"
-              title={!isBackgroundChanged && (
+              title={!isLiveKitActive && (
                 <Box 
                   textAlign="center" 
                   width="100%" 
@@ -111,7 +101,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                   </Box>
                 </Box>
               )}
-              description={!isBackgroundChanged && (
+              description={!isLiveKitActive && (
                 <Box
                   color="black"
                   fontWeight="normal"
@@ -141,16 +131,16 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
               )}
             >
               <Box width="100%" textAlign="center" mx="auto">
-                {!isBackgroundChanged && (
+                {!isLiveKitActive && (
                   <HStack pt={{ base: 2, md: 4 }} pb={{ base: 8, md: 12 }} spacing={{ base: 4, md: 8 }} justifyContent="center">
                   </HStack>
                 )}
   
                 <ButtonGroup spacing={{ base: 2, md: 4 }} alignItems="center" justifyContent="center" mb={{ base: 6, md: 10 }}>
-                  {!isBackgroundChanged && (
+                  {!isLiveKitActive && (
                     <>
                       <RippleButton
-                        onClick={handleOpenLiveKit}
+                        onClick={onOpenModal}
                         borderRadius="xl"
                         px={{ base: 6, md: 8 }}
                         py={{ base: 3, md: 4 }}
@@ -167,7 +157,7 @@ const HeroSection: React.FC<{ isLiveKitActive: boolean; onLiveKitStateChange: (a
                   )}
                 </ButtonGroup>
                 
-                {!isBackgroundChanged && isClient && (
+                {!isLiveKitActive && isClient && (
                   <Box 
                     width={{ base: '100%', md: '85%', lg: '75%' }} 
                     maxWidth="1200px" 

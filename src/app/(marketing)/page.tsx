@@ -2,13 +2,14 @@
 
 import {
   Box,
+  useDisclosure,
 } from '@chakra-ui/react'
 import LiveKitPage from '@/components/livekit/LiveKitPage'
 // import { features } from '@/data/casegallery'
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { IconButton } from '@chakra-ui/react'
-import { ArrowBackIcon } from '@chakra-ui/icons'
+// import { IconButton } from '@chakra-ui/react'
+// import { ArrowBackIcon } from '@chakra-ui/icons'
 
 import { Faq } from '@/components/faq'
 // import { Features } from '@/components/features'
@@ -25,97 +26,64 @@ import { HighlightsSection } from '@/components/highlightsSection/highlightsSect
 import HeroSection from '@/components/heroSection/HeroSection'
 import TestimonialsSection from '@/components/testimonialsSection/TestimonialsSection'
 import HowItWorkSection from '@/components/howItworkSection/howItworkSection'
+import AgentModal from '@/components/modal/agentmodal'
 
 export default function HomePage() {
   const [isLiveKitActive, setIsLiveKitActive] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const { isOpen: isModalOpen, onOpen: openModal, onClose: closeModal } = useDisclosure();
+
   // Set isClient to true on the client-side only
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Add a class to the body when LiveKit is active, to hide the footer
+  // Add/remove class to the body when LiveKit is active/inactive
   useEffect(() => {
-    if (isClient && isLiveKitActive) {
+    if (!isClient) return;
+
+    if (isLiveKitActive) {
       document.body.classList.add('livekit-active');
-    } else if (isClient) {
+    } else {
       document.body.classList.remove('livekit-active');
     }
-    
-    // Cleanup on unmount
+
+    // Cleanup function to remove the class if the component unmounts while active
     return () => {
       if (isClient) {
-      document.body.classList.remove('livekit-active');
+        document.body.classList.remove('livekit-active');
       }
     };
   }, [isLiveKitActive, isClient]);
-  
-  const handleCloseLiveKit = async () => {
-    if (!isClient) return;
 
-    console.log("Closing LiveKit and stopping all audio capture");
-    
-    // Check if user requested email follow-up
-    const wantsEmailFollowUp = localStorage.getItem('prepzo_email_followup') === 'true';
-    if (wantsEmailFollowUp) {
-      console.log("User requested email follow-up - could trigger email capture flow here");
-      localStorage.removeItem('prepzo_email_followup');
+  // Function to actually start LiveKit (called from modal button)
+  const handleStartLiveKit = () => {
+    if (isClient) {
+      setIsLiveKitActive(true);
+      // closeModal(); // Modal closes itself via its own button onClick
     }
-    
-    try {
-      // First: Set state to inactive immediately
-      setIsLiveKitActive(false);
-      
-      // Second: Add a forced cleanup of browser permissions
-      if ('permissions' in navigator) {
-        try {
-          const permissionStatus = await (navigator as unknown as { 
-            permissions: { 
-              query: (options: { name: string }) => Promise<{ state: string }> 
-            } 
-          }).permissions.query({ name: 'microphone' });
-          console.log("Microphone permission status:", permissionStatus.state);
-        } catch (err) {
-          console.error("Error querying permissions:", err);
-        }
-      }
-      
-      // Third: Create a dummy stream and stop all tracks
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
-        console.log("Stopped audio track after LiveKit closed:", track.id);
-      });
-      
-      // Fourth: Remove any hidden audio elements that might still be capturing
-      document.querySelectorAll('audio').forEach(el => {
-        if (el.srcObject) {
-          try {
-            const stream = el.srcObject as MediaStream;
-            if (stream && typeof stream.getTracks === 'function') {
-              stream.getTracks().forEach(track => track.stop());
-            }
-            el.srcObject = null;
-          } catch (e) {
-            console.error("Error cleaning audio element:", e);
-          }
-        }
-        el.removeAttribute('src');
-        el.load();
-        el.remove();
-      });
-      
-      console.log("Successfully released all microphone permissions");
-    } catch (err) {
-      console.error("Error releasing microphone access:", err);
-    }
+  };
+
+  // Function to handle closing LiveKit (passed to LiveKitPage)
+  const handleCloseLiveKitPage = () => {
+     if (isClient) {
+       console.log("LiveKitPage closed, setting isLiveKitActive to false.");
+       setIsLiveKitActive(false);
+       // Add any additional cleanup needed specifically on the HomePage level here if required
+     }
   };
 
   return (
     <Box position="relative">
-      <HeroSection isLiveKitActive={isLiveKitActive} onLiveKitStateChange={setIsLiveKitActive} />
+      <HeroSection onOpenModal={openModal} isLiveKitActive={isLiveKitActive} />
       
+      {/* Agent Interstitial Modal */}
+      <AgentModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onStartTalking={handleStartLiveKit}
+      />
+
       {/* When LiveKit is active, show LiveKit overlay; otherwise show regular content */}
       {isClient && isLiveKitActive ? (
         <Box 
@@ -135,19 +103,7 @@ export default function HomePage() {
             }
           }}
         >
-          <IconButton
-            aria-label="Back to home"
-            icon={<ArrowBackIcon />}
-            position="absolute"
-            top="4"
-            left="4"
-            zIndex="100000"
-            size="lg"
-            colorScheme="gray"
-            variant="solid"
-            onClick={handleCloseLiveKit}
-          />
-          <LiveKitPage onClose={handleCloseLiveKit} />
+          <LiveKitPage onClose={handleCloseLiveKitPage} />
         </Box>
       ) : (
         <>

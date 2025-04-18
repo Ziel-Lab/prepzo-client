@@ -75,6 +75,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // State for job results markdown
+  const [jobResultsMarkdown, setJobResultsMarkdown] = useState<string | null>(null);
+
   // Pre-calculate color mode values
   const dialogBgColor = useColorModeValue("white", "gray.800");
   const dialogBorderColor = useColorModeValue("gray.200", "gray.700");
@@ -97,13 +100,25 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const handleAgentStateChange = (state: string) => {
     console.log("Voice assistant state changed:", state);
     
+    // Check for job results markdown marker
+    const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
+    if (state.startsWith(markdownPrefix)) {
+      const markdown = state.substring(markdownPrefix.length);
+      console.log("Received job results markdown:", markdown);
+      setJobResultsMarkdown(markdown);
+      // Don't handle other states if this one matched
+      return;
+    }
+
     // Check if this is our custom email request event
     if (state === "email_requested") {
       handleRequestEmail();
+      return; // Don't handle other states if this one matched
     }
     if (window.emailRequested) {
-      window.emailRequested = false;
+      window.emailRequested = false; // Reset the flag
       handleRequestEmail();
+      return; // Don't handle other states if this one matched
     }
     
     // Now handle specific agent states for contextual prompting
@@ -429,6 +444,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   updateConnectionDetails(undefined);
                   onClose();
                 }}
+                jobResultsMarkdown={jobResultsMarkdown}
+                setJobResultsMarkdown={setJobResultsMarkdown}
               />
             </LiveKitRoom>
           </LiveKitErrorBoundary>

@@ -39,6 +39,8 @@ function useSafeVoiceAssistant() {
 interface SimpleVoiceAssistantProps {
   onStateChange: (state: AgentState) => void;
   onEndCall?: () => void;
+  jobResultsMarkdown: string | null;
+  setJobResultsMarkdown: (markdown: string | null) => void;
 }
 
 export interface TranscriptionSegment {
@@ -432,7 +434,12 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   );
 };
 
-const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChange, onEndCall }) => {
+const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ 
+  onStateChange, 
+  onEndCall, 
+  jobResultsMarkdown, 
+  setJobResultsMarkdown 
+}) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const { segments: userTranscriptions } = useSafeTrackTranscription();
 
@@ -654,6 +661,32 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ onStateChan
     
     return () => clearInterval(intervalId);
   }, []);
+
+  // Effect to handle displaying job results markdown when received 
+  useEffect(() => {
+    if (jobResultsMarkdown) {
+      console.log("Displaying job results markdown");
+      const jobResultMessage: TranscriptionMessage = {
+        id: `job-results-${Date.now()}`,
+        text: `Okay, here are the job details I found:\n\n${jobResultsMarkdown}`,
+        type: "agent", // Display as an agent message
+        language: "en-US",
+        startTime: Date.now(),
+        endTime: Date.now(),
+        final: true,
+        firstReceivedTime: Date.now(),
+        lastReceivedTime: Date.now(),
+        receivedAtMediaTimestamp: Date.now(),
+        receivedAt: Date.now()
+      };
+
+      // Add the message to the chat
+      setMessages(prev => [...prev, jobResultMessage]);
+
+      // Clear the markdown state in the parent
+      setJobResultsMarkdown(null);
+    }
+  }, [jobResultsMarkdown, setJobResultsMarkdown]);
 
   return (
     <Flex height="100%" flexDirection="column">
