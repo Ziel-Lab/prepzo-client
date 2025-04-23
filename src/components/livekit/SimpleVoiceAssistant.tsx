@@ -753,6 +753,18 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
 const checkIfMessageRequestsEmail = (message: string): boolean => {
   message = message.toLowerCase();
   
+  const exclusionPatterns = [
+    /(email|address) (you|u) (submitted|provided|entered|gave)/i,
+    /(already|previously) (submitted|provided|entered|gave) (your|the) email/i,
+    /(email|address) (is|was) (already|now) (on file|recorded)/i
+  ];
+  
+  for (const pattern of exclusionPatterns) {
+    if (pattern.test(message)) {
+      console.log("Exclusion pattern matched - not an email request");
+      return false;
+    }
+  }
   // Check for our special marker first - highest priority detection
   if (message.includes('[request_email]')) {
     console.log("Detected direct [REQUEST_EMAIL] marker in message");

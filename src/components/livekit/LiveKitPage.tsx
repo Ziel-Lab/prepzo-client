@@ -96,6 +96,13 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     setShowEmailInput(true);
   };
 
+  // Function to trigger resume upload display
+  const handleRequestResumeUpload = () => {
+    // Logic to open resume upload modal
+    console.log("Resume upload requested by agent.");
+    // You can set a state here to open the modal in SimpleVoiceAssistant
+  };
+
   // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
     console.log("Voice assistant state changed:", state);
@@ -118,6 +125,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     if (window.emailRequested) {
       window.emailRequested = false; // Reset the flag
       handleRequestEmail();
+      return; // Don't handle other states if this one matched
+    }
+
+    // Check if this is our custom resume upload request event
+    if (state === "resume_upload_requested") {
+      handleRequestResumeUpload();
       return; // Don't handle other states if this one matched
     }
     
