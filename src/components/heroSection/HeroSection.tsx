@@ -11,6 +11,8 @@ interface HeroSectionProps {
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ isLiveKitActive, onOpenModal }) => {
+    console.log("HeroSection rendering. isLiveKitActive:", isLiveKitActive);
+    console.log("Type of onOpenModal:", typeof onOpenModal);
     const [isClient, setIsClient] = useState(false);
     
     // Define color values outside of JSX
@@ -140,7 +142,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ isLiveKitActive, onOpenModal 
                   {!isLiveKitActive && (
                     <>
                       <RippleButton
-                        onClick={onOpenModal}
+                        onClick={() => {
+                          console.log("HeroSection RippleButton clicked!");
+                          onOpenModal();
+                        }}
                         borderRadius="xl"
                         px={{ base: 6, md: 8 }}
                         py={{ base: 3, md: 4 }}
