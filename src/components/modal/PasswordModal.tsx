@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Modal,
   InputGroup,
-  InputRightElement,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -28,15 +27,12 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onVerify }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const toast = useToast();
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
     setError(null); // Clear error when user types
   };
-
-  const handleTogglePasswordVisibility = () => setShowPassword(!showPassword);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -85,22 +81,12 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onVerify }) => {
                   <InputGroup size='md'>
                     <Input
                       id='password'
-                      pr='4.5rem' // Padding right to accommodate the icon button
-                      type={showPassword ? 'text' : 'password'}
+                      type={'password'}
                       value={password}
                       onChange={handlePasswordChange}
                       placeholder='Enter the password to access this page'
                       isRequired
                     />
-                    <InputRightElement width='3.5rem'> {/* Reduced width for tighter icon placement */}
-                      <IconButton
-                        h='1.75rem' size='sm'
-                        onClick={handleTogglePasswordVisibility}
-                        variant="ghost"
-                        icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      />
-                    </InputRightElement>
                   </InputGroup>
                   {error && <FormErrorMessage>{error}</FormErrorMessage>}
                 </FormControl>
