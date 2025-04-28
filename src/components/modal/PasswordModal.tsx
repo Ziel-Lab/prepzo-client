@@ -13,10 +13,8 @@ import {
   FormLabel,
   FormErrorMessage,
   VStack,
-  IconButton,
   useToast,
 } from '@chakra-ui/react';
-import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 
 interface PasswordModalProps {
   isOpen: boolean;

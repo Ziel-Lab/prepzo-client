@@ -16,7 +16,9 @@ import { motion, AnimatePresence } from "framer-motion";
 declare global {
   interface Window {
     emailRequested?: boolean;
+    resumeRequested?: boolean;
     emailSent?: string;
+    resumeSent?: string;
   }
 }
 
@@ -594,6 +596,12 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
             console.log("Contextual email request detected");
             window.emailRequested = true;
           }
+
+          const isResumeRequest = checkIfMessageRequestsResume(lastAgentMessage);
+          if (isResumeRequest) {
+            console.log("Contextual resume request detected");
+            window.resumeRequested = true;
+          }
         }
       }
     }
@@ -815,6 +823,106 @@ const checkIfMessageRequestsEmail = (message: string): boolean => {
     return true;
   }
   
+  return false;
+};
+
+/**
+ * Checks if a message from the assistant seems to be requesting a resume upload.
+ * Uses similar logic to checkIfMessageRequestsEmail for robustness.
+ * @param message The message string from the assistant.
+ * @returns True if the message likely requests a resume upload, false otherwise.
+ */
+const checkIfMessageRequestsResume = (message: string): boolean => {
+  if (!message) {
+    return false;
+  }
+
+  const lowerCaseMessage = message.toLowerCase();
+
+  // --- Exclusion Patterns ---
+  // Phrases indicating the resume was already received or isn't needed right now.
+  const exclusionPatterns = [
+    /(resume|cv|document|file) (you|u) (uploaded|submitted|provided|attached|sent)/i,
+    /(already|previously) (uploaded|submitted|provided|attached|sent) (your|the) (resume|cv)/i,
+    /got (your|the) (resume|cv|document|file)/i,
+    /(resume|cv) (is|was) (already|now) (uploaded|received|on file|submitted|saved)/i,
+    /(don't need|no need for) (a|your) (resume|cv) (yet|now|at the moment)/i,
+    // Added patterns for confirmation:
+    /(thanks|thank you) for (uploading|sending|sharing|providing|submitting) (your|the)? (resume|cv)/i,
+    /i('ve| have) (received|got|saved) (your|the) (resume|cv)/i,
+    /(resume|cv|file) (successfully|received|saved)/i, // Covers "resume successfully uploaded", "file received", etc.
+    /okay, (resume|cv) (uploaded|received|saved)/i,
+    /confirming (receipt|reception) of (your|the) (resume|cv)/i,
+  ];
+
+  for (const pattern of exclusionPatterns) {
+    if (pattern.test(lowerCaseMessage)) {
+      console.log("Exclusion pattern matched - not a resume request:", pattern);
+      return false;
+    }
+  }
+
+  // --- Direct Marker ---
+  // Check for a specific marker first.
+  if (lowerCaseMessage.includes('[request_resume]')) {
+    console.log("Detected direct [request_resume] marker in message");
+    return true;
+  }
+
+  // --- Direct Request Patterns ---
+  // More specific regex patterns for common resume requests.
+  const resumeRequestPatterns = [
+    // Asking for upload/attachment
+    /(upload|attach|provide|share|send|submit) (your|a) (resume|cv|curriculum vitae)/i,
+    /can (i|we) (have|get|see|review|receive) (your|a) (resume|cv)/i,
+    /(your|a) (resume|cv) (please|would be helpful|is needed)/i,
+    // Question about providing resume
+    /would you (like|want|mind|be willing) to (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
+    /do you have (a|your) (resume|cv) (available|to upload|you could share)/i,
+    // Statements of need
+    /i('d| would)? (need|like|require) (your|a) (resume|cv)/i,
+    /we('ll| will) need (your|a) (resume|cv) for this/i,
+    // Direct requests
+    /please (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
+    /may i (have|ask for|request|get) (your|a) (resume|cv)/i,
+  ];
+
+  // Test against each specific pattern
+  for (const pattern of resumeRequestPatterns) {
+    if (pattern.test(lowerCaseMessage)) {
+      console.log("Direct resume request pattern matched:", pattern);
+      return true;
+    }
+  }
+
+  // --- Keyword Combination Check ---
+  // Less strict check based on keywords appearing together.
+  const resumeKeywords = ['resume', 'cv', 'curriculum vitae', 'document', 'file'];
+  const requestKeywords = ['upload', 'attach', 'provide', 'send', 'share', 'submit', 'need', 'require', 'get', 'request', 'ask for'];
+  // Optional: Purpose keywords might be less relevant here than for email, but could include:
+  // const purposeKeywords = ['application', 'job', 'position', 'review', 'consideration', 'profile'];
+
+  const resumeCount = resumeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+  const requestCount = requestKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+  // const purposeCount = purposeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+
+
+  // Check if at least one resume keyword and one request keyword are present.
+  // Adjust threshold as needed.
+  if (resumeCount > 0 && requestCount > 0) {
+     console.log("Keyword combination matched for resume request.");
+     return true;
+  }
+
+  // --- Ending Question Mark Check ---
+  // Check if message ends with a question mark and contains a resume keyword.
+  const endsWithQuestion = lowerCaseMessage.trim().endsWith('?');
+  if (endsWithQuestion && resumeCount > 0) {
+     console.log("Resume keyword found in a question.");
+     return true;
+  }
+
+  console.log("No resume request detected in message.");
   return false;
 };
 

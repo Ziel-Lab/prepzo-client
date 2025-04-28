@@ -18,7 +18,10 @@ declare global {
 }
 
 import React, { useState, useCallback, useEffect } from "react";
-import { LiveKitRoom } from "@livekit/components-react";
+import {
+  LiveKitRoom,
+  useRoomContext,
+} from "@livekit/components-react";
 import "@livekit/components-styles";
 import SimpleVoiceAssistant from "@/components/livekit/SimpleVoiceAssistant";
 import { MediaDeviceFailure } from "livekit-client";
@@ -65,6 +68,40 @@ interface LiveKitPageProps {
   onClose: () => void;
 }
 
+// Helper component to access room context and provide sender function
+const RoomDataProvider: React.FC<{ 
+  setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array) => Promise<void>) | null>> 
+}> = ({ setSendDataFn }) => {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    if (room && room.localParticipant) {
+      // Define the sender function using the current room context
+      const sender = async (data: Uint8Array) => {
+        try {
+          await room.localParticipant.publishData(data, { reliable: true });
+          console.log("Sent data signal via RoomDataProvider.");
+        } catch (error) {
+          console.error("Failed to send data signal via RoomDataProvider:", error);
+          throw error; // Re-throw so the caller can handle it (e.g., show toast)
+        }
+      };
+      // Update the parent state with this sender function
+      setSendDataFn(() => sender);
+    } else {
+      // Clear the sender function if the room is not available
+      setSendDataFn(null);
+    }
+
+    // Cleanup: clear the function when the component unmounts or room changes
+    return () => {
+      setSendDataFn(null);
+    };
+  }, [room, setSendDataFn]); // Dependencies: room and the setter function
+
+  return null; // This component does not render anything itself
+};
+
 const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [roomKey, setRoomKey] = useState(Date.now()); // Add a key to force remount if needed
@@ -72,11 +109,20 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // State for the email popup
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [showResumeUpload, setShowResumeUpload] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // State for job results markdown
   const [jobResultsMarkdown, setJobResultsMarkdown] = useState<string | null>(null);
+
+  // State to temporarily ignore resume requests after successful upload
+  const [ignoreResumeRequestsUntil, setIgnoreResumeRequestsUntil] = useState<number>(0);
+
+  // State to hold the function for sending data via LiveKit
+  const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array) => Promise<void>) | null>(null);
 
   // Pre-calculate color mode values
   const dialogBgColor = useColorModeValue("white", "gray.800");
@@ -99,7 +145,13 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   // Function to trigger resume upload display
   const handleRequestResumeUpload = () => {
     // Logic to open resume upload modal
+    // Check if we should ignore the request temporarily
+    if (Date.now() < ignoreResumeRequestsUntil) {
+      console.log("Ignoring resume request signal shortly after upload.");
+      return;
+    }
     console.log("Resume upload requested by agent.");
+    setShowResumeUpload(true);
     // You can set a state here to open the modal in SimpleVoiceAssistant
   };
 
@@ -129,7 +181,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
 
     // Check if this is our custom resume upload request event
-    if (state === "resume_upload_requested") {
+    if (state === "resume_requested") {
+      handleRequestResumeUpload();
+      return; // Don't handle other states if this one matched
+    }
+    if (window.resumeRequested) {
+      window.resumeRequested = false; // Reset the flag
       handleRequestResumeUpload();
       return; // Don't handle other states if this one matched
     }
@@ -190,6 +247,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         localStorage.setItem('prepzo_user_email', email);
       }
       
+      // Hide the popup and clear state immediately on success
+      setShowEmailInput(false);
+      setEmail("");
+      // Set a flag so the voice assistant knows the email was stored
+      window.emailSent = email;
+      
       // Show success message
       toast({
         title: "Email Saved",
@@ -198,12 +261,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         duration: 3000,
         isClosable: true,
       });
-      
-      // Set a flag so the voice assistant knows the email was stored
-      window.emailSent = email;
-      
-      setShowEmailInput(false);
-      setEmail("");
     } catch (error) {
       console.error('Error storing email:', error);
       toast({
@@ -215,6 +272,114 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleUploadResume = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a file to upload.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const sessionId = connectionDetails?.roomName;
+      if (!sessionId) {
+        throw new Error('No active session');
+      }
+      const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
+        ? sessionId
+        : `voice_assistant_room_${sessionId}`;
+
+      const formData = new FormData();
+      formData.append('resume', selectedFile);
+      formData.append('session_id', cleanSessionId);
+
+      // *** IMPORTANT: Replace with your actual API endpoint ***
+      const response = await fetch('/api/resume-uploads', {
+        method: 'POST',
+        body: formData,
+        // Note: Don't set Content-Type header when using FormData,
+        // the browser sets it automatically with the correct boundary.
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(errorData.message || 'Failed to upload resume');
+      }
+
+      // Hide the popup and clear selection immediately on success
+      setShowResumeUpload(false);
+      setSelectedFile(null);
+      // Ignore further resume requests for a short period
+      setIgnoreResumeRequestsUntil(Date.now() + 3000); // Ignore for 3 seconds
+
+      // --- Use sendDataFn from state to send signal to agent --- 
+      if (sendDataFn) {
+        try {
+          const payload = JSON.stringify({ type: "resume_upload_success" });
+          const encoder = new TextEncoder();
+          await sendDataFn(encoder.encode(payload)); // Use the function from state
+          console.log("Sent resume_upload_success signal to agent via sendDataFn.");
+        } catch (error) {
+          console.error("Failed to send resume_upload_success signal via sendDataFn:", error);
+          // Optionally, inform the user that the signal failed, but upload was ok
+          toast({
+            title: "Upload Success, Signal Failed",
+            description: "Resume uploaded, but couldn't notify the agent automatically. Please mention the upload.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } else {
+        console.warn("LiveKit room context not available, cannot send resume_upload_success signal.");
+        // Inform user upload was ok, but signal failed
+         toast({
+            title: "Upload Success, Agent Not Notified",
+            description: "Resume uploaded, but the agent might not be aware yet. Please mention the upload.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+          });
+      }
+      // --- END OF MODIFIED PART ---
+
+      toast({
+        title: "Resume Uploaded",
+        description: "Your resume has been uploaded successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Optionally, inform the voice assistant that the upload was successful
+      // This might involve sending a message back through LiveKit or setting a window flag
+
+    } catch (error: unknown) {
+      console.error('Error uploading resume:', error);
+      // Determine the message to show
+      let errorMessage = "Failed to upload your resume. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Upload Error",
+        description: errorMessage,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -446,9 +611,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 // Remove the popup dialog since it's now shown when End Call is clicked
                 // onClose();
                 setShowEmailInput(false);
+                setSendDataFn(null); // Clear send function on disconnect
               }}
               style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
             >
+              {/* Render the helper component inside LiveKitRoom to get context */}
+              <RoomDataProvider setSendDataFn={setSendDataFn} />
               
               <SimpleVoiceAssistant
                 onStateChange={handleAgentStateChange}
@@ -525,6 +693,77 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               loadingText="Submitting"
             >
               Submit
+            </Button>
+          </Flex>
+        </Box>
+      )}
+      {showResumeUpload && (
+        <Box
+          position="absolute"
+          top="unset"
+          bottom="120px" // Adjust position as needed, maybe higher than email box?
+          left="50%"
+          transform="translateX(-50%)"
+          bg={dialogBgColor}
+          p={4}
+          borderRadius="md"
+          boxShadow="lg"
+          zIndex="100001" // Ensure it's above the email box if both could show
+          width="90%"
+          maxW="500px"
+          backdropFilter="blur(10px)"
+          borderWidth="1px"
+          borderColor={dialogBorderColor}
+        >
+          <Text mb={3} fontWeight="medium" fontSize="md" textAlign="center" color={textColor}>
+            Please upload your resume (PDF, DOCX)
+          </Text>
+          <Box mb={3}>
+            <Input
+              type="file"
+              accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+              size="md"
+              p={1.5} // Adjust padding for file input
+              bg={inputBgColor}
+              borderColor={inputBorderColor}
+              _hover={{ borderColor: "blue.300" }}
+              _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
+              color={inputTextColor}
+              height="40px"
+              borderRadius="md"
+              isDisabled={isUploading}
+            />
+            {selectedFile && (
+              <Text fontSize="sm" mt={1} color={textColor}>
+                Selected: {selectedFile.name}
+              </Text>
+            )}
+          </Box>
+          <Flex justify="flex-end">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowResumeUpload(false);
+                setSelectedFile(null); // Clear selection on cancel
+              }}
+              mr={2}
+              size="sm"
+              color={cancelButtonColor}
+              _hover={{ bg: cancelButtonHoverBg }}
+              isDisabled={isUploading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUploadResume}
+              colorScheme="blue"
+              size="sm"
+              isDisabled={!selectedFile || isUploading}
+              isLoading={isUploading}
+              loadingText="Uploading"
+            >
+              Upload
             </Button>
           </Flex>
         </Box>
