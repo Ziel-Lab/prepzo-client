@@ -71,43 +71,9 @@ interface LiveKitPageProps {
   onClose: () => void;
 }
 
-// Helper component to access room context and provide sender function
-const RoomDataProvider: React.FC<{ 
-  setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array) => Promise<void>) | null>> 
-}> = ({ setSendDataFn }) => {
-  const room = useRoomContext();
-
-  useEffect(() => {
-    if (room && room.localParticipant) {
-      // Define the sender function using the current room context
-      const sender = async (data: Uint8Array) => {
-        try {
-          await room.localParticipant.publishData(data, { reliable: true });
-          console.log("Sent data signal via RoomDataProvider.");
-        } catch (error) {
-          console.error("Failed to send data signal via RoomDataProvider:", error);
-          throw error; // Re-throw so the caller can handle it (e.g., show toast)
-        }
-      };
-      // Update the parent state with this sender function
-      setSendDataFn(() => sender);
-    } else {
-      // Clear the sender function if the room is not available
-      setSendDataFn(null);
-    }
-
-    // Cleanup: clear the function when the component unmounts or room changes
-    return () => {
-      setSendDataFn(null);
-    };
-  }, [room, setSendDataFn]); // Dependencies: room and the setter function
-
-  return null; // This component does not render anything itself
-};
-
 const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
-  const [roomKey, setRoomKey] = useState(Date.now()); // Add a key to force remount if needed
+  const [roomKey, setRoomKey] = useState(Date.now());
   const { toast } = useToast();
 
   // State for the email popup
@@ -127,17 +93,16 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   // State to hold the function for sending data via LiveKit
   const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array) => Promise<void>) | null>(null);
 
-  // State to track if we're checking for context-based email requests
+  // Restore state tracking for contextual email requests
   const [isCheckingForEmailRequest, setIsCheckingForEmailRequest] = useState(false);
 
   // Function to trigger email input display
-  const handleRequestEmail = () => {
+  const handleRequestEmail = useCallback(() => {
     setShowEmailInput(true);
-  };
+  }, []);
 
   // Function to trigger resume upload display
   const handleRequestResumeUpload = () => {
-    // Logic to open resume upload modal
     // Check if we should ignore the request temporarily
     if (Date.now() < ignoreResumeRequestsUntil) {
       console.log("Ignoring resume request signal shortly after upload.");
@@ -145,48 +110,35 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
     console.log("Resume upload requested by agent.");
     setShowResumeUpload(true);
-    // You can set a state here to open the modal in SimpleVoiceAssistant
   };
-
+  
   // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
     console.log("Voice assistant state changed:", state);
     
-    // Check for job results markdown marker
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
     if (state.startsWith(markdownPrefix)) {
       const markdown = state.substring(markdownPrefix.length);
       console.log("Received job results markdown:", markdown);
       setJobResultsMarkdown(markdown);
-      // Don't handle other states if this one matched
       return;
     }
 
-    // Check if this is our custom email request event
-    if (state === "email_requested") {
+    // Restore checks for window flags and explicit states
+    if (state === "email_requested" || window.emailRequested) {
+      if(window.emailRequested) window.emailRequested = false;
       handleRequestEmail();
-      return; // Don't handle other states if this one matched
-    }
-    if (window.emailRequested) {
-      window.emailRequested = false; // Reset the flag
-      handleRequestEmail();
-      return; // Don't handle other states if this one matched
+      return;
     }
 
-    // Check if this is our custom resume upload request event
-    if (state === "resume_requested") {
+    if (state === "resume_requested" || window.resumeRequested) {
+      if(window.resumeRequested) window.resumeRequested = false;
       handleRequestResumeUpload();
-      return; // Don't handle other states if this one matched
-    }
-    if (window.resumeRequested) {
-      window.resumeRequested = false; // Reset the flag
-      handleRequestResumeUpload();
-      return; // Don't handle other states if this one matched
+      return;
     }
     
-    // Now handle specific agent states for contextual prompting
+    // Restore contextual prompting check
     if (state === "idle" && isCheckingForEmailRequest) {
-      // If we were waiting for a response and now got one, reset the flag
       setIsCheckingForEmailRequest(false);
     }
   };
@@ -202,22 +154,16 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       return;
     }
     
-    // Set loading state
     setIsSubmitting(true);
     
     try {
-      // Get the current session ID from the LiveKit room
       const sessionId = connectionDetails?.roomName;
-      if (!sessionId) {
-        throw new Error('No active session');
-      }
+      if (!sessionId) throw new Error('No active session');
 
-      // Extract just the room ID part if it's a voice assistant room
       const cleanSessionId = sessionId.startsWith('voice_assistant_room_') 
         ? sessionId 
         : `voice_assistant_room_${sessionId}`;
       
-      // Call the API to store the email
       const response = await fetch('/api/store-email', {
         method: 'POST',
         headers: {
@@ -229,22 +175,14 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to store email');
-      }
+      if (!response.ok) throw new Error('Failed to store email');
 
-      // Store the email for potential future use
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('prepzo_user_email', email);
-      }
+      if (typeof window !== 'undefined') localStorage.setItem('prepzo_user_email', email);
       
-      // Hide the popup and clear state immediately on success
       setShowEmailInput(false);
       setEmail("");
-      // Set a flag so the voice assistant knows the email was stored
       window.emailSent = email;
       
-      // Show success message
       toast({
         title: "Email Saved",
         description: "Your email has been saved successfully",
@@ -264,57 +202,50 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const handleUploadResume = async () => {
     if (!selectedFile) {
       toast({
-        variant: "destructive",
+        variant: "destructive", 
         title: "No File Selected",
         description: "Please select a file to upload.",
       });
       return;
     }
-
+  
     setIsUploading(true);
-
+  
     try {
       const sessionId = connectionDetails?.roomName;
-      if (!sessionId) {
-        throw new Error('No active session');
-      }
+      if (!sessionId) throw new Error('No active session');
+  
       const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
         ? sessionId
         : `voice_assistant_room_${sessionId}`;
-
+  
       const formData = new FormData();
       formData.append('resume', selectedFile);
       formData.append('session_id', cleanSessionId);
-
-      // *** IMPORTANT: Replace with your actual API endpoint ***
+  
       const response = await fetch('/api/resume-uploads', {
         method: 'POST',
         body: formData,
-        // Note: Don't set Content-Type header when using FormData,
-        // the browser sets it automatically with the correct boundary.
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
         throw new Error(errorData.message || 'Failed to upload resume');
       }
-
-      // Hide the popup and clear selection immediately on success
+  
       setShowResumeUpload(false);
       setSelectedFile(null);
-      // Ignore further resume requests for a short period
-      setIgnoreResumeRequestsUntil(Date.now() + 3000); // Ignore for 3 seconds
-
-      // --- Use sendDataFn from state to send signal to agent --- 
+      setIgnoreResumeRequestsUntil(Date.now() + 3000);
+  
+      // Use sendDataFn from state to send signal to agent
       if (sendDataFn) {
         try {
           const payload = JSON.stringify({ type: "resume_upload_success" });
           const encoder = new TextEncoder();
-          await sendDataFn(encoder.encode(payload)); // Use the function from state
-          console.log("Sent resume_upload_success signal to agent via sendDataFn.");
+          await sendDataFn(encoder.encode(payload));
+          console.log("Sent resume_upload_success signal to agent.");
         } catch (error) {
-          console.error("Failed to send resume_upload_success signal via sendDataFn:", error);
-          // Optionally, inform the user that the signal failed, but upload was ok
+          console.error("Failed to send resume_upload_success signal:", error);
           toast({
             variant: "default",
             title: "Upload Success, Signal Failed",
@@ -322,32 +253,21 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           });
         }
       } else {
-        console.warn("LiveKit room context not available, cannot send resume_upload_success signal.");
-        // Inform user upload was ok, but signal failed
          toast({
             variant: "default",
             title: "Upload Success, Agent Not Notified",
             description: "Resume uploaded, but the agent might not be aware yet. Please mention the upload.",
           });
       }
-      // --- END OF MODIFIED PART ---
-
+  
       toast({
         title: "Resume Uploaded",
         description: "Your resume has been uploaded successfully.",
       });
-
-      // Optionally, inform the voice assistant that the upload was successful
-      // This might involve sending a message back through LiveKit or setting a window flag
-
+  
     } catch (error: unknown) {
       console.error('Error uploading resume:', error);
-      // Determine the message to show
-      let errorMessage = "Failed to upload your resume. Please try again.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload your resume. Please try again.";
       toast({
         variant: "destructive",
         title: "Upload Error",
@@ -376,11 +296,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       description: "We encountered an issue with the voice connection. Please try again later.",
     });
 
-    // Reset connection on error and force a remount of the LiveKitRoom component
     updateConnectionDetails(undefined);
     setRoomKey(Date.now());
 
-    // Wait a moment and try to reconnect
     setTimeout(() => {
       onConnectButtonClicked();
     }, 2000);
@@ -459,25 +377,26 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const forceStopAudioCapture = async () => {
     console.log("Forcefully stopping all audio capture");
     try {
-      // 1. Stop any active LiveKit tracks
-      if (
-        typeof window !== "undefined" &&
-        (window as unknown as { liveKitRoom?: { disconnect: () => void } }).liveKitRoom
-      ) {
-        try {
-          (window as unknown as { liveKitRoom: { disconnect: () => void } }).liveKitRoom.disconnect();
-          console.log("Forcefully disconnected LiveKit room from global reference");
-        } catch (e) {
-          console.error("Error forcefully disconnecting room:", e);
-        }
-      }
+      // 1. Stop any active LiveKit tracks - ROOM DISCONNECT SHOULD HANDLE THIS
 
       // 2. Use getUserMedia to get and immediately stop all tracks
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => {
-        track.stop();
-        console.log("Forcefully stopped audio track:", track.id);
-      });
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((track) => {
+            track.stop();
+            console.log("Forcefully stopped getUserMedia audio track:", track.id);
+          });
+        } catch (gumError) {
+          if (gumError instanceof Error && (gumError.name === 'NotAllowedError' || gumError.name === 'NotFoundError')) {
+            console.log("getUserMedia failed (likely no permission or device), skipping track stop.");
+          } else {
+            console.error("Error getting/stopping getUserMedia tracks:", gumError);
+          }
+        }
+      } else {
+        console.warn("navigator.mediaDevices.getUserMedia not supported, cannot stop tracks this way.");
+      }
 
       // 3. Find and stop all audio elements
       document.querySelectorAll("audio").forEach((el) => {
@@ -493,19 +412,16 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           el.removeAttribute("src");
           el.load();
           el.remove();
+          console.log("Cleaned up audio element.");
         } catch (e) {
           console.error("Error cleaning up audio element:", e);
         }
       });
 
-      // 4. Check permissions status
+      // 4. Check permissions status (optional)
       if ("permissions" in navigator) {
         try {
-          const status = await (navigator as unknown as {
-            permissions: {
-              query: (options: { name: string }) => Promise<{ state: string }>;
-            };
-          }).permissions.query({ name: "microphone" });
+          const status = await (navigator as any).permissions.query({ name: "microphone" });
           console.log("Microphone permission status after cleanup:", status.state);
         } catch (e) {
           console.error("Error checking microphone permission status:", e);
@@ -545,7 +461,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   return (
     <div className="relative z-[99999] h-full w-full">
-      {/* Assuming BackgroundGradient exists or remove this line */}
+      {/* Restore potential background gradient if needed, assumed commented out */} 
       {/* <BackgroundGradient height="100%" zIndex="-1" /> */}
       <div className="flex h-full w-full flex-col justify-between">
         {!connectionDetails ? (
@@ -555,7 +471,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         ) : (
           <LiveKitErrorBoundary onError={handleError}>
             <LiveKitRoom
-              key={roomKey} // Force remount if key changes
+              key={roomKey}
               token={connectionDetails.participantToken}
               serverUrl={connectionDetails.serverUrl}
               connect={true}
@@ -564,7 +480,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               onMediaDeviceFailure={onDeviceFailure}
               onError={(error: Error) => {
                 console.error("LiveKit error:", error);
-                // Force a remount of the LiveKitRoom component
                 setRoomKey(Date.now());
                 toast({
                   variant: "destructive",
@@ -573,24 +488,22 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 });
               }}
               onDisconnected={async () => {
+                console.log("LiveKitRoom disconnected event triggered.");
                 updateConnectionDetails(undefined);
-                // Use our comprehensive cleanup function
                 await forceStopAudioCapture();
-                // Remove the popup dialog since it's now shown when End Call is clicked
-                // onClose();
                 setShowEmailInput(false);
                 setShowResumeUpload(false);
-                setSendDataFn(null); // Clear send function on disconnect
+                setSendDataFn(null);
               }}
               className="flex h-full w-full flex-col"
             >
-              {/* Render the helper component inside LiveKitRoom to get context */}
-              <RoomDataProvider setSendDataFn={setSendDataFn} />
+              <RoomContextHandler setSendDataFn={setSendDataFn} />
               
               <SimpleVoiceAssistant
                 onStateChange={handleAgentStateChange}
-                onEndCall={() => {
-                  console.log("End call button clicked, closing LiveKit page");
+                onEndCall={async () => {
+                  console.log("End call button clicked handler in LiveKitPage triggered.");
+                  await forceStopAudioCapture();
                   updateConnectionDetails(undefined);
                   onClose();
                 }}
@@ -602,7 +515,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         )}
       </div>
 
-      {/* Email Input Popup Overlay - Converted to Tailwind/Shadcn */}
       {showEmailInput && (
         <div
           className={cn(
@@ -610,7 +522,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
             "rounded-md border bg-background/80 p-4 shadow-lg backdrop-blur-lg dark:bg-background/80"
           )}
         >
-          <p className="mb-3 text-center text-sm font-medium text-foreground"> 
+          <p className="mb-3 text-center text-sm font-medium text-foreground">
             Please enter your email to stay connected
           </p>
           <div className="mb-3">
@@ -618,8 +530,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               type="email"
               placeholder="your.email@example.com"
               value={email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} // Added type
-              className="h-10 rounded-md" 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+              className="h-10 rounded-md"
               disabled={isSubmitting}
             />
           </div>
@@ -636,7 +548,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               onClick={handleSendEmail} 
               size="sm"
               disabled={!email.includes('@') || isSubmitting}
-              aria-disabled={isSubmitting} 
+              aria-disabled={isSubmitting}
             >
               {isSubmitting ? "Submitting..." : "Submit"}
             </Button>
@@ -644,7 +556,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         </div>
       )}
 
-      {/* Resume Upload Popup Overlay - Converted to Tailwind/Shadcn */}
       {showResumeUpload && (
         <div
           className={cn(
@@ -659,8 +570,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
             <Input
               type="file"
               accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files ? e.target.files[0] : null)} // Added type
-              className="h-10 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" 
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+              className="h-10 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
               disabled={isUploading}
             />
             {selectedFile && (
@@ -675,7 +586,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               size="sm"
               onClick={() => {
                 setShowResumeUpload(false);
-                setSelectedFile(null); 
+                setSelectedFile(null);
               }}
               disabled={isUploading}
             >
@@ -687,13 +598,42 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               disabled={!selectedFile || isUploading}
               aria-disabled={isUploading}
             >
-               {isUploading ? "Uploading..." : "Upload"}
+              {isUploading ? "Uploading..." : "Upload"}
             </Button>
           </div>
         </div>
       )}
     </div>
   );
+};
+
+const RoomContextHandler: React.FC<{
+  setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array) => Promise<void>) | null>>;
+}> = ({ setSendDataFn }) => {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    if (room && room.localParticipant) {
+      const sender = async (data: Uint8Array) => {
+        try {
+          await room.localParticipant.publishData(data, { reliable: true });
+          console.log("Sent data signal via RoomContextHandler.");
+        } catch (error) {
+          console.error("Failed to send data signal via RoomContextHandler:", error);
+          throw error;
+        }
+      };
+      setSendDataFn(() => sender);
+    } else {
+      setSendDataFn(null);
+    }
+
+    return () => {
+      setSendDataFn(null);
+    };
+  }, [room, setSendDataFn]);
+
+  return null;
 };
 
 export default LiveKitPage;

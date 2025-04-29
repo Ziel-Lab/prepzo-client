@@ -1,12 +1,12 @@
 "use client"; // Need client component for state and event handlers
 
-import React, { useState } from "react";
-import { useRouter } from 'next/navigation'; // Import useRouter
+import React from "react"; // Removed useState
+import { useRouter } from 'next/navigation'; // Keep useRouter if needed elsewhere, or remove
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
 // import DemoDialog from "./DemoDialog"; // This was the old Shadcn dialog
-import AgentModal from "@/components/modal/agentmodal"; // Import the converted AgentModal
+// import AgentModal from "@/components/modal/agentmodal"; // Removed AgentModal import
 
 const VoiceWave = () => {
   return <div className="flex items-center justify-center gap-1 h-12">
@@ -18,15 +18,21 @@ const VoiceWave = () => {
     </div>;
 };
 
-const HeroSection = () => {
-  const router = useRouter(); // Initialize the router
-  const [email, setEmail] = useState("");
-  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false); // State for AgentModal
+// Define props for HeroSection
+interface HeroSectionProps {
+  onOpenAgentModal: () => void; // Add the new prop type
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Demo requested with email:", email);
-  };
+const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => { // Destructure the prop
+  // const router = useRouter(); // Removed router initialization if only used for handleStartTalking
+  // const [email, setEmail] = useState(""); // Removed unused state
+  // const [isAgentModalOpen, setIsAgentModalOpen] = useState(false); // Removed lifted state
+
+  // Removed handleSubmit if it used the removed email state
+  // const handleSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   console.log("Demo requested with email:", email);
+  // };
   
   const customerAvatars = [
     "/lovable-uploads/d6cf8351-91e5-4791-b2a5-f113b99c59d5.png",
@@ -36,11 +42,11 @@ const HeroSection = () => {
     "/lovable-uploads/941a96f8-537c-4f68-9ffb-e125224f7a9f.png"
   ];
 
-  const handleStartTalking = () => {
-    console.log("Start Talking action initiated, navigating to LiveKit session...");
-    // Navigate to the LiveKit session page
-    router.push('/livekit-session'); 
-  };
+  // Removed handleStartTalking - it's now in the parent
+  // const handleStartTalking = () => {
+  //   console.log("Start Talking action initiated, navigating to LiveKit session...");
+  //   router.push('/livekit-session'); 
+  // };
 
   return (
     <section className="pt-48 pb-32 bg-prepzo overflow-hidden">
@@ -72,12 +78,12 @@ const HeroSection = () => {
               <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded">
                 Sign Up
               </Button>
-              {/* Button to trigger AgentModal */}
+              {/* Button uses the passed-in handler */}
               <Button 
                 size="lg" 
                 variant="outline" 
                 className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50"
-                onClick={() => setIsAgentModalOpen(true)} // Open the AgentModal
+                onClick={onOpenAgentModal} // Use the prop here
               >
                 Try Demo
               </Button>
@@ -98,13 +104,6 @@ const HeroSection = () => {
            </div>
         </div>
       </div>
-
-      {/* Render the AgentModal, controlled by state */}
-      <AgentModal 
-        isOpen={isAgentModalOpen} 
-        onClose={() => setIsAgentModalOpen(false)} 
-        onStartTalking={handleStartTalking}
-      />
     </section>
   );
 };

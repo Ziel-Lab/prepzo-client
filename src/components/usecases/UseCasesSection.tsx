@@ -37,13 +37,6 @@ const UseCasesSection = () => {
           <p className="text-base md:text-lg text-foreground/70 max-w-2xl mx-auto mb-4 md:mb-6 px-2">
             See how Prepzo helps people in different career situations overcome their professional challenges.
           </p>
-          <Link 
-            href="/use-cases"
-            className="inline-flex items-center gap-1 md:gap-2 text-prepzo hover:text-prepzo/90 transition-colors text-sm md:text-base"
-          >
-            View All Use Cases
-            <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
-          </Link>
         </div>
 
         <div className={`fade-in-section ${isVisible ? 'is-visible' : ''}`}>
@@ -184,6 +177,13 @@ const UseCasesSection = () => {
             </TabsContent>
           </Tabs>
         </div>
+        <Link 
+            href="/use-cases"
+            className="inline-flex items-center gap-1 md:gap-2 text-prepzo hover:text-prepzo/90 transition-colors text-sm md:text-base"
+          >
+            View All Use Cases
+            <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+          </Link>
       </div>
     </section>
   );

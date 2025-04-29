@@ -30,9 +30,6 @@ const Navbar = () => {
           <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
             Sign In
           </Button>
-          <Button className="bg-prepzo hover:bg-prepzo-light text-white">
-            Try Demo
-          </Button>
         </div>
 
         {/* Mobile menu button */}

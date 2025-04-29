@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState } from "react";
-const DemoForm = () => {
+
+// Define props for DemoForm
+interface DemoFormProps {
+  onOpenAgentModal: () => void; // Add the new prop type
+}
+
+const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destructure the prop
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const faqs = [{
     question: "How long is the demo session?",
@@ -45,7 +51,11 @@ const DemoForm = () => {
                 <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
                   Sign Up
                 </Button>
-                <Button size="lg" className="bg-prepzo hover:bg-prepzo-light text-white">
+                <Button 
+                  size="lg" 
+                  className="bg-prepzo hover:bg-prepzo-light text-white"
+                  onClick={onOpenAgentModal} // Use the prop here
+                >
                   Try Demo
                 </Button>
               </div>

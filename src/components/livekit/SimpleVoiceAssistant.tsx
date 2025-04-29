@@ -10,6 +10,8 @@ import {
 import { Track, TrackPublication, Participant } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Declare types for window properties
 declare global {
@@ -24,9 +26,11 @@ declare global {
 // Custom hook to safely use voice assistant
 function useSafeVoiceAssistant() {
   try {
+    // Try to use the hook safely
     return useVoiceAssistant();
   } catch (error) {
     console.error("Error in useVoiceAssistant:", error);
+    // Return fallback values
     return {
       state: "connecting" as AgentState,
       agentTranscriptions: [],
@@ -59,17 +63,28 @@ export interface TranscriptionMessage extends TranscriptionSegment {
   type: "agent" | "user";
 }
 
+// Message component with Tailwind CSS + Framer Motion
 const ThinkingIndicator = () => {
+  // Define Tailwind classes directly
+  const textColor = "text-blue-500 dark:text-blue-300";
+  const bgColor = "bg-gray-50 dark:bg-gray-800";
+  const borderColor = "border-gray-200 dark:border-gray-700";
+  
   return (
-    <motion.div
-      className="w-full flex justify-start mb-2"
+    <motion.div // Use motion.div directly
+      className="w-full flex justify-start mb-2" // Tailwind layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
       <div
-        className="px-4 py-2.5 rounded-md shadow-xs border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+        // Apply Tailwind classes for styling
+        className={cn(
+          "px-4 py-2.5 rounded-md border shadow-xs",
+          bgColor,
+          borderColor
+        )}
       >
         <span 
           className="block font-medium text-xs mb-1 text-gray-500 tracking-tight"
@@ -77,8 +92,12 @@ const ThinkingIndicator = () => {
           Assistant
         </span>
         <p
-          className="text-sm font-medium h-[1.2em] leading-tight text-blue-500 dark:text-blue-300"
+          className={cn(
+            "text-sm font-medium h-[1.2em] leading-tight", // Tailwind text styles
+            textColor
+          )}
         >
+          {/* Motion spans remain the same */}
           <motion.span
             initial={{ opacity: 0.3 }}
             animate={{ opacity: [0.3, 1, 0.3] }}
@@ -112,38 +131,54 @@ const Message: React.FC<{
 }> = ({ type, text }) => {
   const isUser = type === "user";
   
-  // Define base classes
-  const baseBubbleClasses = "max-w-[75%] px-4 py-2.5 rounded-md shadow-xs border";
-  const baseSpeakerClasses = "block font-medium text-xs mb-1 tracking-tight";
-  const baseTextClasses = "text-sm whitespace-pre-wrap leading-tight";
-
-  // Define state-specific classes using green theme
-  const userBubbleClasses = "bg-green-200 dark:bg-green-700 border-green-400 dark:border-green-500 text-gray-900 dark:text-white";
-  const assistantBubbleClasses = "bg-green-50 dark:bg-green-900/60 border-green-200 dark:border-green-700/80 text-gray-800 dark:text-gray-100";
+  // Define Tailwind classes for user and assistant messages
+  const userBgColor = "bg-blue-50 dark:bg-blue-900";
+  const assistantBgColor = "bg-gray-50 dark:bg-gray-800";
+  const userBorderColor = "border-blue-200 dark:border-blue-700";
+  const assistantBorderColor = "border-gray-200 dark:border-gray-700";
+  const userTextColor = "text-gray-700 dark:text-white";
+  const assistantTextColor = "text-gray-700 dark:text-white";
+  const userSpeakerColor = "text-blue-500";
+  const assistantSpeakerColor = "text-gray-500";
   
-  const userSpeakerClasses = "text-green-800 dark:text-green-300";
-  const assistantSpeakerClasses = "text-green-600 dark:text-green-400";
+  // Trim the text before rendering
+  const trimmedText = text.trim();
 
   return (
-    <motion.div
-      className={`w-full flex mb-2 ${isUser ? "justify-end" : "justify-start"}`}
+    <motion.div // Use motion.div
+      // Apply Tailwind flex layout classes
+      className={cn(
+        "w-full flex mb-2", 
+        isUser ? "justify-end" : "justify-start"
+      )}
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 0 }}
       transition={{ duration: 0.2 }}
     >
       <div
-        className={`${baseBubbleClasses} ${isUser ? userBubbleClasses : assistantBubbleClasses}`}
+        // Apply Tailwind classes for bubble styling
+        className={cn(
+          "max-w-[75%] px-4 py-2.5 rounded-md border shadow-xs",
+          isUser ? userBgColor : assistantBgColor,
+          isUser ? userBorderColor : assistantBorderColor,
+          isUser ? userTextColor : assistantTextColor
+        )}
       >
         <span 
-          className={`${baseSpeakerClasses} ${isUser ? userSpeakerClasses : assistantSpeakerClasses}`}
+          // Apply Tailwind classes for speaker text
+          className={cn(
+            "block font-medium text-xs mb-1 tracking-tight",
+            isUser ? userSpeakerColor : assistantSpeakerColor
+          )}
         >
           {isUser ? "You" : "Assistant"}
         </span>
         <p
-          className={`${baseTextClasses}`}
+          // Apply Tailwind classes for message text
+          className="text-sm whitespace-pre-wrap leading-tight"
         >
-          {text}
+          {trimmedText}
         </p>
       </div>
     </motion.div>
@@ -166,13 +201,18 @@ function useSafeTrackTranscription() {
   });
 }
 
-// Custom Control Bar with End Call Icon
+// Custom Control Bar with End Call Icon using Tailwind
 const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const room = useRoomContext();
+  // Define Tailwind classes for background and border
+  const bgColor = "bg-white dark:bg-gray-800";
+  const borderColor = "border-gray-200 dark:border-gray-700";
   
   const handleDisconnect = async () => {
-    console.log("Handle disconnect called, showing confirmation dialog");
+    console.log("Handle disconnect called");
+    
     console.log("Now stopping all audio capture");
+    
     if (room?.localParticipant) {
       const publications = room.localParticipant.trackPublications;
       publications.forEach(publication => {
@@ -186,16 +226,19 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         }
       });
     }
+    
     const stopAllMicrophoneTracks = async () => {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         console.log(`Found ${devices.length} media devices`);
+        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => {
           track.stop();
           track.enabled = false;
           console.log("Explicitly stopped track:", track.id);
         });
+        
         if (typeof window !== 'undefined') {
           const globalAny = window as unknown as { 
             mediaRecorders?: Array<{ 
@@ -218,6 +261,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       } catch (err) {
         console.error("Error stopping media tracks:", err);
       }
+      
       if (typeof window !== 'undefined') {
         try {
           const AudioContextClass = window.AudioContext || 
@@ -232,6 +276,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         }
       }
     };
+    
     if (room) {
       try {
         room.disconnect();
@@ -240,7 +285,9 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         console.error("Error disconnecting room:", e);
       }
     }
+    
     await stopAllMicrophoneTracks();
+    
     if (typeof window !== 'undefined') {
       const audioElements = document.querySelectorAll('audio');
       audioElements.forEach(el => {
@@ -268,6 +315,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         }
       });
     }
+    
     if (onEndCall) {
       setTimeout(() => {
         if (onEndCall) onEndCall();
@@ -277,25 +325,34 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   
   return (
     <div 
-      className="flex justify-between items-center w-auto min-w-[300px] max-w-[450px] mx-auto bg-white dark:bg-gray-800 rounded-md py-2 px-6 border border-gray-200 dark:border-gray-700 shadow-xs"
+      // Use Tailwind for layout and styling
+      className={cn(
+        "flex justify-between items-center w-auto min-w-[300px] max-w-[450px] mx-auto rounded-md py-2 px-6 border shadow-xs",
+        bgColor,
+        borderColor
+      )}
     >
-      <div className="w-[180px] lk-voice-control-wrapper"> 
-        <VoiceAssistantControlBar 
-          controls={{
-            microphone: true,
-            leave: false
-          }} 
-        />
+      {/* Wrapper div for LiveKit control bar */}
+      {/* Attempt to hide LiveKit's disconnect button using a wrapper and potentially CSS if needed */}
+      {/* Note: Directly hiding internal elements via CSS might be brittle */}
+      <div className="w-[180px] lk-voice-control-wrapper">
+          <VoiceAssistantControlBar 
+            controls={{
+              microphone: true,
+              leave: false // Ensure LiveKit's leave button is not shown
+            }} 
+          />
       </div>
       
-      <button
-        type="button"
-        aria-label="End call"
+      {/* Shadcn Button for End Call */}
+      <Button
+        variant="destructive" // Use Shadcn destructive variant
+        size="default" // Use Shadcn default size or adjust
         onClick={handleDisconnect}
-        className="ml-3 px-6 py-2 h-auto rounded-md font-normal text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm transition-colors duration-150"
+        className="ml-3 px-6 py-2 h-auto rounded-md font-normal shadow-sm" // Add specific classes as needed
       >
         End Call
-      </button>
+      </Button>
     </div>
   );
 };
@@ -447,25 +504,15 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
     if (allMessages.length > 0) {
       lastMessageTypeRef.current = allMessages[allMessages.length - 1].type;
       
-      // Email request detection based on semantic understanding
+      // Restore request detection logic based on window flags (set by parent)
       if (allMessages[allMessages.length - 1].type === "agent") {
         const lastAgentMessage = allMessages[allMessages.length - 1].text;
-        
-        // Check if the agent is explicitly requesting an email from context
         if (lastAgentMessage) {
-          // Use an intent-based approach rather than just keywords
-          const isEmailRequest = checkIfMessageRequestsEmail(lastAgentMessage);
-          
-          if (isEmailRequest) {
-            console.log("Contextual email request detected");
-            window.emailRequested = true;
-          }
-
-          const isResumeRequest = checkIfMessageRequestsResume(lastAgentMessage);
-          if (isResumeRequest) {
-            console.log("Contextual resume request detected");
-            window.resumeRequested = true;
-          }
+          // Commented out the internal checkers as the logic moved to parent
+          // const isEmailRequest = checkIfMessageRequestsEmail(lastAgentMessage);
+          // if (isEmailRequest) window.emailRequested = true;
+          // const isResumeRequest = checkIfMessageRequestsResume(lastAgentMessage);
+          // if (isResumeRequest) window.resumeRequested = true;
         }
       }
     }
@@ -561,16 +608,20 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   }, [jobResultsMarkdown, setJobResultsMarkdown]);
 
   return (
+    // Use Tailwind for main layout
     <div className="h-full flex flex-col">
-      {/* Transcript Section */}
+      {/* Transcript Section */} 
       <div 
         ref={transcriptRef}
+        // Use Tailwind classes for flex, overflow, padding, background
         className="flex-1 overflow-auto p-4 pt-20 bg-transparent"
       >
+        {/* Use Tailwind for inner container and spacing */}
         <div 
           className="max-w-2xl mx-auto w-full space-y-3 pb-24 flex flex-col items-stretch"
         >
           {messages.length === 0 && (
+            // Use Tailwind for placeholder text styling
             <div 
               className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm italic"
             >
@@ -593,8 +644,9 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
         </div>
       </div>
 
-      {/* Control Bar Section */}
+      {/* Control Bar Section */} 
       <div
+        // Use Tailwind for padding and background effect
         className="p-4 bg-transparent backdrop-blur-sm"
       >
         <div className="mb-4 flex justify-center">
@@ -605,166 +657,8 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   );
 };
 
-const checkIfMessageRequestsEmail = (message: string): boolean => {
-  message = message.toLowerCase();
-  
-  const exclusionPatterns = [
-    /(email|address) (you|u) (submitted|provided|entered|gave)/i,
-    /(already|previously) (submitted|provided|entered|gave) (your|the) email/i,
-    /(email|address) (is|was) (already|now) (on file|recorded)/i
-  ];
-  
-  for (const pattern of exclusionPatterns) {
-    if (pattern.test(message)) {
-      console.log("Exclusion pattern matched - not an email request");
-      return false;
-    }
-  }
-  // Check for our special marker first - highest priority detection
-  if (message.includes('[request_email]')) {
-    console.log("Detected direct [REQUEST_EMAIL] marker in message");
-    return true;
-  }
-  
-  // Check for direct email requests with more sophisticated patterns
-  const emailRequestPatterns = [
-    // Question about providing email
-    /would you (like|want|mind|be willing) to (provide|share|give) your email/i,
-    /can (i|we) (have|get|collect) your email/i,
-    /your email (address|please)/i,
-    // Requests for sending something
-    /send you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-    /email you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-    // Statements of intent
-    /i('d| would) (like|love|want) to (send|email) you/i,
-    /i can send (it|this|that|the summary|the transcript) to your email/i,
-    // Direct requests
-    /please (provide|share|enter|type) your email/i,
-    /may i (have|ask for|request|get) your email/i
-  ];
-  
-  // Test against each pattern
-  for (const pattern of emailRequestPatterns) {
-    if (pattern.test(message)) {
-      return true;
-    }
-  }
-  
-  // Check for combination of keywords in context
-  const emailKeywords = ['email', 'send', 'address', 'contact', 'reach'];
-  const requestKeywords = ['would you', 'can i', 'please', 'could you', 'mind', 'would like'];
-  const purposeKeywords = ['summary', 'transcript', 'record', 'conversation', 'chat', 'interview', 'session'];
-  
-  // Count how many of each category appears in the message
-  const emailCount = emailKeywords.filter(word => message.includes(word)).length;
-  const requestCount = requestKeywords.filter(word => message.includes(word)).length;
-  const purposeCount = purposeKeywords.filter(word => message.includes(word)).length;
-  
-  // If we have matches in all three categories, likely a contextual email request
-  if (emailCount > 0 && requestCount > 0 && purposeCount > 0) {
-    return true;
-  }
-  
-  // Check if message ends with a question mark and contains email
-  if (message.includes('email') && message.trim().endsWith('?')) {
-    return true;
-  }
-  
-  return false;
-};
-
-const checkIfMessageRequestsResume = (message: string): boolean => {
-  if (!message) {
-    return false;
-  }
-
-  const lowerCaseMessage = message.toLowerCase();
-
-  // --- Exclusion Patterns ---
-  // Phrases indicating the resume was already received or isn't needed right now.
-  const exclusionPatterns = [
-    /(resume|cv|document|file) (you|u) (uploaded|submitted|provided|attached|sent)/i,
-    /(already|previously) (uploaded|submitted|provided|attached|sent) (your|the) (resume|cv)/i,
-    /got (your|the) (resume|cv|document|file)/i,
-    /(resume|cv) (is|was) (already|now) (uploaded|received|on file|submitted|saved)/i,
-    /(don't need|no need for) (a|your) (resume|cv) (yet|now|at the moment)/i,
-    // Added patterns for confirmation:
-    /(thanks|thank you) for (uploading|sending|sharing|providing|submitting) (your|the)? (resume|cv)/i,
-    /i('ve| have) (received|got|saved) (your|the) (resume|cv)/i,
-    /(resume|cv|file) (successfully|received|saved)/i, // Covers "resume successfully uploaded", "file received", etc.
-    /okay, (resume|cv) (uploaded|received|saved)/i,
-    /confirming (receipt|reception) of (your|the) (resume|cv)/i,
-  ];
-
-  for (const pattern of exclusionPatterns) {
-    if (pattern.test(lowerCaseMessage)) {
-      console.log("Exclusion pattern matched - not a resume request:", pattern);
-      return false;
-    }
-  }
-
-  // --- Direct Marker ---
-  // Check for a specific marker first.
-  if (lowerCaseMessage.includes('[request_resume]')) {
-    console.log("Detected direct [request_resume] marker in message");
-    return true;
-  }
-
-  // --- Direct Request Patterns ---
-  // More specific regex patterns for common resume requests.
-  const resumeRequestPatterns = [
-    // Asking for upload/attachment
-    /(upload|attach|provide|share|send|submit) (your|a) (resume|cv|curriculum vitae)/i,
-    /can (i|we) (have|get|see|review|receive) (your|a) (resume|cv)/i,
-    /(your|a) (resume|cv) (please|would be helpful|is needed)/i,
-    // Question about providing resume
-    /would you (like|want|mind|be willing) to (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-    /do you have (a|your) (resume|cv) (available|to upload|you could share)/i,
-    // Statements of need
-    /i('d| would)? (need|like|require) (your|a) (resume|cv)/i,
-    /we('ll| will) need (your|a) (resume|cv) for this/i,
-    // Direct requests
-    /please (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-    /may i (have|ask for|request|get) (your|a) (resume|cv)/i,
-  ];
-
-  // Test against each specific pattern
-  for (const pattern of resumeRequestPatterns) {
-    if (pattern.test(lowerCaseMessage)) {
-      console.log("Direct resume request pattern matched:", pattern);
-      return true;
-    }
-  }
-
-  // --- Keyword Combination Check ---
-  // Less strict check based on keywords appearing together.
-  const resumeKeywords = ['resume', 'cv', 'curriculum vitae', 'document', 'file'];
-  const requestKeywords = ['upload', 'attach', 'provide', 'send', 'share', 'submit', 'need', 'require', 'get', 'request', 'ask for'];
-  // Optional: Purpose keywords might be less relevant here than for email, but could include:
-  // const purposeKeywords = ['application', 'job', 'position', 'review', 'consideration', 'profile'];
-
-  const resumeCount = resumeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  const requestCount = requestKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  // const purposeCount = purposeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-
-
-  // Check if at least one resume keyword and one request keyword are present.
-  // Adjust threshold as needed.
-  if (resumeCount > 0 && requestCount > 0) {
-     console.log("Keyword combination matched for resume request.");
-     return true;
-  }
-
-  // --- Ending Question Mark Check ---
-  // Check if message ends with a question mark and contains a resume keyword.
-  const endsWithQuestion = lowerCaseMessage.trim().endsWith('?');
-  if (endsWithQuestion && resumeCount > 0) {
-     console.log("Resume keyword found in a question.");
-     return true;
-  }
-
-  console.log("No resume request detected in message.");
-  return false;
-};
+// Keep commented out helper functions for reference if needed
+// const checkIfMessageRequestsEmail = ...
+// const checkIfMessageRequestsResume = ...
 
 export default SimpleVoiceAssistant;
