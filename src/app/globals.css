@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  :root {
+    --background: 140 15% 98%;
+    --foreground: 140 10% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 140 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 10% 15%;
+
+    --primary: 138 52% 15%;
+    --primary-foreground: 138 30% 95%;
+
+    --secondary: 138 30% 95%;
+    --secondary-foreground: 138 52% 15%;
+
+    --muted: 138 15% 90%;
+    --muted-foreground: 138 10% 40%;
+
+    --accent: 138 15% 90%;
+    --accent-foreground: 138 52% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 138 15% 85%;
+    --input: 138 15% 85%;
+    --ring: 138 52% 40%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 138 30% 7%;
+    --foreground: 138 5% 90%;
+
+    --card: 138 30% 10%;
+    --card-foreground: 138 5% 90%;
+
+    --popover: 138 30% 10%;
+    --popover-foreground: 138 5% 90%;
+
+    --primary: 138 52% 40%;
+    --primary-foreground: 138 10% 5%;
+
+    --secondary: 138 20% 20%;
+    --secondary-foreground: 138 5% 90%;
+
+    --muted: 138 20% 20%;
+    --muted-foreground: 138 10% 70%;
+
+    --accent: 138 20% 20%;
+    --accent-foreground: 138 5% 90%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 138 5% 90%;
+
+    --border: 138 20% 25%;
+    --input: 138 20% 25%;
+    --ring: 138 52% 40%;
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Added new layer for component styles */
+@layer components {
+  .wave-animation span {
+    @apply inline-block;
+    animation: wave 1.5s infinite ease-in-out;
+    animation-delay: calc(var(--delay) * 100ms);
+  }
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-prepzo to-prepzo-light text-transparent bg-clip-text;
+  }
+  
+  .fade-in-section {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  
+  .fade-in-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
