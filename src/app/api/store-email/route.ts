@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: Request) {
   try {
     const { session_id, recipient_email } = await request.json();
-
+    console.log(session_id, recipient_email);
     // Update the conversation_histories table with the email
     const {data,error}= await supabase
       .from('user_emails')

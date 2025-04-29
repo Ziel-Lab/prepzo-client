@@ -24,7 +24,7 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import SimpleVoiceAssistant from "@/components/livekit/SimpleVoiceAssistant";
-import { MediaDeviceFailure } from "livekit-client";
+import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind } from "livekit-client";
 import type { ConnectionDetails } from "@/app/api/connection-details/route";
 import { Box, Center, Text, useToast, Input, Button, Flex, useColorModeValue } from "@chakra-ui/react";
 import { BackgroundGradient } from "@/components/gradients/background-gradient";
@@ -135,25 +135,59 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const cancelButtonHoverBg = useColorModeValue("gray.100", "gray.700");
 
   // State to track if we're checking for context-based email requests
-  const [isCheckingForEmailRequest, setIsCheckingForEmailRequest] = useState(false);
+  // const [isCheckingForEmailRequest, setIsCheckingForEmailRequest] = useState(false);
 
   // Function to trigger email input display
-  const handleRequestEmail = () => {
+  const handleRequestEmail = useCallback(() => {
     setShowEmailInput(true);
+  }, []);
+
+
+  // Create a component to listen for email requests using room context
+  const EmailRequestListener: React.FC = () => {
+    const room = useRoomContext();
+    
+    useEffect(() => {
+      if (!room) return;
+      
+      const handleDataReceived = (
+        payload: Uint8Array,
+        participant?: RemoteParticipant,
+        _?: DataPacket_Kind,
+        topic?: string
+      ) => {
+        if (topic === "email_request") {
+          const decoder = new TextDecoder();
+          const message = decoder.decode(payload);
+          console.log("Email request received:", message);
+          handleRequestEmail();
+        }
+        if (topic === "resume_request") {
+          const decoder = new TextDecoder();
+          const message = decoder.decode(payload);
+          console.log("Resume request received:", message);
+          handleRequestResumeUpload();
+          
+        }
+        
+      };
+      
+      room.on("dataReceived", handleDataReceived);
+      
+      return () => {
+        room.off("dataReceived", handleDataReceived);
+      };
+    }, [room]);
+    
+    return null;
   };
 
   // Function to trigger resume upload display
   const handleRequestResumeUpload = () => {
-    // Logic to open resume upload modal
-    // Check if we should ignore the request temporarily
-    if (Date.now() < ignoreResumeRequestsUntil) {
-      console.log("Ignoring resume request signal shortly after upload.");
-      return;
-    }
     console.log("Resume upload requested by agent.");
     setShowResumeUpload(true);
-    // You can set a state here to open the modal in SimpleVoiceAssistant
   };
+  
 
   // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
@@ -167,34 +201,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       setJobResultsMarkdown(markdown);
       // Don't handle other states if this one matched
       return;
-    }
-
-    // Check if this is our custom email request event
-    if (state === "email_requested") {
-      handleRequestEmail();
-      return; // Don't handle other states if this one matched
-    }
-    if (window.emailRequested) {
-      window.emailRequested = false; // Reset the flag
-      handleRequestEmail();
-      return; // Don't handle other states if this one matched
-    }
-
-    // Check if this is our custom resume upload request event
-    if (state === "resume_requested") {
-      handleRequestResumeUpload();
-      return; // Don't handle other states if this one matched
-    }
-    if (window.resumeRequested) {
-      window.resumeRequested = false; // Reset the flag
-      handleRequestResumeUpload();
-      return; // Don't handle other states if this one matched
-    }
-    
-    // Now handle specific agent states for contextual prompting
-    if (state === "idle" && isCheckingForEmailRequest) {
-      // If we were waiting for a response and now got one, reset the flag
-      setIsCheckingForEmailRequest(false);
     }
   };
 
@@ -253,6 +259,21 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       // Set a flag so the voice assistant knows the email was stored
       window.emailSent = email;
       
+      // Send a response back to the agent
+      if (sendDataFn) {
+        try {
+          const emailResponse = {
+            topic: "email_response",
+            email: email
+          };
+          const encoder = new TextEncoder();
+          await sendDataFn(encoder.encode(JSON.stringify(emailResponse)));
+          console.log("Sent email response to agent via data channel");
+        } catch (error) {
+          console.error("Failed to send email response to agent:", error);
+        }
+      }
+      
       // Show success message
       toast({
         title: "Email Saved",
@@ -286,72 +307,63 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       });
       return;
     }
-
+  
     setIsUploading(true);
-
+  
     try {
       const sessionId = connectionDetails?.roomName;
-      if (!sessionId) {
-        throw new Error('No active session');
-      }
+      if (!sessionId) throw new Error('No active session');
+  
       const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
         ? sessionId
         : `voice_assistant_room_${sessionId}`;
-
+  
       const formData = new FormData();
       formData.append('resume', selectedFile);
       formData.append('session_id', cleanSessionId);
-
-      // *** IMPORTANT: Replace with your actual API endpoint ***
+  
       const response = await fetch('/api/resume-uploads', {
         method: 'POST',
         body: formData,
-        // Note: Don't set Content-Type header when using FormData,
-        // the browser sets it automatically with the correct boundary.
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
         throw new Error(errorData.message || 'Failed to upload resume');
       }
-
-      // Hide the popup and clear selection immediately on success
+  
+      // Close modal and clear file
       setShowResumeUpload(false);
       setSelectedFile(null);
-      // Ignore further resume requests for a short period
-      setIgnoreResumeRequestsUntil(Date.now() + 3000); // Ignore for 3 seconds
-
-      // --- Use sendDataFn from state to send signal to agent --- 
+      setIgnoreResumeRequestsUntil(Date.now() + 3000); // Ignore further requests for 3 seconds
+  
+      // Notify agent via LiveKit data channel
       if (sendDataFn) {
         try {
           const payload = JSON.stringify({ type: "resume_upload_success" });
           const encoder = new TextEncoder();
-          await sendDataFn(encoder.encode(payload)); // Use the function from state
-          console.log("Sent resume_upload_success signal to agent via sendDataFn.");
+          await sendDataFn(encoder.encode(payload));
+          console.log("Sent resume_upload_success signal to agent.");
         } catch (error) {
-          console.error("Failed to send resume_upload_success signal via sendDataFn:", error);
-          // Optionally, inform the user that the signal failed, but upload was ok
+          console.error("Failed to send resume_upload_success signal:", error);
           toast({
             title: "Upload Success, Signal Failed",
-            description: "Resume uploaded, but couldn't notify the agent automatically. Please mention the upload.",
+            description: "Resume uploaded, but agent was not notified automatically. Please mention the upload.",
             status: "warning",
             duration: 5000,
             isClosable: true,
           });
         }
       } else {
-        console.warn("LiveKit room context not available, cannot send resume_upload_success signal.");
-        // Inform user upload was ok, but signal failed
-         toast({
-            title: "Upload Success, Agent Not Notified",
-            description: "Resume uploaded, but the agent might not be aware yet. Please mention the upload.",
-            status: "warning",
-            duration: 5000,
-            isClosable: true,
-          });
+        toast({
+          title: "Upload Success, Agent Not Notified",
+          description: "Resume uploaded, but the agent might not be aware yet. Please mention the upload.",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
       }
-      // --- END OF MODIFIED PART ---
-
+  
       toast({
         title: "Resume Uploaded",
         description: "Your resume has been uploaded successfully.",
@@ -359,18 +371,10 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         duration: 3000,
         isClosable: true,
       });
-
-      // Optionally, inform the voice assistant that the upload was successful
-      // This might involve sending a message back through LiveKit or setting a window flag
-
+  
     } catch (error: unknown) {
       console.error('Error uploading resume:', error);
-      // Determine the message to show
-      let errorMessage = "Failed to upload your resume. Please try again.";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload your resume. Please try again.";
       toast({
         title: "Upload Error",
         description: errorMessage,
@@ -383,6 +387,33 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
   };
 
+  // useEffect(() => {
+  //   if (!connectionDetails?.room) return;
+  
+  //   const room = connectionDetails.room;
+  
+  //   // Handler for incoming data messages
+  //   const handleDataReceived = (
+  //     payload: Uint8Array,
+  //     _participant?: RemoteParticipant,
+  //     _kind?: DataPacket_Kind,
+  //     topic?: string
+  //   ) => {
+  //     if (topic === "resume_request") {
+  //       const decoder = new TextDecoder();
+  //       const message = decoder.decode(payload);
+  //       console.log("Resume request received:", message);
+  //       handleRequestResumeUpload(); // This shows your modal
+  //     }
+  //   };
+  
+  //   room.on("dataReceived", handleDataReceived);
+  
+  //   return () => {
+  //     room.off("dataReceived", handleDataReceived);
+  //   };
+  // }, [connectionDetails, handleRequestResumeUpload]);
+  
   const onDeviceFailure = (error?: MediaDeviceFailure) => {
     console.error(error);
     toast({
@@ -617,6 +648,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
             >
               {/* Render the helper component inside LiveKitRoom to get context */}
               <RoomDataProvider setSendDataFn={setSendDataFn} />
+              
+              {/* Add listener for email requests */}
+              <EmailRequestListener />
               
               <SimpleVoiceAssistant
                 onStateChange={handleAgentStateChange}

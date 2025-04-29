@@ -590,18 +590,18 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
         // Check if the agent is explicitly requesting an email from context
         if (lastAgentMessage) {
           // Use an intent-based approach rather than just keywords
-          const isEmailRequest = checkIfMessageRequestsEmail(lastAgentMessage);
+          // const isEmailRequest = checkIfMessageRequestsEmail(lastAgentMessage);
           
-          if (isEmailRequest) {
-            console.log("Contextual email request detected");
-            window.emailRequested = true;
-          }
+          // if (isEmailRequest) {
+          //   console.log("Contextual email request detected");
+          //   window.emailRequested = true;
+          // }
 
-          const isResumeRequest = checkIfMessageRequestsResume(lastAgentMessage);
-          if (isResumeRequest) {
-            console.log("Contextual resume request detected");
-            window.resumeRequested = true;
-          }
+          // const isResumeRequest = checkIfMessageRequestsResume(lastAgentMessage);
+          // if (isResumeRequest) {
+          //   console.log("Contextual resume request detected");
+          //   window.resumeRequested = true;
+          // }
         }
       }
     }
@@ -758,73 +758,73 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
 };
 
 // Helper function to check if a message is requesting an email based on context
-const checkIfMessageRequestsEmail = (message: string): boolean => {
-  message = message.toLowerCase();
+// const checkIfMessageRequestsEmail = (message: string): boolean => {
+//   message = message.toLowerCase();
   
-  const exclusionPatterns = [
-    /(email|address) (you|u) (submitted|provided|entered|gave)/i,
-    /(already|previously) (submitted|provided|entered|gave) (your|the) email/i,
-    /(email|address) (is|was) (already|now) (on file|recorded)/i
-  ];
+//   const exclusionPatterns = [
+//     /(email|address) (you|u) (submitted|provided|entered|gave)/i,
+//     /(already|previously) (submitted|provided|entered|gave) (your|the) email/i,
+//     /(email|address) (is|was) (already|now) (on file|recorded)/i
+//   ];
   
-  for (const pattern of exclusionPatterns) {
-    if (pattern.test(message)) {
-      console.log("Exclusion pattern matched - not an email request");
-      return false;
-    }
-  }
-  // Check for our special marker first - highest priority detection
-  if (message.includes('[request_email]')) {
-    console.log("Detected direct [REQUEST_EMAIL] marker in message");
-    return true;
-  }
+//   for (const pattern of exclusionPatterns) {
+//     if (pattern.test(message)) {
+//       console.log("Exclusion pattern matched - not an email request");
+//       return false;
+//     }
+//   }
+//   // Check for our special marker first - highest priority detection
+//   if (message.includes('[request_email]')) {
+//     console.log("Detected direct [REQUEST_EMAIL] marker in message");
+//     return true;
+//   }
   
-  // Check for direct email requests with more sophisticated patterns
-  const emailRequestPatterns = [
-    // Question about providing email
-    /would you (like|want|mind|be willing) to (provide|share|give) your email/i,
-    /can (i|we) (have|get|collect) your email/i,
-    /your email (address|please)/i,
-    // Requests for sending something
-    /send you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-    /email you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-    // Statements of intent
-    /i('d| would) (like|love|want) to (send|email) you/i,
-    /i can send (it|this|that|the summary|the transcript) to your email/i,
-    // Direct requests
-    /please (provide|share|enter|type) your email/i,
-    /may i (have|ask for|request|get) your email/i
-  ];
+//   // Check for direct email requests with more sophisticated patterns
+//   const emailRequestPatterns = [
+//     // Question about providing email
+//     /would you (like|want|mind|be willing) to (provide|share|give) your email/i,
+//     /can (i|we) (have|get|collect) your email/i,
+//     /your email (address|please)/i,
+//     // Requests for sending something
+//     /send you (a|the|this) (summary|transcript|record|recording|conversation)/i,
+//     /email you (a|the|this) (summary|transcript|record|recording|conversation)/i,
+//     // Statements of intent
+//     /i('d| would) (like|love|want) to (send|email) you/i,
+//     /i can send (it|this|that|the summary|the transcript) to your email/i,
+//     // Direct requests
+//     /please (provide|share|enter|type) your email/i,
+//     /may i (have|ask for|request|get) your email/i
+//   ];
   
-  // Test against each pattern
-  for (const pattern of emailRequestPatterns) {
-    if (pattern.test(message)) {
-      return true;
-    }
-  }
+//   // Test against each pattern
+//   for (const pattern of emailRequestPatterns) {
+//     if (pattern.test(message)) {
+//       return true;
+//     }
+//   }
   
-  // Check for combination of keywords in context
-  const emailKeywords = ['email', 'send', 'address', 'contact', 'reach'];
-  const requestKeywords = ['would you', 'can i', 'please', 'could you', 'mind', 'would like'];
-  const purposeKeywords = ['summary', 'transcript', 'record', 'conversation', 'chat', 'interview', 'session'];
+//   // Check for combination of keywords in context
+//   const emailKeywords = ['email', 'send', 'address', 'contact', 'reach'];
+//   const requestKeywords = ['would you', 'can i', 'please', 'could you', 'mind', 'would like'];
+//   const purposeKeywords = ['summary', 'transcript', 'record', 'conversation', 'chat', 'interview', 'session'];
   
-  // Count how many of each category appears in the message
-  const emailCount = emailKeywords.filter(word => message.includes(word)).length;
-  const requestCount = requestKeywords.filter(word => message.includes(word)).length;
-  const purposeCount = purposeKeywords.filter(word => message.includes(word)).length;
+//   // Count how many of each category appears in the message
+//   const emailCount = emailKeywords.filter(word => message.includes(word)).length;
+//   const requestCount = requestKeywords.filter(word => message.includes(word)).length;
+//   const purposeCount = purposeKeywords.filter(word => message.includes(word)).length;
   
-  // If we have matches in all three categories, likely a contextual email request
-  if (emailCount > 0 && requestCount > 0 && purposeCount > 0) {
-    return true;
-  }
+//   // If we have matches in all three categories, likely a contextual email request
+//   if (emailCount > 0 && requestCount > 0 && purposeCount > 0) {
+//     return true;
+//   }
   
-  // Check if message ends with a question mark and contains email
-  if (message.includes('email') && message.trim().endsWith('?')) {
-    return true;
-  }
+//   // Check if message ends with a question mark and contains email
+//   if (message.includes('email') && message.trim().endsWith('?')) {
+//     return true;
+//   }
   
-  return false;
-};
+//   return false;
+// };
 
 /**
  * Checks if a message from the assistant seems to be requesting a resume upload.
@@ -832,98 +832,98 @@ const checkIfMessageRequestsEmail = (message: string): boolean => {
  * @param message The message string from the assistant.
  * @returns True if the message likely requests a resume upload, false otherwise.
  */
-const checkIfMessageRequestsResume = (message: string): boolean => {
-  if (!message) {
-    return false;
-  }
+// const checkIfMessageRequestsResume = (message: string): boolean => {
+//   if (!message) {
+//     return false;
+//   }
 
-  const lowerCaseMessage = message.toLowerCase();
+  // const lowerCaseMessage = message.toLowerCase();
 
   // --- Exclusion Patterns ---
   // Phrases indicating the resume was already received or isn't needed right now.
-  const exclusionPatterns = [
-    /(resume|cv|document|file) (you|u) (uploaded|submitted|provided|attached|sent)/i,
-    /(already|previously) (uploaded|submitted|provided|attached|sent) (your|the) (resume|cv)/i,
-    /got (your|the) (resume|cv|document|file)/i,
-    /(resume|cv) (is|was) (already|now) (uploaded|received|on file|submitted|saved)/i,
-    /(don't need|no need for) (a|your) (resume|cv) (yet|now|at the moment)/i,
-    // Added patterns for confirmation:
-    /(thanks|thank you) for (uploading|sending|sharing|providing|submitting) (your|the)? (resume|cv)/i,
-    /i('ve| have) (received|got|saved) (your|the) (resume|cv)/i,
-    /(resume|cv|file) (successfully|received|saved)/i, // Covers "resume successfully uploaded", "file received", etc.
-    /okay, (resume|cv) (uploaded|received|saved)/i,
-    /confirming (receipt|reception) of (your|the) (resume|cv)/i,
-  ];
+  // const exclusionPatterns = [
+  //   /(resume|cv|document|file) (you|u) (uploaded|submitted|provided|attached|sent)/i,
+  //   /(already|previously) (uploaded|submitted|provided|attached|sent) (your|the) (resume|cv)/i,
+  //   /got (your|the) (resume|cv|document|file)/i,
+  //   /(resume|cv) (is|was) (already|now) (uploaded|received|on file|submitted|saved)/i,
+  //   /(don't need|no need for) (a|your) (resume|cv) (yet|now|at the moment)/i,
+  //   // Added patterns for confirmation:
+  //   /(thanks|thank you) for (uploading|sending|sharing|providing|submitting) (your|the)? (resume|cv)/i,
+  //   /i('ve| have) (received|got|saved) (your|the) (resume|cv)/i,
+  //   /(resume|cv|file) (successfully|received|saved)/i, // Covers "resume successfully uploaded", "file received", etc.
+  //   /okay, (resume|cv) (uploaded|received|saved)/i,
+  //   /confirming (receipt|reception) of (your|the) (resume|cv)/i,
+  // ];
 
-  for (const pattern of exclusionPatterns) {
-    if (pattern.test(lowerCaseMessage)) {
-      console.log("Exclusion pattern matched - not a resume request:", pattern);
-      return false;
-    }
-  }
+  // for (const pattern of exclusionPatterns) {
+  //   if (pattern.test(lowerCaseMessage)) {
+  //     console.log("Exclusion pattern matched - not a resume request:", pattern);
+  //     return false;
+  //   }
+  // }
 
   // --- Direct Marker ---
   // Check for a specific marker first.
-  if (lowerCaseMessage.includes('[request_resume]')) {
-    console.log("Detected direct [request_resume] marker in message");
-    return true;
-  }
+  // if (lowerCaseMessage.includes('[request_resume]')) {
+  //   console.log("Detected direct [request_resume] marker in message");
+  //   return true;
+  // }
 
   // --- Direct Request Patterns ---
   // More specific regex patterns for common resume requests.
-  const resumeRequestPatterns = [
-    // Asking for upload/attachment
-    /(upload|attach|provide|share|send|submit) (your|a) (resume|cv|curriculum vitae)/i,
-    /can (i|we) (have|get|see|review|receive) (your|a) (resume|cv)/i,
-    /(your|a) (resume|cv) (please|would be helpful|is needed)/i,
-    // Question about providing resume
-    /would you (like|want|mind|be willing) to (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-    /do you have (a|your) (resume|cv) (available|to upload|you could share)/i,
-    // Statements of need
-    /i('d| would)? (need|like|require) (your|a) (resume|cv)/i,
-    /we('ll| will) need (your|a) (resume|cv) for this/i,
-    // Direct requests
-    /please (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-    /may i (have|ask for|request|get) (your|a) (resume|cv)/i,
-  ];
+  // const resumeRequestPatterns = [
+  //   // Asking for upload/attachment
+  //   /(upload|attach|provide|share|send|submit) (your|a) (resume|cv|curriculum vitae)/i,
+  //   /can (i|we) (have|get|see|review|receive) (your|a) (resume|cv)/i,
+  //   /(your|a) (resume|cv) (please|would be helpful|is needed)/i,
+  //   // Question about providing resume
+  //   /would you (like|want|mind|be willing) to (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
+  //   /do you have (a|your) (resume|cv) (available|to upload|you could share)/i,
+  //   // Statements of need
+  //   /i('d| would)? (need|like|require) (your|a) (resume|cv)/i,
+  //   /we('ll| will) need (your|a) (resume|cv) for this/i,
+  //   // Direct requests
+  //   /please (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
+  //   /may i (have|ask for|request|get) (your|a) (resume|cv)/i,
+  // ];
 
   // Test against each specific pattern
-  for (const pattern of resumeRequestPatterns) {
-    if (pattern.test(lowerCaseMessage)) {
-      console.log("Direct resume request pattern matched:", pattern);
-      return true;
-    }
-  }
+  // for (const pattern of resumeRequestPatterns) {
+  //   if (pattern.test(lowerCaseMessage)) {
+  //     console.log("Direct resume request pattern matched:", pattern);
+  //     return true;
+  //   }
+  // }
 
   // --- Keyword Combination Check ---
   // Less strict check based on keywords appearing together.
-  const resumeKeywords = ['resume', 'cv', 'curriculum vitae', 'document', 'file'];
-  const requestKeywords = ['upload', 'attach', 'provide', 'send', 'share', 'submit', 'need', 'require', 'get', 'request', 'ask for'];
-  // Optional: Purpose keywords might be less relevant here than for email, but could include:
+  // const resumeKeywords = ['resume', 'cv', 'curriculum vitae', 'document', 'file'];
+  // const requestKeywords = ['upload', 'attach', 'provide', 'send', 'share', 'submit', 'need', 'require', 'get', 'request', 'ask for'];
+  // // Optional: Purpose keywords might be less relevant here than for email, but could include:
   // const purposeKeywords = ['application', 'job', 'position', 'review', 'consideration', 'profile'];
 
-  const resumeCount = resumeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  const requestCount = requestKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  // const purposeCount = purposeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+  // const resumeCount = resumeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+  // const requestCount = requestKeywords.filter(word => lowerCaseMessage.includes(word)).length;
+  // // const purposeCount = purposeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
 
 
   // Check if at least one resume keyword and one request keyword are present.
   // Adjust threshold as needed.
-  if (resumeCount > 0 && requestCount > 0) {
-     console.log("Keyword combination matched for resume request.");
-     return true;
-  }
+  // if (resumeCount > 0 && requestCount > 0) {
+  //    console.log("Keyword combination matched for resume request.");
+  //    return true;
+  // }
 
   // --- Ending Question Mark Check ---
   // Check if message ends with a question mark and contains a resume keyword.
-  const endsWithQuestion = lowerCaseMessage.trim().endsWith('?');
-  if (endsWithQuestion && resumeCount > 0) {
-     console.log("Resume keyword found in a question.");
-     return true;
-  }
+//   const endsWithQuestion = lowerCaseMessage.trim().endsWith('?');
+//   if (endsWithQuestion && resumeCount > 0) {
+//      console.log("Resume keyword found in a question.");
+//      return true;
+//   }
 
-  console.log("No resume request detected in message.");
-  return false;
-};
+//   console.log("No resume request detected in message.");
+//   return false;
+// };
 
 export default SimpleVoiceAssistant;
