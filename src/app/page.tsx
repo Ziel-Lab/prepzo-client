@@ -50,7 +50,7 @@ const HomePage = () => {
 
   const handleStartTalking = () => {
     console.log("Start Talking action initiated from HomePage, navigating to LiveKit session...");
-    router.push('/livekit-session'); 
+    router.push('/prepzo-session'); 
   };
   
   const handleOpenAgentModal = () => {

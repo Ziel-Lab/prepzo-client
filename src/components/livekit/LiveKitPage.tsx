@@ -25,7 +25,7 @@ import {
 } from "@livekit/components-react";
 import "@livekit/components-styles";
 import SimpleVoiceAssistant from "@/components/livekit/SimpleVoiceAssistant";
-import { MediaDeviceFailure } from "livekit-client";
+import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind } from "livekit-client";
 import type { ConnectionDetails } from "@/app/api/connection-details/route";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,57 @@ class LiveKitErrorBoundary extends React.Component<
   }
 }
 
+// Listener component for data messages
+const DataListener: React.FC<{ 
+  handleRequestEmail: () => void;
+  handleRequestResumeUpload: () => void;
+}> = ({ handleRequestEmail, handleRequestResumeUpload }) => {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    if (!room) return;
+
+    const handleDataReceived = (
+      payload: Uint8Array,
+      participant?: RemoteParticipant,
+      kind?: DataPacket_Kind,
+      topic?: string
+    ) => {
+      // LOG ADDED: Log all received data packets
+      console.log(`[DataListener] Received data - Topic: ${topic}, From: ${participant?.identity}, Kind: ${kind?.toString()}`);
+      
+      if (!participant) return; 
+
+      const decoder = new TextDecoder();
+      let message = '';
+      try {
+        message = decoder.decode(payload);
+      } catch (error) {
+        console.error("Error decoding data payload:", error);
+        return;
+      }
+
+      if (topic === "email_request") {
+        console.log("Email request received via data channel:", message);
+        handleRequestEmail();
+      } else if (topic === "resume_request") {
+        console.log("Resume request received via data channel:", message);
+        handleRequestResumeUpload();
+      }
+      // Add more topic handlers if needed
+    };
+
+    room.on("dataReceived", handleDataReceived);
+
+    return () => {
+      room.off("dataReceived", handleDataReceived);
+    };
+    // Add handlers to dependency array to ensure they are the latest versions
+  }, [room, handleRequestEmail, handleRequestResumeUpload]); 
+
+  return null; // This component doesn't render anything
+};
+
 interface LiveKitPageProps {
   onClose: () => void;
 }
@@ -90,31 +141,32 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   // State to temporarily ignore resume requests after successful upload
   const [ignoreResumeRequestsUntil, setIgnoreResumeRequestsUntil] = useState<number>(0);
 
-  // State to hold the function for sending data via LiveKit
-  const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array) => Promise<void>) | null>(null);
-
-  // Restore state tracking for contextual email requests
-  const [isCheckingForEmailRequest, setIsCheckingForEmailRequest] = useState(false);
+  // State to hold the function for sending data via LiveKit (with topic)
+  const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array, topic?: string) => Promise<void>) | null>(null);
 
   // Function to trigger email input display
   const handleRequestEmail = useCallback(() => {
+    // LOG ADDED: Confirm handler execution
+    console.log("[LiveKitPage] handleRequestEmail called. Setting showEmailInput to true."); 
     setShowEmailInput(true);
   }, []);
 
   // Function to trigger resume upload display
-  const handleRequestResumeUpload = () => {
-    // Check if we should ignore the request temporarily
+  const handleRequestResumeUpload = useCallback(() => {
     if (Date.now() < ignoreResumeRequestsUntil) {
       console.log("Ignoring resume request signal shortly after upload.");
       return;
     }
-    console.log("Resume upload requested by agent.");
+    // LOG ADDED: Confirm handler execution
+    console.log("[LiveKitPage] handleRequestResumeUpload called. Setting showResumeUpload to true.");
     setShowResumeUpload(true);
-  };
+  }, [ignoreResumeRequestsUntil]);
   
   // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
-    console.log("Voice assistant state changed:", state);
+    // Add this log to see all incoming states
+    console.log("handleAgentStateChange received state:", state); 
+    console.log("Current window flags:", { emailRequested: window.emailRequested, resumeRequested: window.resumeRequested });
     
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
     if (state.startsWith(markdownPrefix)) {
@@ -135,11 +187,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       if(window.resumeRequested) window.resumeRequested = false;
       handleRequestResumeUpload();
       return;
-    }
-    
-    // Restore contextual prompting check
-    if (state === "idle" && isCheckingForEmailRequest) {
-      setIsCheckingForEmailRequest(false);
     }
   };
 
@@ -242,7 +289,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         try {
           const payload = JSON.stringify({ type: "resume_upload_success" });
           const encoder = new TextEncoder();
-          await sendDataFn(encoder.encode(payload));
+          await sendDataFn(encoder.encode(payload), "resume_upload_success");
           console.log("Sent resume_upload_success signal to agent.");
         } catch (error) {
           console.error("Failed to send resume_upload_success signal:", error);
@@ -478,7 +525,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               audio={true}
               video={false}
               onMediaDeviceFailure={onDeviceFailure}
-              onError={(error: Error) => {
+              onError={(error) => {
                 console.error("LiveKit error:", error);
                 setRoomKey(Date.now());
                 toast({
@@ -497,7 +544,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               }}
               className="flex h-full w-full flex-col"
             >
-              <RoomContextHandler setSendDataFn={setSendDataFn} />
+              <RoomDataProvider setSendDataFn={setSendDataFn} />
+              
+              <DataListener 
+                handleRequestEmail={handleRequestEmail}
+                handleRequestResumeUpload={handleRequestResumeUpload}
+              />
               
               <SimpleVoiceAssistant
                 onStateChange={handleAgentStateChange}
@@ -515,36 +567,42 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         )}
       </div>
 
+      {/* Email Input Popup Overlay - Clean White Background */}
       {showEmailInput && (
         <div
           className={cn(
             "absolute bottom-[120px] left-1/2 z-[100000] w-[90%] max-w-md -translate-x-1/2",
-            "rounded-md border bg-background/80 p-4 shadow-lg backdrop-blur-lg dark:bg-background/80"
+            // White background, black border
+            "rounded-md border border-black bg-white p-4 shadow-lg" 
           )}
         >
-          <p className="mb-3 text-center text-sm font-medium text-foreground">
+          {/* Dark text color */}
+          <p className="mb-3 text-center text-sm font-medium text-black">
             Please enter your email to stay connected
           </p>
           <div className="mb-3">
-            <Input
+            <Input // shadcn Input
               type="email"
               placeholder="your.email@example.com"
               value={email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              className="h-10 rounded-md"
+              // Input style for light background
+              className="h-10 rounded-md border-gray-300 text-black placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
               disabled={isSubmitting}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button 
+            <Button // shadcn Button
               variant="ghost" 
               size="sm"
               onClick={() => setShowEmailInput(false)}
+              // Ghost button style for light background
+              className="text-gray-700 hover:bg-gray-100"
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button 
+            <Button // shadcn Button (Primary action style - default)
               onClick={handleSendEmail} 
               size="sm"
               disabled={!email.includes('@') || isSubmitting}
@@ -555,50 +613,67 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           </div>
         </div>
       )}
-
+      
+      {/* Resume Upload Popup Overlay - Clean White Background & Improved UI */}
       {showResumeUpload && (
         <div
           className={cn(
             "absolute bottom-[120px] left-1/2 z-[100001] w-[90%] max-w-md -translate-x-1/2", 
-            "rounded-md border bg-background/80 p-4 shadow-lg backdrop-blur-lg dark:bg-background/80"
+            // White background, black border
+            "rounded-md border border-black bg-white p-4 shadow-lg"
           )}
         >
-          <p className="mb-3 text-center text-sm font-medium text-foreground">
+          {/* Dark text color */}
+          <p className="mb-3 text-center text-sm font-medium text-black">
             Please upload your resume (PDF, DOCX)
           </p>
           <div className="mb-3">
-            <Input
+            <Input // shadcn Input for file
+              id="resume-upload" 
               type="file"
               accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              className="h-10 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              // File input styling for light background - match shadcn default look closer
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-gray-900 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isUploading}
             />
             {selectedFile && (
-              <p className="mt-1 text-xs text-muted-foreground">
+              // Dark text color
+              <p className="mt-2 text-xs text-gray-600">
                 Selected: {selectedFile.name}
               </p>
             )}
           </div>
-          <div className="flex justify-end gap-2">
-            <Button
+          <div className="mt-4 flex justify-end gap-2">
+            <Button // shadcn Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setShowResumeUpload(false);
                 setSelectedFile(null);
               }}
+              // Ghost button style for light background
+              className="text-gray-700 hover:bg-gray-100"
               disabled={isUploading}
             >
               Cancel
             </Button>
-            <Button
+            <Button // shadcn Button (Primary action style - default)
               onClick={handleUploadResume}
               size="sm"
               disabled={!selectedFile || isUploading}
               aria-disabled={isUploading}
             >
-              {isUploading ? "Uploading..." : "Upload"}
+              {isUploading ? (
+                <>
+                  {/* Spinner for light background button */}
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Uploading...
+                </>
+              ) : "Upload"}
             </Button>
           </div>
         </div>
@@ -607,19 +682,19 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   );
 };
 
-const RoomContextHandler: React.FC<{
-  setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array) => Promise<void>) | null>>;
+const RoomDataProvider: React.FC<{
+  setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array, topic?: string) => Promise<void>) | null>>
 }> = ({ setSendDataFn }) => {
   const room = useRoomContext();
 
   useEffect(() => {
     if (room && room.localParticipant) {
-      const sender = async (data: Uint8Array) => {
+      const sender = async (data: Uint8Array, topic?: string) => {
         try {
-          await room.localParticipant.publishData(data, { reliable: true });
-          console.log("Sent data signal via RoomContextHandler.");
+          await room.localParticipant.publishData(data, { reliable: true, topic });
+          console.log(`Sent data signal via RoomDataProvider. Topic: ${topic || 'none'}`);
         } catch (error) {
-          console.error("Failed to send data signal via RoomContextHandler:", error);
+          console.error(`Failed to send data signal via RoomDataProvider (Topic: ${topic || 'none'}):`, error);
           throw error;
         }
       };
