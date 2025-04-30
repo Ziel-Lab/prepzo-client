@@ -24,12 +24,17 @@ const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
           <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors">Features</Link>
-          <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors">Use Cases</Link>
+          <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors">Testimonials</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
           <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
-            Sign In
+            Login
           </Button>
+          <Link href="/sign-up">
+            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+              Sign Up
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile menu button */}
@@ -51,9 +56,11 @@ const Navbar = () => {
             <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
               Sign In
             </Button>
-            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-              Try Demo
-            </Button>
+            <Link href="/signUp" className="w-full">
+              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                Sign Up
+              </Button>
+            </Link>
           </div>
         </div>
       )}

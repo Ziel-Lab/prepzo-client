@@ -5,35 +5,14 @@ import { useRouter } from 'next/navigation'; // Keep useRouter if needed elsewhe
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
-// import DemoDialog from "./DemoDialog"; // This was the old Shadcn dialog
-// import AgentModal from "@/components/modal/agentmodal"; // Removed AgentModal import
-
-const VoiceWave = () => {
-  return <div className="flex items-center justify-center gap-1 h-12">
-      {[...Array(5)].map((_, i) => <div key={i} className="wave-animation" style={{
-      '--delay': i
-    } as React.CSSProperties}>
-          <span className="bg-prepzo/80 w-1.5 h-8 rounded-full inline-block"></span>
-        </div>)}
-    </div>;
-};
 
 // Define props for HeroSection
 interface HeroSectionProps {
   onOpenAgentModal: () => void; // Add the new prop type
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => { // Destructure the prop
-  // const router = useRouter(); // Removed router initialization if only used for handleStartTalking
-  // const [email, setEmail] = useState(""); // Removed unused state
-  // const [isAgentModalOpen, setIsAgentModalOpen] = useState(false); // Removed lifted state
+const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => { 
 
-  // Removed handleSubmit if it used the removed email state
-  // const handleSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   console.log("Demo requested with email:", email);
-  // };
-  
   const customerAvatars = [
     "/lovable-uploads/d6cf8351-91e5-4791-b2a5-f113b99c59d5.png",
     "/lovable-uploads/2c25799c-1e84-4207-a304-eb24f635dd3a.png",
@@ -41,12 +20,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => { // D
     "/lovable-uploads/d611d3b0-8ca3-42f4-81e4-78a7f787b870.png",
     "/lovable-uploads/941a96f8-537c-4f68-9ffb-e125224f7a9f.png"
   ];
-
-  // Removed handleStartTalking - it's now in the parent
-  // const handleStartTalking = () => {
-  //   console.log("Start Talking action initiated, navigating to LiveKit session...");
-  //   router.push('/livekit-session'); 
-  // };
 
   return (
     <section className="pt-48 pb-32 bg-prepzo overflow-hidden">

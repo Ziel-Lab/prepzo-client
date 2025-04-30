@@ -1,3 +1,14 @@
 {
-  "/page": "app/page.js"
+  "/(auth)/sign-up/page": "app/(auth)/sign-up/page.js",
+  "/api/resume-uploads/route": "app/api/resume-uploads/route.js",
+  "/api/store-email/route": "app/api/store-email/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/contact/page": "app/contact/page.js",
+  "/livekit-session/page": "app/livekit-session/page.js",
+  "/terms-of-service/page": "app/terms-of-service/page.js",
+  "/privacy-policy/page": "app/privacy-policy/page.js",
+  "/waitlist/page": "app/waitlist/page.js",
+  "/use-cases/page": "app/use-cases/page.js",
+  "/api/connection-details/route": "app/api/connection-details/route.js"
 }

@@ -96,14 +96,14 @@ const AgentModal: React.FC<AgentModalProps> = ({
         {/* Footer - Button is group, icon has constant pulse */}
         <DialogFooter className="w-full p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-shrink-0">
           <RippleButton
-            className="mx-auto px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
+            className="group mx-auto px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
             transition-transform duration-300 ease-in-out hover:scale-105"
             onClick={() => {
               onStartTalking();
               onClose();
             }}
           >
-            <Rocket className="mr-2 h-5 w-5 animate-pulse-subtle" /> 
+            <Rocket className="mr-2 h-5 w-5 group-hover:animate-vibrate" />
             Great — Start Talking to Prepzo Now!
           </RippleButton>
         </DialogFooter>
