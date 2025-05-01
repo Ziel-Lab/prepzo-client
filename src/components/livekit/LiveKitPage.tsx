@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   LiveKitRoom,
   useRoomContext,
@@ -93,9 +93,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   // State to hold the function for sending data via LiveKit (with topic)
   const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array, topic?: string) => Promise<void>) | null>(null);
 
-  // *** REMOVE useRoomContext hook from here ***
-  // const room = useRoomContext();
-
   // Handlers are defined here, passed down to RoomContextManager
   const handleRequestEmail = useCallback(() => {
     console.log("[LiveKitPage] handleRequestEmail called. Setting showEmailInput to true.");
@@ -110,6 +107,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     setShowResumeUpload(true);
   }, [ignoreResumeRequestsUntil]);
   
+  // ***** REMOVE DATA HANDLER FROM HERE *****
+  // const handleDataReceived = useCallback(...);
+
   // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
     // Add this log to see all incoming states
@@ -195,6 +195,18 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   };
 
   const handleUploadResume = async () => {
+    // **** ADD VERY OBVIOUS LOG ****
+    console.error("!!!!!!!!!!!!!!!! handleUploadResume ENTERED !!!!!!!!!!!!!!!!");
+    // Log the call
+    console.log("handleUploadResume CALLED. Selected file:", selectedFile, "showResumeUpload state:", showResumeUpload);
+    
+    // **** ADD GUARD ****
+    // Only proceed if the popup is supposed to be shown
+    if (!showResumeUpload) {
+        console.warn("handleUploadResume called but showResumeUpload is false. Aborting.");
+        return;
+    }
+    
     if (!selectedFile) {
       toast({
         variant: "destructive", 
@@ -232,29 +244,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       setSelectedFile(null);
       setIgnoreResumeRequestsUntil(Date.now() + 3000);
   
-      // Use sendDataFn from state to send signal to agent
-      if (sendDataFn) {
-        try {
-          const payload = JSON.stringify({ type: "resume_upload_success" });
-          const encoder = new TextEncoder();
-          await sendDataFn(encoder.encode(payload), "resume_upload_success");
-          console.log("Sent resume_upload_success signal to agent.");
-        } catch (error) {
-          console.error("Failed to send resume_upload_success signal:", error);
-          toast({
-            variant: "default",
-            title: "Upload Success, Signal Failed",
-            description: "Resume uploaded, but couldn't notify the agent automatically. Please mention the upload.",
-          });
-        }
-      } else {
-         toast({
-            variant: "default",
-            title: "Upload Success, Agent Not Notified",
-            description: "Resume uploaded, but the agent might not be aware yet. Please mention the upload.",
-          });
-      }
-  
       toast({
         title: "Resume Uploaded",
         description: "Your resume has been uploaded successfully.",
@@ -270,6 +259,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       });
     } finally {
       setIsUploading(false);
+      window.resumeRequested = false;
+      console.log("[handleUploadResume] Finished, reset window.resumeRequested");
     }
   };
 
@@ -455,7 +446,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   }, []);
 
   return (
-    <div className="relative z-[99999] h-full w-full">
+    <div className="relative h-full w-full">
       {/* Restore potential background gradient if needed, assumed commented out */} 
       {/* <BackgroundGradient height="100%" zIndex="-1" /> */}
       <div className="flex h-full w-full flex-col justify-between">
@@ -492,7 +483,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               }}
               className="flex h-full w-full flex-col"
             >
-              {/* Render RoomContextManager INSIDE LiveKitRoom */}
+              {/* Render RoomContextManager INSIDE LiveKitRoom - RESTORE */}
               <RoomContextManager 
                 setSendDataFn={setSendDataFn} 
                 handleRequestEmail={handleRequestEmail}
@@ -505,6 +496,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   console.log("End call button clicked handler in LiveKitPage triggered.");
                   await forceStopAudioCapture();
                   updateConnectionDetails(undefined);
+                  setRoomKey(Date.now());
                   onClose();
                 }}
                 jobResultsMarkdown={jobResultsMarkdown}
@@ -543,7 +535,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
             <Button // shadcn Button
               variant="ghost" 
               size="sm"
-              onClick={() => setShowEmailInput(false)}
+              onClick={() => {
+                setShowEmailInput(false);
+                window.emailRequested = false;
+                console.log("[Email Popup] Cancelled, reset window.emailRequested");
+              }}
               // Ghost button style for light background
               className="text-gray-700 hover:bg-gray-100"
               disabled={isSubmitting}
@@ -599,6 +595,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               onClick={() => {
                 setShowResumeUpload(false);
                 setSelectedFile(null);
+                window.resumeRequested = false;
+                console.log("[Resume Popup] Cancelled, reset window.resumeRequested");
               }}
               // Ghost button style for light background
               className="text-gray-700 hover:bg-gray-100"
@@ -630,7 +628,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   );
 };
 
-// *** RE-DEFINE RoomContextManager component ***
+// *** RESTORE RoomContextManager component DEFINITION ***
 const RoomContextManager: React.FC<{
   setSendDataFn: React.Dispatch<React.SetStateAction<((data: Uint8Array, topic?: string) => Promise<void>) | null>>;
   handleRequestEmail: () => void;
@@ -639,16 +637,32 @@ const RoomContextManager: React.FC<{
   // Call useRoomContext HERE
   const room = useRoomContext();
 
+  // **** Use Refs for handlers ****
+  const handleRequestEmailRef = useRef(handleRequestEmail);
+  const handleRequestResumeUploadRef = useRef(handleRequestResumeUpload);
+
+  // **** Update refs when props change ****
+  useEffect(() => {
+    handleRequestEmailRef.current = handleRequestEmail;
+  }, [handleRequestEmail]);
+
+  useEffect(() => {
+    handleRequestResumeUploadRef.current = handleRequestResumeUpload;
+  }, [handleRequestResumeUpload]);
+
   // Log the room object on render
   console.log("[RoomContextManager] Rendering, room object:", room);
 
   // useEffect for setting up sendDataFn
   useEffect(() => {
-    // No need for extra !room check here if useEffect depends on room
     if (room && room.localParticipant) {
       console.log("[RoomContextManager] Setting up sendDataFn.");
       const sender = async (data: Uint8Array, topic?: string) => {
         try {
+          if (room.state !== 'connected') {
+            console.warn(`[RoomContextManager] Attempted to send data signal while room state is ${room.state}. Aborting.`);
+            throw new Error(`Cannot send data when room is not connected (state: ${room.state})`);
+          }
           await room.localParticipant.publishData(data, { reliable: true, topic });
           console.log(`[RoomContextManager] Sent data signal. Topic: ${topic || 'none'}`);
         } catch (error) {
@@ -658,7 +672,6 @@ const RoomContextManager: React.FC<{
       };
       setSendDataFn(() => sender);
     } else {
-      // This might run initially if room is null
       console.log("[RoomContextManager] Clearing sendDataFn (room or local participant missing).");
       setSendDataFn(null);
     }
@@ -666,26 +679,24 @@ const RoomContextManager: React.FC<{
       console.log("[RoomContextManager] Cleaning up sendDataFn.");
       setSendDataFn(null);
     };
-  }, [room, setSendDataFn]); // Include setSendDataFn dependency
+  }, [room, setSendDataFn]); // Depend on room and setter
 
   // useEffect for setting up dataReceived listener
   useEffect(() => {
-    // No need for extra !room check here if useEffect depends on room
+    console.log(`[RoomContextManager] Listener effect attempting run. Room state: ${room ? 'available' : 'unavailable'}`);
     if (!room) {
-        // Log if effect runs but room is still null/undefined
-        console.log("[RoomContextManager] ReceiveEffect running but room is not available yet.");
-        return; 
+      console.log("[RoomContextManager] Listener effect exiting - room not available.");
+      return; 
     }
     
     console.log(`[RoomContextManager] Attaching dataReceived listener for room: ${room.name}`);
-
-    const handleDataReceived = (
+    const handleDataReceivedInternal = (
       payload: Uint8Array,
       participant?: RemoteParticipant,
       kind?: DataPacket_Kind,
       topic?: string
     ) => {
-      console.log(`[RoomContextManager] Received data - Topic: ${topic}, From: ${participant?.identity}, Kind: ${kind?.toString()}`);
+      console.log(`[RoomContextManager] Received data - Topic: ${topic}, From: ${participant?.identity}`);
       if (!participant) return;
 
       const decoder = new TextDecoder();
@@ -693,26 +704,30 @@ const RoomContextManager: React.FC<{
       try {
         message = decoder.decode(payload);
       } catch (error) {
-        console.error("Error decoding data payload:", error);
+        console.error("[RoomContextManager] Error decoding data payload:", error);
         return;
       }
 
       if (topic === "email_request") {
-        console.log("Email request received via data channel:", message);
-        handleRequestEmail(); 
+        console.log("[RoomContextManager] Email request received:", message);
+        // **** Call handler via ref ****
+        handleRequestEmailRef.current(); 
       } else if (topic === "resume_request") {
-        console.log("Resume request received via data channel:", message);
-        handleRequestResumeUpload(); 
+        console.log("[RoomContextManager] Resume request received:", message);
+        // **** Call handler via ref ****
+        handleRequestResumeUploadRef.current(); 
       }
     };
 
-    room.on('dataReceived', handleDataReceived);
+    room.on('dataReceived', handleDataReceivedInternal);
+    console.log(`[RoomContextManager] Successfully attached dataReceived listener.`);
 
     return () => {
-      console.log(`[RoomContextManager] Detaching dataReceived listener for room: ${room.name}`);
-      room.off('dataReceived', handleDataReceived);
+      console.log(`[RoomContextManager] Cleaning up listener for room: ${room.name}`);
+      room.off('dataReceived', handleDataReceivedInternal);
+      console.log(`[RoomContextManager] Successfully detached dataReceived listener.`);
     };
-  }, [room, handleRequestEmail, handleRequestResumeUpload]); // Keep handler dependencies here
+  }, [room]); // **** Depend ONLY on room ****
 
   return null; // This component doesn't render UI
 };

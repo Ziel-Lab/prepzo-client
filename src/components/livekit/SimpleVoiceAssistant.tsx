@@ -699,7 +699,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
       {/* Control Bar Section */} 
       <div
         // Use Tailwind for padding and background effect
-        className="p-4 bg-transparent backdrop-blur-sm" // Added backdrop-blur-sm for effect
+        className="p-4 bg-transparent"
       >
         <div className="mb-4 flex justify-center">
           <CustomControlBar onEndCall={onEndCall} />
