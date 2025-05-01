@@ -1,5 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/prepzo-session/page": "app/prepzo-session/page.js",
-  "/api/connection-details/route": "app/api/connection-details/route.js"
-}

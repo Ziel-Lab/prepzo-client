@@ -364,15 +364,14 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       {/* Use Tailwind for layout and styling */}
       <div 
         className={cn(
-          "flex justify-between items-center w-auto min-w-[300px] max-w-[450px] mx-auto rounded-md py-2 px-6 border shadow-xs",
+          "flex justify-between items-center w-[95%] sm:w-auto min-w-[280px] sm:min-w-[300px] max-w-[450px] mx-auto rounded-md py-2 px-3 sm:px-6 border shadow-xs",
           bgColor,
           borderColor
         )}
       >
         {/* Wrapper div for LiveKit control bar */}
-        {/* Attempt to hide LiveKit's disconnect button using a wrapper and potentially CSS if needed */}
-        {/* Note: Directly hiding internal elements via CSS might be brittle */}
-        <div className="w-[180px] lk-voice-control-wrapper"> 
+        {/* Adjust width of the LK controls wrapper if needed on small screens */}
+        <div className="w-[150px] sm:w-[180px] lk-voice-control-wrapper">
           {/* Apply CSS overrides here if needed, or adjust the wrapper */}
           {/* Example override (use with caution): */}
           {/* <style>{`.lk-voice-control-wrapper .lk-disconnect-button { display: none !important; }`}</style> */}
@@ -665,12 +664,12 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
       {/* Transcript Section */} 
       <div 
         ref={transcriptRef}
-        // Use Tailwind classes for flex, overflow, padding, background
-        className="flex-1 overflow-auto p-4 pt-20 bg-transparent" 
+        // Adjust padding for smaller screens
+        className="flex-1 overflow-auto p-2 pt-16 sm:p-4 sm:pt-20 bg-transparent"
       >
-        {/* Use Tailwind for inner container and spacing */}
         <div 
-          className="max-w-2xl mx-auto w-full space-y-3 pb-24 flex flex-col items-stretch"
+          // Allow full width on small screens, constrain on larger
+          className="max-w-full sm:max-w-2xl mx-auto w-full space-y-3 pb-24 flex flex-col items-stretch"
         >
           {messages.length === 0 && (
             // Use Tailwind for placeholder text styling

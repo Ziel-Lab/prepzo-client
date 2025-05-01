@@ -22,7 +22,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
   ];
 
   return (
-    <section className="pt-48 pb-32 bg-prepzo overflow-hidden">
+    <section className="pt-32 pb-20 sm:pt-48 sm:pb-32 bg-prepzo overflow-hidden">
       <div className="container">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6 animate-slide-up" style={{

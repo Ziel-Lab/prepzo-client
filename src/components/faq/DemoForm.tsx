@@ -24,7 +24,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
     question: "How soon can I start after the demo?",
     answer: "You can start using Prepzo immediately after the demo if you choose to sign up. We'll help you get set up right away."
   }];
-  return <div className="container py-20">
+  return <div className="container py-12 sm:py-20">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         <div>
           <div className="mb-6">

@@ -57,7 +57,7 @@ const SignUpForm = () => {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto border-none shadow-none bg-transparent">
+    <Card className="w-full max-w-md mx-auto border-none shadow-none bg-transparent px-4 sm:px-0">
       {/* Optional: Add a title if needed, image has none within the form area */}
       {/* <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
