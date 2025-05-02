@@ -10,7 +10,7 @@ import {
   // DialogTrigger is handled externally
 } from "@/components/ui/dialog";
 import { RippleButton } from "@/components/ripple-button";
-import { CheckCircle2, Lightbulb, Rocket } from "lucide-react"; // Using Lucide icons
+import { CheckCircle2, Lightbulb, Rocket, AlertTriangle } from "lucide-react"; // Using Lucide icons and added AlertTriangle
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -72,6 +72,22 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Important Session Info Section - Added */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Important Session Info
+            </h3>
+            <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-400 dark:border-amber-600 p-4 rounded-md space-y-2">
+              <p className="text-sm text-muted-foreground font-medium">
+                Please <span className="font-bold text-amber-700 dark:text-amber-400">do not refresh</span> your browser tab during the session, as this will end your current conversation.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                If you accidentally get disconnected (e.g., network issues, power outage), don&apos;t worry! You can simply <span className="font-semibold">rejoin the session</span> using the same link or button.
+              </p>
+            </div>
           </div>
 
           {/* Try Asking Section */}

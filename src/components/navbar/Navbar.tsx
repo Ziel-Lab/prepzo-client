@@ -30,7 +30,7 @@ const Navbar = () => {
           <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
             Login
           </Button>
-          <Link href="/sign-up">
+          <Link href="/auth/sign-up">
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
               Sign Up
             </Button>
@@ -56,7 +56,7 @@ const Navbar = () => {
             <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
               Sign In
             </Button>
-            <Link href="/signUp" className="w-full">
+            <Link href="/auth/sign-up" className="w-full">
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Sign Up
               </Button>

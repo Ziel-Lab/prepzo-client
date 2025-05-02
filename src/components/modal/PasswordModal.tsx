@@ -1,106 +1,118 @@
 "use client";
 import React, { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 
-interface PasswordModalProps {
-  isOpen: boolean;
-  onVerify: (password: string) => Promise<boolean>; // Returns true on success, false on failure
-}
+// Define backend URL (make sure NEXT_PUBLIC_BACKEND_URL is set in your .env.local)
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-const PasswordModal: React.FC<PasswordModalProps> = ({ isOpen, onVerify }) => {
+const PasswordModal: React.FC = () => {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // const toast = useToast(); // Chakra UI Toast removed
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
-    setError(null); // Clear error when user types
+    setError(null);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsLoading(true);
+  const handleSubmit = async (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
+    setIsVerifying(true);
     setError(null);
     try {
-      const success = await onVerify(password);
-      if (!success) {
-        setError('Invalid password. Please try again.');
-        // Optional: Show a toast notification for feedback (using a Tailwind-compatible library)
-        // toast({ title: 'Incorrect Password', status: 'error', duration: 3000 }); // Chakra UI Toast removed
+      // Target the Flask backend URL and include credentials
+      const response = await fetch(`${BACKEND_URL}/api/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+        credentials: 'include', // <-- Crucial: Send/Receive cookies for Flask session
+      });
+
+      if (!response.ok) {
+         let errorMsg = 'Invalid password. Please try again.';
+         try {
+           // Try to parse error from Flask response
+           const errorData = await response.json(); 
+           errorMsg = errorData.message || errorMsg;
+         } catch (e) { /* Ignore JSON parsing error if Flask sends plain text error */ }
+         setError(errorMsg);
+         throw new Error(errorMsg);
       }
-      // If successful, the parent component will handle closing
-    } catch (err) {
+
+      // On successful verification, the auth state will update on next check.
+      // No need to call setPasswordAuthenticated() here anymore.
+
+    } catch (err: any) {
       console.error("Password verification error:", err);
-      setError('An error occurred during verification. Please try again.');
-      // toast({ title: 'Verification Error', status: 'error', duration: 3000 }); // Chakra UI Toast removed
+      if (!error) { 
+         setError(err.message || 'An error occurred during verification. Please try again.');
+      }
     } finally {
-      setIsLoading(false);
+      setIsVerifying(false);
     }
   };
 
-  if (!isOpen) {
-    return null; // Don't render anything if the modal is not open
+  if (isAuthLoading) {
+    return null;
   }
 
-  return (
-    // Modal Overlay - Fixed position, full screen, background with opacity
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      {/* Modal Content - Background, padding, rounded corners, shadow, width */}
-      <div className="bg-card text-card-foreground rounded-lg shadow-xl w-11/12 sm:w-3/4 md:w-1/2 lg:w-1/3 p-0 flex flex-col max-h-[90vh]">
-        {/* Modal Header - Padding, border bottom, text styles */}
-        <div className="p-4 border-b border-border text-center">
-          <h2 className="text-lg font-semibold">Enter Password</h2>
-        </div>
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+        <div className="bg-card text-card-foreground rounded-lg shadow-xl w-11/12 sm:w-3/4 md:w-1/2 lg:w-1/3 p-0 flex flex-col max-h-[90vh]">
+          <div className="p-4 border-b border-border text-center">
+            <h2 className="text-lg font-semibold">Enter Password</h2>
+          </div>
 
-        {/* Modal Body - Padding, flex-grow for scrolling */}
-        <div className="p-6 pb-4 flex-grow overflow-y-auto">
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder="Enter the password to access this page"
-                  required
-                  // Input styling: border, focus ring, padding, rounded
-                  className={`block w-full rounded-md border px-3 py-2 shadow-sm 
-                            ${error ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-primary'} 
-                            focus:outline-none focus:ring-1 sm:text-sm 
-                            bg-background text-foreground placeholder-muted-foreground`}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? 'password-error' : undefined}
-                />
-                {error && (
-                  <p id="password-error" className="mt-1 text-sm text-destructive">
-                    {error}
-                  </p>
-                )}
+          <div className="p-6 pb-4 flex-grow overflow-y-auto">
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter the password to access this page"
+                    required
+                    className={`block w-full rounded-md border px-3 py-2 shadow-sm 
+                              ${error ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-primary'} 
+                              focus:outline-none focus:ring-1 sm:text-sm 
+                              bg-background text-foreground placeholder-muted-foreground`}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'password-error' : undefined}
+                  />
+                  {error && (
+                    <p id="password-error" className="mt-1 text-sm text-destructive">
+                      {error}
+                    </p>
+                  )}
+                </div>
+                <button type="submit" style={{ display: 'none' }} aria-hidden="true" disabled={isVerifying}></button>
               </div>
-            </div>
-          </form>
-        </div>
+            </form>
+          </div>
 
-        {/* Modal Footer - Padding, border top, flex for button alignment */}
-        <div className="flex justify-end items-center p-4 border-t border-border">
-          <button
-            type="button" // Changed to type="button" to prevent accidental form submission
-            onClick={handleSubmit} // Explicitly call handleSubmit
-            disabled={isLoading}
-            // Button styling: background, text color, padding, rounded, hover, focus, disabled states
-            className="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Verifying...' : 'Verify'}
-          </button>
-          {/* No Cancel button */}
+          <div className="flex justify-end items-center p-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={isVerifying}
+              className="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isVerifying ? 'Verifying...' : 'Verify'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 
 export default PasswordModal; 
