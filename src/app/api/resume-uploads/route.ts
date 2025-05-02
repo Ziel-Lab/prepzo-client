@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Use environment variable for Flask URL, default for development
 const FLASK_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const FLASK_API_KEY = process.env.FLASK_INTERNAL_API_KEY;
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,18 +33,35 @@ export async function POST(request: NextRequest) {
 
     console.log(`Received resume for session: ${sessionId}, name: ${resumeFile.name}, type: ${resumeFile.type}, size: ${resumeFile.size} bytes`);
 
+    // Construct the Flask endpoint URL safely, removing potential double slashes
+    const flaskBaseUrl = FLASK_BACKEND_URL?.replace(/\/$/, '') || ''; // Remove trailing slash if present
+    const flaskEndpoint = `${flaskBaseUrl}/api/process-resume`; // Append path
+
+    // Check if base URL is missing after processing
+    if (!flaskBaseUrl) {
+        console.error('Server configuration error: NEXT_PUBLIC_BACKEND_URL is not set or invalid.');
+        return NextResponse.json({ error: 'Internal server configuration error.' }, { status: 500 });
+    }
+
+    console.log(`Forwarding resume to Flask endpoint: ${flaskEndpoint}`);
+
     // --- Forward file to Flask backend --- 
     const flaskFormData = new FormData();
     flaskFormData.append('resume', resumeFile, resumeFile.name);
     flaskFormData.append('session_id', sessionId);
 
-    const flaskEndpoint = `${FLASK_BACKEND_URL}/api/process-resume`;
-    console.log(`Forwarding resume to Flask endpoint: ${flaskEndpoint}`);
+    if (!FLASK_API_KEY) {
+      console.error('Server configuration error: FLASK_INTERNAL_API_KEY is not set.');
+      return NextResponse.json({ error: 'Internal server configuration error.' }, { status: 500 });
+    }
+
+    const headers = new Headers();
+    headers.append('X-Internal-API-Key', FLASK_API_KEY);
 
     const flaskResponse = await fetch(flaskEndpoint, {
       method: 'POST',
+      headers: headers, 
       body: flaskFormData,
-      // Don't set Content-Type header, fetch does it automatically for FormData
     });
 
     if (!flaskResponse.ok) {

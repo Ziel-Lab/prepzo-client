@@ -2,6 +2,7 @@
 
 import React from "react"; // Removed useState
 import { useRouter } from 'next/navigation'; // Keep useRouter if needed elsewhere, or remove
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
@@ -48,9 +49,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
              </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded">
-                Sign Up
-              </Button>
+              <Link href="/auth/sign-up">
+                <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded">
+                  Sign Up
+                </Button>
+              </Link>
               {/* Button uses the passed-in handler */}
               <Button 
                 size="lg" 

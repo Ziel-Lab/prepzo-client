@@ -10,7 +10,7 @@ import {
   // DialogTrigger is handled externally
 } from "@/components/ui/dialog";
 import { RippleButton } from "@/components/ripple-button";
-import { CheckCircle2, Lightbulb, Rocket, AlertTriangle } from "lucide-react"; // Using Lucide icons and added AlertTriangle
+import { CheckCircle2, Lightbulb, Rocket, AlertTriangle, Info } from "lucide-react"; // Using Lucide icons and added AlertTriangle and Info
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -71,6 +71,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   <span className="text-sm text-muted-foreground">{item}</span>
                 </li>
               ))}
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
+                <span className="text-sm text-muted-foreground">Receive confirmation when your resume is successfully uploaded</span>
+              </li>
             </ul>
           </div>
 
@@ -105,6 +109,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
             <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
               <Lightbulb className="w-3 h-3" />
               <span className="font-semibold">Tip:</span> The more honest and personal your questions, the better Prepzo can help.
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground flex items-start gap-1">
+              <Info className="w-3 h-3 mt-0.5 flex-shrink-0" /> 
+              <span><span className="font-semibold">When Uploading:</span> Please let Prepzo know once your resume is uploaded by saying something like "My resume is uploaded" rather than just "Done".</span>
             </p>
           </div>
         </div>

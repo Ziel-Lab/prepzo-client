@@ -16,6 +16,7 @@ interface AuthContextType {
   authMethod: 'password' | null; // Only 'password' or null, as it's the gatekeeper
   logout: () => Promise<void>;
   isLoading: boolean;
+  triggerAuthCheck: () => void;
 }
 
 // Create the context with a default value
@@ -118,6 +119,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('useAuth: Logout complete, state reset.');
   }, [supabase]);
 
+  // Define the trigger function
+  const triggerAuthCheck = useCallback(() => {
+    console.log('useAuth: Auth check triggered manually.');
+    // Pass the *current* session state when triggering manually
+    updateAuthState(session); 
+  }, [session, updateAuthState]);
+
   const value = {
     supabase,
     session, // Supabase session is still available if needed
@@ -125,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authMethod, // Based on Flask check
     logout,
     isLoading,
+    triggerAuthCheck,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

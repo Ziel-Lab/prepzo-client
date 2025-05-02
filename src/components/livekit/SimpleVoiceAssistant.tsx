@@ -204,37 +204,12 @@ function useSafeTrackTranscription() {
 // Custom Control Bar with End Call Icon using Tailwind
 const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const room = useRoomContext();
-  // Define Tailwind classes for background and border
   const bgColor = "bg-white dark:bg-gray-800";
   const borderColor = "border-gray-200 dark:border-gray-700";
-  
-  // State for email collection - remove if not used
-  
+
   const handleDisconnect = async () => {
     console.log("Handle disconnect called, showing confirmation dialog");
-    
-    // Show email input dialog
-    
-    
-    // Legacy code: prompt for email input using window.prompt
-    // This is now replaced with the custom dialog
-    /*
-    const email = window.prompt("Please enter your email to catch up with us:");
-    
-    // Store response for later processing
-    if (email) {
-      // You could store this in localStorage or any other state management
-      localStorage.setItem('prepzo_user_email', email);
-      console.log("User provided email for follow-up:", email);
-    } else {
-      console.log("User declined to provide an email for follow-up");
-    }
-    */
-    
-    // Log and proceed with disconnection
     console.log("Now stopping all audio capture");
-    
-    // Immediately stop all live tracks before doing anything else
     if (room?.localParticipant) {
       const publications = room.localParticipant.trackPublications;
       publications.forEach(publication => {
@@ -248,24 +223,16 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         }
       });
     }
-    
-    // Function to stop all microphone tracks
     const stopAllMicrophoneTracks = async () => {
-      // Try to revoke microphone permissions or at least stop all tracks
       try {
-        // First attempt: Get a list of all media devices to ensure we can stop them
         const devices = await navigator.mediaDevices.enumerateDevices();
         console.log(`Found ${devices.length} media devices`);
-        
-        // Second attempt: Create and immediately stop a new stream to force permission reset
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => {
           track.stop();
           track.enabled = false;
           console.log("Explicitly stopped track:", track.id);
         });
-        
-        // Third attempt: Find any MediaRecorder instances that might be running
         if (typeof window !== 'undefined') {
           const globalAny = window as unknown as { 
             mediaRecorders?: Array<{ 
@@ -288,11 +255,8 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       } catch (err) {
         console.error("Error stopping media tracks:", err);
       }
-      
-      // Additionally, try to stop any Audio Context if it exists
       if (typeof window !== 'undefined') {
         try {
-          // Fourth attempt: Close any audio contexts
           const AudioContextClass = window.AudioContext || 
                                    ((window as unknown as { webkitAudioContext?: AudioContext }).webkitAudioContext);
           if (AudioContextClass) {
@@ -305,8 +269,6 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         }
       }
     };
-    
-    // First, disconnect the room before anything else
     if (room) {
       try {
         room.disconnect();
@@ -315,17 +277,11 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
         console.error("Error disconnecting room:", e);
       }
     }
-    
-    // Then stop all microphone tracks
     await stopAllMicrophoneTracks();
-    
-    // Force garbage collection of audio elements by nullifying references
     if (typeof window !== 'undefined') {
-      // Find and remove any audio elements that might have been created
       const audioElements = document.querySelectorAll('audio');
       audioElements.forEach(el => {
         try {
-          // Remove src and srcObject
           if (el.srcObject) {
             try {
               const stream = el.srcObject as MediaStream;
@@ -341,55 +297,47 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
             }
           }
           el.removeAttribute('src');
-          el.load(); // Forces cleanup
-          el.remove(); // Remove from DOM
+          el.load(); 
+          el.remove();
           console.log("Removed audio element from DOM");
         } catch (e) {
           console.error("Error cleaning up audio element:", e);
         }
       });
     }
-    
-    // Call the onEndCall callback if provided
     if (onEndCall) {
-      // Add a small delay to ensure all cleanup has completed
       setTimeout(() => {
         if (onEndCall) onEndCall();
       }, 100);
     }
   };
-  
+
   return (
     <>
-      {/* Use Tailwind for layout and styling */}
       <div 
         className={cn(
-          "flex justify-between items-center w-[95%] sm:w-auto min-w-[280px] sm:min-w-[300px] max-w-[450px] mx-auto rounded-md py-2 px-3 sm:px-6 border shadow-xs",
+          // Reduce max-width, keep full width otherwise, use gap
+          "flex justify-between items-center w-full max-w-sm mx-auto gap-2 sm:gap-4 rounded-md py-2 px-2 sm:px-4 border shadow-xs", 
           bgColor,
           borderColor
         )}
       >
-        {/* Wrapper div for LiveKit control bar */}
-        {/* Adjust width of the LK controls wrapper if needed on small screens */}
-        <div className="w-[150px] sm:w-[180px] lk-voice-control-wrapper">
-          {/* Apply CSS overrides here if needed, or adjust the wrapper */}
-          {/* Example override (use with caution): */}
-          {/* <style>{`.lk-voice-control-wrapper .lk-disconnect-button { display: none !important; }`}</style> */}
+        {/* Wrapper for LiveKit controls: Allow shrinking, add min-w-0 */}
+        <div className="lk-voice-control-wrapper min-w-0"> 
           <VoiceAssistantControlBar 
             controls={{
               microphone: true,
-              leave: false // Ensure LiveKit's leave button is not shown
+              leave: false 
             }} 
           />
         </div>
         
-        {/* Shadcn Button for End Call */}
+        {/* End Call Button: Slightly smaller padding on smallest screens */}
         <Button
-          variant="destructive" // Use Shadcn destructive variant
-          size="default" // Use Shadcn default size or adjust
+          variant="destructive"
+          size="sm"
           onClick={handleDisconnect}
-          className="ml-3 px-6 py-2 h-auto rounded-md font-normal shadow-sm" // Add specific classes as needed
-          // Remove Chakra-specific props like colorScheme, aria-label (use standard aria-label if needed)
+          className="px-3 sm:px-5 py-2 h-9 sm:h-10 rounded-md font-normal shadow-sm flex-shrink-0" 
         >
           End Call
         </Button>

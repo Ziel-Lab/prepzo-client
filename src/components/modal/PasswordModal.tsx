@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const PasswordModal: React.FC = () => {
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, triggerAuthCheck } = useAuth();
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +40,9 @@ const PasswordModal: React.FC = () => {
          throw new Error(errorMsg);
       }
 
-      // On successful verification, the auth state will update on next check.
-      // No need to call setPasswordAuthenticated() here anymore.
+      // On successful verification, trigger an auth state re-check
+      console.log('PasswordModal: Verification successful, triggering auth check.');
+      triggerAuthCheck();
 
     } catch (err: any) {
       console.error("Password verification error:", err);
