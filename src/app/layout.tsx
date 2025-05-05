@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Example font, adjust if needed
-import "@/app/globals.css"; // Updated import path
+import { Inter } from "next/font/google";
+import "@/app/globals.css"; 
 import React from "react";
-import { ClientProviders } from "@/app/client-providers"; // Import the new client component
-import { cn } from "@/lib/utils"; // Assuming you use cn for class merging
+import { ClientProviders } from "@/app/client-providers";
+import { cn } from "@/lib/utils"; 
 
-const inter = Inter({ subsets: ["latin"] }); // Example font setup
+const inter = Inter({ subsets: ["latin"] }); 
 
 export const metadata: Metadata = {
-  title: "Prepzo", // Adjust title as needed
+  title: "Prepzo", 
   description: "Your AI voice assistant for personalized career guidance.", // Adjust description
 };
 
