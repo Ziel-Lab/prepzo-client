@@ -166,7 +166,7 @@ const SignUpForm = () => {
                  <span className="animate-spin h-10 w-10 border-2 border-foreground border-t-transparent rounded-full"></span>
                ) : (
                   <>
-                   <img src="/static/images/Linkedin-Logo.wine.svg" alt="LinkedIn logo" className="w-full h-full object-contain" /> 
+                   <img src="/static/images/LinkedIn-Logo.wine.svg" alt="LinkedIn logo" className="w-full h-full object-contain" /> 
                  </>
                )}
              </Button>
