@@ -428,14 +428,17 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       return undefined;
     };
 
+    // Return a cleanup function that also runs on component unmount (e.g., SPA navigation away)
     return () => {
-      // Restore the original handler when our component unmounts
-      window.onbeforeunload = originalBeforeUnload;
-
-      // Run cleanup when component unmounts
-      forceStopAudioCapture();
+      console.log("[LiveKitPage] Unmounting - ensuring full disconnect.");
+      if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
+        console.log("[LiveKitPage] Calling window.liveKitRoom.disconnect() on unmount.");
+        window.liveKitRoom.disconnect();
+      }
+      forceStopAudioCapture(); // Ensure audio is stopped comprehensively
+      window.onbeforeunload = originalBeforeUnload; // Restore original handler
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount and cleanup on unmount
 
   return (
     <div className="relative h-full w-full">
@@ -690,13 +693,16 @@ const RoomContextManager: React.FC<{
     };
   }, [room, setSendDataFn]); // Depend on room and setter
 
-  // useEffect for setting up dataReceived listener
+  // useEffect for setting up dataReceived listener and exposing room
   useEffect(() => {
     console.log(`[RoomContextManager] Listener effect attempting run. Room state: ${room ? 'available' : 'unavailable'}`);
     if (!room) {
       console.log("[RoomContextManager] Listener effect exiting - room not available.");
+      if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear if room becomes null
       return; 
     }
+
+    if (typeof window !== 'undefined') window.liveKitRoom = room; // Expose room instance
     
     console.log(`[RoomContextManager] Attaching dataReceived listener for room: ${room.name}`);
     const handleDataReceivedInternal = (
@@ -734,9 +740,10 @@ const RoomContextManager: React.FC<{
     return () => {
       console.log(`[RoomContextManager] Cleaning up listener for room: ${room.name}`);
       room.off('dataReceived', handleDataReceivedInternal);
+      if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear on cleanup
       console.log(`[RoomContextManager] Successfully detached dataReceived listener.`);
     };
-  }, [room]); // **** Depend ONLY on room ****
+  }, [room]); // Depend ONLY on room
 
   return null; // This component doesn't render UI
 };

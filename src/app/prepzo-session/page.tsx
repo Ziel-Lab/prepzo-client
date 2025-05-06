@@ -9,9 +9,9 @@ export default function LiveKitSessionPage() {
   const router = useRouter();
 
   const handleClose = () => {
-    console.log('LiveKit session closed, navigating back.');
-    // Navigate back to the homepage or previous page
-    router.push('/'); // Or use router.back();
+    console.log('LiveKit session closed, navigating to sign-up page.');
+    // Navigate to the sign-up page
+    router.push('/auth/sign-up'); 
   };
 
   return (

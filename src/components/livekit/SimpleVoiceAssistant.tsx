@@ -330,13 +330,13 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
     <>
       <div 
         className={cn(
-          // Reduce max-width, keep full width otherwise, use gap
-          "flex justify-between items-center w-full max-w-sm mx-auto gap-2 sm:gap-4 rounded-md py-2 px-2 sm:px-4 border shadow-xs", 
+          // Changed w-full max-w-sm to w-fit to make the container hug its content
+          "flex items-center w-fit mx-auto gap-2 sm:gap-4 rounded-md py-2 px-2 sm:px-4 border shadow-xs", 
           bgColor,
           borderColor
         )}
       >
-        {/* Wrapper for LiveKit controls: Allow shrinking, add min-w-0 */}
+        {/* Wrapper for LiveKit controls */}
         <div className="lk-voice-control-wrapper min-w-0"> 
           <VoiceAssistantControlBar 
             controls={{
@@ -346,7 +346,7 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
           />
         </div>
         
-        {/* End Call Button: Slightly smaller padding on smallest screens */}
+        {/* End Call Button */}
         <Button
           variant="destructive"
           size="sm"
