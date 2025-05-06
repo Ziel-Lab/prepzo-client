@@ -14,14 +14,8 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Determine the final redirect URL base carefully, considering potential proxies/load balancers
-      const forwardedHost = request.headers.get('x-forwarded-host') // Vercel, Render, etc.
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      let redirectUrlBase = origin // Default to origin
-
-      if (!isLocalEnv && forwardedHost) {
-        redirectUrlBase = `https://${forwardedHost}` // Use forwarded host in production if available
-      } 
+      // Use NEXT_PUBLIC_SITE_URL if available, otherwise fall back to origin
+      const redirectUrlBase = process.env.NEXT_PUBLIC_SITE_URL || origin;
 
       // Always redirect to the waitlist page upon successful OAuth login
       const finalRedirectPath = '/waitlist'; 
