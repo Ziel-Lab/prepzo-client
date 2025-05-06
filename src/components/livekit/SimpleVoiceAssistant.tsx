@@ -206,10 +206,11 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const room = useRoomContext();
   const bgColor = "bg-white dark:bg-gray-800";
   const borderColor = "border-gray-200 dark:border-gray-700";
-
+  const sessionId=room?.name;
   const handleDisconnect = async () => {
     console.log("Handle disconnect called, showing confirmation dialog");
     console.log("Now stopping all audio capture");
+
     if (room?.localParticipant) {
       const publications = room.localParticipant.trackPublications;
       publications.forEach(publication => {
@@ -273,6 +274,19 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       try {
         room.disconnect();
         console.log("Disconnected from room");
+        if(sessionId){
+          fetch(`${process.env.NEXT_PUBLIC_SUMMARY_API_URL}/sendsummary`,{
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json'
+            },
+            body:JSON.stringify({room_id:sessionId}),
+          }).then(()=>{
+            console.log("Summary sent successfully");
+          }).catch((e)=>{
+            console.error("Error sending summary:",e);
+          })
+        }
       } catch (e) {
         console.error("Error disconnecting room:", e);
       }
