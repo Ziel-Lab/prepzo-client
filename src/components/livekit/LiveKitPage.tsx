@@ -59,28 +59,12 @@ class LiveKitErrorBoundary extends React.Component<
   }
 }
 
-// Define the expected structure from your Flask endpoint
-interface FlaskTokenResponse {
-  identity: string;
-  accessToken: string;
-  roomName: string;
-}
-
-// Explicit type for data structure needed by LiveKitRoom, based on Flask + serverUrl
-interface LiveKitConnectionConfig {
-  serverUrl: string;
-  roomName: string;
-  participantName: string;
-  participantToken: string;
-}
-
 interface LiveKitPageProps {
   onClose: () => void;
 }
 
 const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
-  // State for connection details, using LiveKitConnectionConfig
-  const [connectionDetails, updateConnectionDetails] = useState<LiveKitConnectionConfig | undefined>(undefined);
+  const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [roomKey, setRoomKey] = useState(Date.now());
   const { toast } = useToast();
 
@@ -228,17 +212,15 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   
     try {
       const sessionId = connectionDetails?.roomName;
-      if (!sessionId) throw new Error('No active session roomName for resume upload');
-
-      // Use the roomName from connectionDetails directly as the session_id for upload.
-      // This assumes connectionDetails.roomName is the canonical ID the agent will use.
-      const sessionIdForUpload = sessionId;
-
-      console.log(`[handleUploadResume] Using session_id for upload: ${sessionIdForUpload}`);
-
+      if (!sessionId) throw new Error('No active session');
+  
+      const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
+        ? sessionId
+        : `voice_assistant_room_${sessionId}`;
+  
       const formData = new FormData();
       formData.append('resume', selectedFile);
-      formData.append('session_id', sessionIdForUpload);
+      formData.append('session_id', cleanSessionId);
   
       const response = await fetch('/api/resume-uploads', {
         method: 'POST',
@@ -302,50 +284,33 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   const onConnectButtonClicked = useCallback(async () => {
     try {
-      console.log("Attempting to connect to LiveKit by fetching token from Flask endpoint...");
-      
-      const flaskTokenEndpoint = "http://localhost:5001/getToken"; 
-      const response = await fetch(flaskTokenEndpoint, {
-        cache: "no-store", 
+      console.log("Attempting to connect to LiveKit server...");
+      const url = new URL(
+        process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
+        window.location.origin
+      );
+      console.log("Connection URL:", url.toString());
+
+      // Use cache-busting query parameter
+      url.searchParams.append("_", Date.now().toString());
+
+      const response = await fetch(url.toString(), {
+        cache: "no-store",
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
           Pragma: "no-cache",
           Expires: "0",
         },
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch token from Flask: ${response.status} ${errorText}`);
-      }
-
-      const flaskData: FlaskTokenResponse = await response.json();
-      console.log("Token details received from Flask:", flaskData);
-
-      const liveKitServerUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-      if (!liveKitServerUrl) {
-        toast({
-          variant: "destructive",
-          title: "Configuration Error",
-          description: "NEXT_PUBLIC_LIVEKIT_URL is not defined in Next.js environment.",
-        });
-        throw new Error("NEXT_PUBLIC_LIVEKIT_URL is not defined.");
-      }
-
-      const connectionDetailsData: LiveKitConnectionConfig = {
-        serverUrl: liveKitServerUrl,
-        roomName: flaskData.roomName,
-        participantToken: flaskData.accessToken,
-        participantName: flaskData.identity,
-      };
-
+      const connectionDetailsData = await response.json();
+      console.log("Connection details received:", connectionDetailsData);
       updateConnectionDetails(connectionDetailsData);
     } catch (error) {
-      console.error("Failed to fetch connection details from Flask:", error);
+      console.error("Failed to fetch connection details:", error);
       toast({
         variant: "destructive",
         title: "Connection Error",
-        description: error instanceof Error ? error.message : "Failed to establish a connection. Please try again later.",
+        description: "Failed to establish a connection. Please try again later.",
       });
     }
   }, [toast]);

@@ -45,7 +45,6 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          {/* <PasswordModal /> */} {/* PasswordModal removed from global layout */}
           {children} {/* Render the actual page content passed down */}
           {/* Render Toasters here so they are within the client context */}
           <ShadcnToaster />
