@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,15 @@ import {
   DialogFooter,
   // DialogTrigger is handled externally
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RippleButton } from "@/components/ripple-button";
-import { CheckCircle2, Lightbulb, Rocket, AlertTriangle, Info } from "lucide-react"; // Using Lucide icons and added AlertTriangle and Info
+import { CheckCircle2, Lightbulb, Rocket, AlertTriangle, Info, LockKeyhole } from "lucide-react";
+import { useAuth } from '@/hooks/use-auth';
+import { cn } from "@/lib/utils";
+
+// Define backend URL
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -23,6 +30,86 @@ const AgentModal: React.FC<AgentModalProps> = ({
   onClose,
   onStartTalking,
 }) => {
+  const { triggerAuthCheck } = useAuth();
+  const [showPasswordEntry, setShowPasswordEntry] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset state when modal is closed/opened
+  useEffect(() => {
+    if (!isOpen) {
+      setShowPasswordEntry(false);
+      setPassword('');
+      setIsVerifying(false);
+      setError(null);
+    }
+  }, [isOpen]);
+
+  const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(event.target.value);
+    setError(null); // Clear error on typing
+  };
+
+  const handleInitialButtonClick = () => {
+    setError(null);
+    setShowPasswordEntry(true); // Show password input instead of immediately starting
+  };
+
+  const handleVerifyAndStart = async () => {
+    if (!password) {
+      setError("Password cannot be empty.");
+      return;
+    }
+    setIsVerifying(true);
+    setError(null);
+    try {
+      // Target the Flask backend URL and include credentials
+      const response = await fetch(`${BACKEND_URL}/api/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+        credentials: 'include', // Crucial for Flask session cookies
+      });
+
+      if (!response.ok) {
+        let errorMsg = 'Invalid password. Please try again.';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (e) { /* Ignore JSON parsing error */ }
+        setError(errorMsg);
+        throw new Error(errorMsg); // Throw error to prevent further execution
+      }
+
+      // SUCCESS
+      console.log('AgentModal: Password verification successful.');
+      triggerAuthCheck(); // Refresh global auth state
+      onStartTalking(); // Proceed to start LiveKit connection
+      onClose(); // Close this modal
+
+      // No need to reset state here as the modal closes
+
+    } catch (err: any) {
+      console.error("AgentModal: Password verification error:", err);
+      // Error state is already set in the !response.ok block if applicable
+      if (!error && err instanceof Error) { // Set general error if not already set
+         setError(err.message || 'An error occurred during verification.');
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  
+  // Reset showPasswordEntry if the modal is closed externally
+  useEffect(() => {
+    if (!isOpen) {
+      setShowPasswordEntry(false);
+      setError(null);
+      setPassword('');
+      setIsVerifying(false);
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -117,19 +204,59 @@ const AgentModal: React.FC<AgentModalProps> = ({
           </div>
         </div>
 
-        {/* Footer - Button is group, icon has constant pulse */}
-        <DialogFooter className="w-full p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-shrink-0">
-          <RippleButton
-            className="group mx-auto px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
-            transition-transform duration-300 ease-in-out hover:scale-105"
-            onClick={() => {
-              onStartTalking();
-              onClose();
-            }}
-          >
-            <Rocket className="mr-2 h-5 w-5 group-hover:animate-vibrate" />
-            Great — Start Talking to Prepzo Now!
-          </RippleButton>
+        {/* Footer - Conditionally shows password input or start button */}
+        <DialogFooter className={cn(
+            "w-full p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-shrink-0 relative", // Added relative for error positioning
+            // Responsive layout: Stack vertically by default, horizontal on sm+ screens
+            showPasswordEntry ? "flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-3" : "justify-center" 
+          )}
+        >
+          {showPasswordEntry ? (
+            <>
+              <Label htmlFor="agent-modal-password" className="sr-only">Enter Password to Proceed</Label> 
+              <Input
+                id="agent-modal-password"
+                type="password"
+                value={password}
+                onChange={handlePasswordChange}
+                placeholder="Enter password to proceed"
+                required
+                className={cn(
+                  "h-10 w-full sm:flex-1", // Full width on mobile, flexible on larger
+                  error ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-primary'
+                )}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'password-modal-error' : undefined}
+                disabled={isVerifying}
+              />
+              <RippleButton
+                className="group px-5 py-2 text-base bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-[0_0_15px_2px_rgba(180,180,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(180,180,255,0.4)] 
+                  transition-transform duration-300 ease-in-out hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 
+                  flex-shrink-0 h-10 w-full sm:w-auto" // Full width on mobile, auto on larger
+                onClick={handleVerifyAndStart}
+                disabled={isVerifying || !password}
+              >
+                <LockKeyhole className="mr-2 h-5 w-5" />
+                {isVerifying ? 'Verifying...' : 'Verify & Start'}
+              </RippleButton>
+              {/* Error positioned below input/button */}
+              {error && (
+                <p id="password-modal-error" className="text-sm text-destructive text-center w-full pt-1">
+                  {error}
+                </p>
+              )}
+            </>
+          ) : (
+            // Initial "Start Talking" Button
+            <RippleButton
+              className="group mx-auto px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
+              transition-transform duration-300 ease-in-out hover:scale-105"
+              onClick={handleInitialButtonClick}
+            >
+              <Rocket className="mr-2 h-5 w-5 group-hover:animate-vibrate" />
+              Great — Start Talking to Prepzo Now!
+            </RippleButton>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

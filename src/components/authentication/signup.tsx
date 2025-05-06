@@ -37,7 +37,9 @@ const SignUpForm = () => {
         options: {
           // This URL needs to exist and handle the OAuth callback (code exchange)
           // It should also be added to your Supabase URL Configuration and provider allowed redirect URIs
-          redirectTo: `${window.location.origin}/auth/callback`,
+          // TEMPORARY DEBUGGING: Hardcode the production URL 
+          // redirectTo: `${window.location.origin}/auth/callback`, 
+          redirectTo: 'https://your-production-domain.com/auth/callback', // <-- REPLACE WITH YOUR ACTUAL DOMAIN
         },
       });
 

@@ -9,7 +9,6 @@ import UseCasesSection from "@/components/usecases/UseCasesSection";
 import DemoForm from "@/components/faq/DemoForm";
 import Footer from "@/components/footer/Footer";
 import AgentModal from "@/components/modal/agentmodal";
-import PasswordModal from "@/components/modal/PasswordModal";
 
 const HomePage = () => {
   const router = useRouter();
@@ -34,9 +33,6 @@ const HomePage = () => {
         <DemoForm onOpenAgentModal={handleOpenAgentModal} />
       </main>
       <Footer />
-      
-      <PasswordModal />
-
       <AgentModal 
         isOpen={isAgentModalOpen} 
         onClose={() => setIsAgentModalOpen(false)} 
