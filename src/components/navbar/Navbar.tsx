@@ -27,6 +27,10 @@ const Navbar = () => {
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors">Testimonials</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
+          <Link href="https://www.prepzo.co/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
+          {/* <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
+            Login
+          </Button> */}
           <Link href="/auth/sign-up">
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
               Join Waitlist
@@ -50,9 +54,9 @@ const Navbar = () => {
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
             <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Testimonials</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
-            <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
+            {/* <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
               Sign In
-            </Button>
+            </Button> */}
             <Link href="/auth/sign-up" className="w-full">
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Join Waitlist
