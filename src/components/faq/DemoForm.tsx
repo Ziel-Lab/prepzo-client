@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState } from "react";
+import Link from "next/link";
 
 // Define props for DemoForm
 interface DemoFormProps {
@@ -48,9 +49,11 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
-                <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
-                  Sign Up
-                </Button>
+                <Link href="/sign-up">
+                  <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
+                    Join Waitlist
+                  </Button>
+                </Link>
                 <Button 
                   size="lg" 
                   className="bg-prepzo hover:bg-prepzo-light text-white"

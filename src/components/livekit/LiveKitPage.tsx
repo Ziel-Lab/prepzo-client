@@ -22,7 +22,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import SessionTimer from "@/components/utils/SessionTimer";
+import SessionTimer from "@/utils/SessionTimer";
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<

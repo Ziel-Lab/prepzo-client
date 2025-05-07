@@ -46,16 +46,9 @@ const SignUpForm = () => {
               <p className="text-sm text-destructive text-center pt-2">{error}</p>
             )}
 
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-background px-2 text-muted-foreground">
-                Sign Up With
-              </span>
-            </div>
-          </div>
+          <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-4">
+            Join the Waitlist Now!
+          </h2>
 
           <div className="grid grid-cols-2 gap-4 pt-2">
              <Button
@@ -89,12 +82,6 @@ const SignUpForm = () => {
           </div>
 
         </CardContent>
-        <CardFooter className="text-sm text-center block mt-6">
-          Already have an account?{' '}
-          <Link href="/sign-in" className="font-medium text-primary hover:underline">
-            Login
-          </Link>
-        </CardFooter>
       </Card>
     </>
   );

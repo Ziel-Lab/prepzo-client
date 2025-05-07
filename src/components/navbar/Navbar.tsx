@@ -27,12 +27,9 @@ const Navbar = () => {
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors">Testimonials</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
-          <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
-            Login
-          </Button>
           <Link href="/auth/sign-up">
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-              Sign Up
+              Join Waitlist
             </Button>
           </Link>
         </div>
@@ -58,7 +55,7 @@ const Navbar = () => {
             </Button>
             <Link href="/auth/sign-up" className="w-full">
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-                Sign Up
+                Join Waitlist
               </Button>
             </Link>
           </div>
