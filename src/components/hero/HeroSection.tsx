@@ -48,9 +48,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
                Talk to Prepzo, an AI voice agent that provides tailored strategies for your professional challenges, job search, and career growth.
              </p>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/auth/sign-up">
-              <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded">
+            <div className="flex gap-3">
+              <Link href="/auth/sign-up" className="flex-1">
+              <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded w-full">
                 Join Waitlist
               </Button>
               </Link>
@@ -58,7 +58,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50"
+                className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50 flex-1"
                 onClick={onOpenAgentModal} // Use the prop here
               >
                 Try Demo
