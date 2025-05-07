@@ -485,12 +485,17 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   });
                 }}
                 onDisconnected={async () => {
-                  console.log("LiveKitRoom disconnected event triggered.");
+                  console.log("LiveKitRoom disconnected event triggered. Ensuring full cleanup and navigation.");
                   updateConnectionDetails(undefined);
                   await forceStopAudioCapture();
                   setShowEmailInput(false);
                   setShowResumeUpload(false);
                   setSendDataFn(null);
+                  // Ensure navigation away happens when LiveKit signals disconnection
+                  if (typeof onClose === 'function') {
+                    console.log("Calling onClose from onDisconnected event.");
+                    onClose(); 
+                  }
                 }}
                 className="flex h-full w-full flex-col"
               >

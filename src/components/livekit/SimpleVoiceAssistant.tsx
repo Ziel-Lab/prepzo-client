@@ -208,121 +208,37 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   const borderColor = "border-gray-200 dark:border-gray-700";
   const sessionId=room?.name;
   const handleDisconnect = async () => {
-    console.log("Handle disconnect called, showing confirmation dialog");
-    console.log("Now stopping all audio capture");
+    console.log("Handle disconnect called, initiating immediate disconnect and UI update.");
 
-    if (room?.localParticipant) {
-      const publications = room.localParticipant.trackPublications;
-      publications.forEach(publication => {
-        try {
-          if (publication.track) {
-            publication.track.stop();
-            console.log("Stopped track:", publication.trackSid);
-          }
-        } catch (e) {
-          console.error("Error stopping publication track:", e);
-        }
-      });
-    }
-    const stopAllMicrophoneTracks = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        console.log(`Found ${devices.length} media devices`);
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(track => {
-          track.stop();
-          track.enabled = false;
-          console.log("Explicitly stopped track:", track.id);
-        });
-        if (typeof window !== 'undefined') {
-          const globalAny = window as unknown as { 
-            mediaRecorders?: Array<{ 
-              stop: () => void 
-            }> 
-          };
-          if (globalAny.mediaRecorders && Array.isArray(globalAny.mediaRecorders)) {
-            globalAny.mediaRecorders.forEach((recorder) => {
-              try {
-                if (recorder && typeof recorder.stop === 'function') {
-                  recorder.stop();
-                  console.log("Stopped media recorder");
-                }
-              } catch (e) {
-                console.error("Error stopping media recorder:", e);
-              }
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Error stopping media tracks:", err);
-      }
-      if (typeof window !== 'undefined') {
-        try {
-          const AudioContextClass = window.AudioContext || 
-                                   ((window as unknown as { webkitAudioContext?: AudioContext }).webkitAudioContext);
-          if (AudioContextClass) {
-            const tempContext = new AudioContextClass();
-            await tempContext.close();
-            console.log("Closed temporary audio context");
-          }
-        } catch (e) {
-          console.error("Error handling audio context:", e);
-        }
-      }
-    };
+    // 1. Disconnect from LiveKit Room immediately
     if (room) {
       try {
         room.disconnect();
-        console.log("Disconnected from room");
-        if(sessionId){
-          fetch(`${process.env.NEXT_PUBLIC_SUMMARY_API_URL}/sendsummary`,{
-            method:'POST',
-            headers:{
-              'Content-Type':'application/json'
-            },
-            body:JSON.stringify({room_id:sessionId}),
-          }).then(()=>{
-            console.log("Summary sent successfully");
-          }).catch((e)=>{
-            console.error("Error sending summary:",e);
-          })
-        }
+        console.log("Disconnected from room (called from CustomControlBar).");
       } catch (e) {
-        console.error("Error disconnecting room:", e);
+        console.error("Error disconnecting room in CustomControlBar:", e);
       }
     }
-    await stopAllMicrophoneTracks();
-    if (typeof window !== 'undefined') {
-      const audioElements = document.querySelectorAll('audio');
-      audioElements.forEach(el => {
-        try {
-          if (el.srcObject) {
-            try {
-              const stream = el.srcObject as MediaStream;
-              if (stream && typeof stream.getTracks === 'function') {
-                stream.getTracks().forEach(track => {
-                  track.stop();
-                  console.log("Stopped track in audio element:", track.id);
-                });
-              }
-              el.srcObject = null;
-            } catch (err) {
-              console.error("Error stopping tracks in srcObject:", err);
-            }
-          }
-          el.removeAttribute('src');
-          el.load(); 
-          el.remove();
-          console.log("Removed audio element from DOM");
-        } catch (e) {
-          console.error("Error cleaning up audio element:", e);
-        }
-      });
-    }
+
+    // 2. Call the onEndCall prop to trigger UI changes and further cleanup in LiveKitPage
     if (onEndCall) {
-      setTimeout(() => {
-        if (onEndCall) onEndCall();
-      }, 100);
+      onEndCall(); 
+      console.log("onEndCall prop triggered from CustomControlBar.");
+    }
+
+    // 3. Send summary (fire and forget or handle errors without blocking UI)
+    if(sessionId){
+      fetch(`${process.env.NEXT_PUBLIC_SUMMARY_API_URL}/sendsummary`,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({room_id:sessionId}),
+      }).then(()=>{
+        console.log("Summary API call initiated.");
+      }).catch((e)=>{
+        console.error("Error initiating summary API call:",e);
+      })
     }
   };
 
