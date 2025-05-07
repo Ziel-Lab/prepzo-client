@@ -50,7 +50,18 @@ const SignUpForm = () => {
             Join the Waitlist Now!
           </h2>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-300 dark:border-gray-600" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-background px-2 text-muted-foreground">
+                with
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 pt-2 items-center">
              <Button
                variant="outline"
                className="w-full h-14 flex items-center justify-center p-0"
@@ -65,6 +76,11 @@ const SignUpForm = () => {
                  </>
                )}
              </Button>
+
+            <div className="flex items-center justify-center h-14">
+              <span className="text-sm text-muted-foreground">or</span>
+            </div>
+
              <Button
                variant="outline"
                className="w-full h-14 flex items-center justify-center p-0"
