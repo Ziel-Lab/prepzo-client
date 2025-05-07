@@ -49,16 +49,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
              </p>
 
             <div className="flex gap-3">
-              <Link href="/auth/sign-up" className="flex-1">
-              <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded w-full">
+              <Link href="/auth/sign-up">
+              <Button className="bg-white text-prepzo hover:bg-white/90 rounded px-16">
                 Join Waitlist
               </Button>
               </Link>
               {/* Button uses the passed-in handler */}
               <Button 
-                size="lg" 
                 variant="outline" 
-                className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50 flex-1"
+                className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50 px-16"
                 onClick={onOpenAgentModal} // Use the prop here
               >
                 Try Demo
