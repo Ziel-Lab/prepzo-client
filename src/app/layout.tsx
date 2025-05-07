@@ -4,6 +4,7 @@ import "@/app/globals.css";
 import React from "react";
 import { ClientProviders } from "@/app/client-providers";
 import { cn } from "@/lib/utils"; 
+import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({ subsets: ["latin"] }); 
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <ClientProviders>
           {children} {/* Render the page content */}
         </ClientProviders>
+        <Analytics />
       </body>
     </html>
   );
