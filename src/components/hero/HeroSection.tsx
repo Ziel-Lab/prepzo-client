@@ -51,7 +51,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/auth/sign-up">
               <Button size="lg" className="bg-white text-prepzo hover:bg-white/90 rounded">
-                Sign Up
+                Join Waitlist
               </Button>
               </Link>
               {/* Button uses the passed-in handler */}

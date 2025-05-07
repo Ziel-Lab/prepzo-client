@@ -52,7 +52,7 @@ const SignUpForm = () => {
             </div>
             <div className="relative flex justify-center text-xs">
               <span className="bg-background px-2 text-muted-foreground">
-                Sign Up With
+                Join Waitlist With
               </span>
             </div>
           </div>
@@ -89,12 +89,12 @@ const SignUpForm = () => {
           </div>
 
         </CardContent>
-        <CardFooter className="text-sm text-center block mt-6">
+        {/* <CardFooter className="text-sm text-center block mt-6">
           Already have an account?{' '}
           <Link href="/sign-in" className="font-medium text-primary hover:underline">
             Login
           </Link>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     </>
   );
