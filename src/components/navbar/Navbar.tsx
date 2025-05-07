@@ -27,6 +27,7 @@ const Navbar = () => {
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors">Testimonials</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
+          <Link href="https://www.prepzo.co/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
           <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
             Login
           </Button>
