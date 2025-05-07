@@ -33,7 +33,7 @@ const Navbar = () => {
           </Button>
           <Link href="/auth/sign-up">
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-              Sign Up
+              Join Waitlist
             </Button>
           </Link>
         </div>
