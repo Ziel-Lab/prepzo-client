@@ -49,7 +49,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
-                <Link href="/sign-up">
+                <Link href="/auth/sign-up">
                   <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
                     Join Waitlist
                   </Button>
