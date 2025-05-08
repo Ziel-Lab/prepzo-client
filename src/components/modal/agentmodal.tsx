@@ -121,7 +121,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
               <DialogTitle className="text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
                 Meet Prepzo — Your Personal AI Career Coach
               </DialogTitle>
-              <p className="text-sm md:text-md text-muted-foreground">
+              <p className="text-sm md:text-md text-muted-foreground text-left">
                 Prepzo isn&apos;t just another chatbot. It&apos;s your career co-pilot — built to help you navigate work, job searches, upskilling, and everything in between.
               </p>
             </div>

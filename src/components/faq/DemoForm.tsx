@@ -14,7 +14,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const faqs = [{
     question: "How long is the demo session?",
-    answer: "Each demo session is 20 minutes long, designed to give you a quick but comprehensive overview of Prepzo's AI voice guidance capabilities."
+    answer: "Each demo session is 15 minutes long, designed to give you a quick but comprehensive overview of Prepzo's AI voice guidance capabilities."
   }, {
     question: "What will I learn in the demo?",
     answer: "You'll experience firsthand how Prepzo's AI provides personalized career guidance, interview preparation tips, and professional development strategies."
@@ -32,12 +32,12 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to <span className="text-gradient">Transform</span> Your Career?
             </h2>
-            <p className="text-lg text-foreground/70 mb-6">Get your free 20-minute demo call with Prepzo and experience how AI voice guidance can help you overcome your professional challenges.</p>
+            <p className="text-lg text-foreground/70 mb-6">Get your free 15-minute demo call with Prepzo and experience how AI voice guidance can help you overcome your professional challenges.</p>
             
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-prepzo text-white flex items-center justify-center font-bold">1</div>
-                <p>Register for a free 20-minute demo call</p>
+                <p>Register for a free 15-minute demo call</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-prepzo text-white flex items-center justify-center font-bold">2</div>
@@ -49,14 +49,14 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
-                <Link href="/auth/sign-up">
-                  <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
+                <Link href="/auth/sign-up" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
                     Join Waitlist
                   </Button>
                 </Link>
                 <Button 
                   size="lg" 
-                  className="bg-prepzo hover:bg-prepzo-light text-white"
+                  className="bg-prepzo hover:bg-prepzo-light text-white w-full"
                   onClick={onOpenAgentModal} // Use the prop here
                 >
                   Try Demo

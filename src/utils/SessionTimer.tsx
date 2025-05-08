@@ -11,7 +11,7 @@ interface SessionTimerProps {
 }
 
 const SessionTimer: React.FC<SessionTimerProps> = ({ 
-  initialMinutes = 20, 
+  initialMinutes = 15, 
   onTimeUp,
   className 
 }) => {

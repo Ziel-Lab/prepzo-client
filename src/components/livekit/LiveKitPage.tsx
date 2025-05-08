@@ -453,7 +453,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           <>
             <SessionTimer 
               className="absolute top-4 right-4 z-50" 
-              initialMinutes={20} 
+              initialMinutes={15} 
               onTimeUp={() => {
                 console.log("Session timer ended, initiating disconnect.");
                 // Attempt to gracefully disconnect and then call onClose
