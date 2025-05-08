@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building, HandshakeIcon, School } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -34,17 +34,46 @@ const ContactPage = () => {
     }
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
     console.log("Form submitted:", values);
-    toast({
-      title: "Message sent!",
-      description: "We'll get back to you as soon as possible."
-    });
-    form.reset();
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send message. Please try again.");
+      }
+
+      toast({
+        title: "Message sent!",
+        description: "We'll get back to you as soon as possible.",
+      });
+      form.reset();
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast({
+        title: "Error Sending Message",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -145,13 +174,13 @@ const ContactPage = () => {
              }) => <FormItem>
                      <FormLabel>Message</FormLabel>
                      <FormControl>
-                       <Textarea placeholder="Tell us about your interest..." className="min-h-[120px]" {...field} />
+                       <Textarea placeholder="Tell us about your interest..." className="min-h-[120px]" {...field} disabled={isSubmitting} />
                      </FormControl>
                      <FormMessage />
                    </FormItem>} />
  
-               <Button type="submit" className="w-full bg-prepzo hover:bg-prepzo-light">
-                 Send Message
+               <Button type="submit" className="w-full bg-prepzo hover:bg-prepzo-light" disabled={isSubmitting}>
+                 {isSubmitting ? "Sending..." : "Send Message"}
                </Button>
              </form>
            </Form>

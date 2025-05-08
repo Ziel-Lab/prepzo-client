@@ -51,7 +51,6 @@ const Navbar = () => {
           <div className="container flex flex-col py-4 space-y-4">
             <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Features</Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
-            <Link href="#testimonials" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Testimonials</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
             {/* <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
               Sign In
