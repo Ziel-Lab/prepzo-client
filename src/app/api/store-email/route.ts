@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     // Update the conversation_histories table with the email
     const {data,error}= await supabase
       .from('user_emails')
-      .insert({
+      .upsert({
         session_id, 
         email: recipient_email,
       })
