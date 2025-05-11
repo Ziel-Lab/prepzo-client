@@ -17,51 +17,49 @@ const SessionTimer: React.FC<SessionTimerProps> = ({
 }) => {
   const [secondsRemaining, setSecondsRemaining] = useState(initialMinutes * 60);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeUpCalledRef = useRef(false); // Prevent multiple calls
+  const timeUpCalledRef = useRef(false);
 
+  // Start timer immediately when component mounts
   useEffect(() => {
-    if (secondsRemaining <= 0 && !timeUpCalledRef.current) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      if (onTimeUp) {
-        console.log("Timer reached zero, calling onTimeUp.");
-        onTimeUp();
-        timeUpCalledRef.current = true; // Mark as called
-      }
-      return; // Stop further processing
-    }
-
-    // Start interval only if secondsRemaining > 0
-    if (secondsRemaining > 0 && !intervalRef.current) {
-       timeUpCalledRef.current = false; // Reset if timer restarts
-       intervalRef.current = setInterval(() => {
-         setSecondsRemaining(prev => prev - 1);
-       }, 1000);
-    }
+    console.log("SessionTimer mounted, starting countdown");
     
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
 
-    // Cleanup function to clear interval on unmount or dependency change
+    // Start new interval
+    intervalRef.current = setInterval(() => {
+      setSecondsRemaining(prev => {
+        if (prev <= 0) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
+          if (onTimeUp && !timeUpCalledRef.current) {
+            console.log("Timer reached zero, calling onTimeUp");
+            onTimeUp();
+            timeUpCalledRef.current = true;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Cleanup function
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-        intervalRef.current = null; // Clear ref on cleanup
+        intervalRef.current = null;
       }
     };
-  }, [secondsRemaining, onTimeUp]); // Re-run effect if secondsRemaining or onTimeUp changes
+  }, [onTimeUp]); // Only re-run if onTimeUp changes
 
-  // Reset timer if initialMinutes changes (e.g., props update)
+  // Reset timer if initialMinutes changes
   useEffect(() => {
     setSecondsRemaining(initialMinutes * 60);
-    timeUpCalledRef.current = false; // Reset time up flag on reset
-     // Clear existing interval before potentially starting a new one
-     if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-     }
-     // Restart interval logic is handled by the main useEffect based on new secondsRemaining
+    timeUpCalledRef.current = false;
   }, [initialMinutes]);
-
 
   const formatTime = (totalSeconds: number): string => {
     const minutes = Math.floor(totalSeconds / 60);
@@ -69,14 +67,13 @@ const SessionTimer: React.FC<SessionTimerProps> = ({
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  // Determine text color based on time remaining
   const timeTextColor = secondsRemaining <= 60 ? 'text-red-500 animate-pulse' : 'text-foreground';
 
   return (
     <div className={cn(
       "flex items-center gap-2 px-3 py-1.5 rounded-md shadow-sm",
-      "bg-background/80 backdrop-blur-sm border border-border", // Semi-transparent background with blur
-      className // Allow overriding styles
+      "bg-background/80 backdrop-blur-sm border border-border",
+      className
     )}>
       <TimerIcon className={cn("h-4 w-4", timeTextColor)} />
       <span className={cn("font-mono text-sm font-medium", timeTextColor)}>

@@ -44,6 +44,7 @@ interface SimpleVoiceAssistantProps {
   onEndCall?: () => void;
   jobResultsMarkdown: string | null;
   setJobResultsMarkdown: (markdown: string | null) => void;
+  onLoadingComplete?: () => void;
 }
 
 export interface TranscriptionSegment {
@@ -71,15 +72,8 @@ const ThinkingIndicator = () => {
   const borderColor = "border-gray-200 dark:border-gray-700";
   
   return (
-    <motion.div // Use motion.div directly
-      className="w-full flex justify-start mb-2" // Tailwind layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
+    <div className="w-full flex justify-start mb-2">
       <div
-        // Apply Tailwind classes for styling
         className={cn(
           "px-4 py-2.5 rounded-md border shadow-xs",
           bgColor,
@@ -93,35 +87,14 @@ const ThinkingIndicator = () => {
         </span>
         <p
           className={cn(
-            "text-sm font-medium h-[1.2em] leading-tight", // Tailwind text styles
+            "text-sm font-medium h-[1.2em] leading-tight",
             textColor
           )}
         >
-          {/* Motion spans remain the same */}
-          <motion.span
-            initial={{ opacity: 0.3 }}
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.4, times: [0, 0.2, 1] }}
-          >
-            .
-          </motion.span>
-          <motion.span
-            initial={{ opacity: 0.3 }}
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.4, times: [0, 0.2, 1], delay: 0.2 }}
-          >
-            .
-          </motion.span>
-          <motion.span
-            initial={{ opacity: 0.3 }}
-            animate={{ opacity: [0.3, 1, 0.3] }}
-            transition={{ repeat: Infinity, duration: 1.4, times: [0, 0.2, 1], delay: 0.4 }}
-          >
-            .
-          </motion.span>
+          ...
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -138,26 +111,18 @@ const Message: React.FC<{
   const assistantBorderColor = "border-gray-200 dark:border-gray-700";
   const userTextColor = "text-gray-700 dark:text-white";
   const assistantTextColor = "text-gray-700 dark:text-white";
-  const userSpeakerColor = "text-blue-500 dark:text-blue-300"; // Adjusted dark mode for user speaker
-  const assistantSpeakerColor = "text-gray-500 dark:text-gray-400"; // Adjusted dark mode for assistant speaker
+  const userSpeakerColor = "text-blue-500 dark:text-blue-300";
+  const assistantSpeakerColor = "text-gray-500 dark:text-gray-400";
   
   // Trim the text before rendering
   const trimmedText = text.trim();
 
   return (
-    <motion.div // Use motion.div
-      // Apply Tailwind flex layout classes
-      className={cn(
-        "w-full flex mb-2", 
-        isUser ? "justify-end" : "justify-start"
-      )}
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 0 }}
-      transition={{ duration: 0.2 }}
-    >
+    <div className={cn(
+      "w-full flex mb-2", 
+      isUser ? "justify-end" : "justify-start"
+    )}>
       <div
-        // Apply Tailwind classes for bubble styling
         className={cn(
           "max-w-[75%] px-4 py-2.5 rounded-md border shadow-xs",
           isUser ? userBgColor : assistantBgColor,
@@ -166,7 +131,6 @@ const Message: React.FC<{
         )}
       >
         <span 
-          // Apply Tailwind classes for speaker text
           className={cn(
             "block font-medium text-xs mb-1 tracking-tight",
             isUser ? userSpeakerColor : assistantSpeakerColor
@@ -174,14 +138,11 @@ const Message: React.FC<{
         >
           {isUser ? "You" : "Assistant"}
         </span>
-        <p
-          // Apply Tailwind classes for message text
-          className="text-sm whitespace-pre-wrap leading-tight"
-        >
+        <p className="text-sm whitespace-pre-wrap leading-tight">
           {trimmedText}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -276,11 +237,60 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
   );
 };
 
+// Update LoadingMessage component
+const LoadingMessage = ({ onComplete }: { onComplete?: () => void }) => {
+  const [currentText, setCurrentText] = useState(0);
+  const texts = [
+    "Preparing your AI career coach...",
+    "Setting up voice recognition...",
+    "Initializing conversation engine...",
+    "Almost ready...",
+    "Try saying hi to your Prepzo!"
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentText((prev) => {
+        if (prev < texts.length - 1) {
+          return prev + 1;
+        } else {
+          clearInterval(interval);
+          // Call onComplete when we reach the last message
+          if (onComplete) {
+            setTimeout(onComplete, 1000); // Add a small delay before completing
+          }
+          return prev;
+        }
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [onComplete]);
+
+  return (
+    <div className="text-center py-10 space-y-4">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentText}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5 }}
+          className="text-gray-500 dark:text-gray-400 text-sm"
+        >
+          {texts[currentText]}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ 
   onStateChange, 
   onEndCall, 
   jobResultsMarkdown, 
-  setJobResultsMarkdown 
+  setJobResultsMarkdown,
+  onLoadingComplete 
 }) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const { segments: userTranscriptions } = useSafeTrackTranscription();
@@ -550,12 +560,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
           className="max-w-full sm:max-w-2xl mx-auto w-full space-y-3 pb-24 flex flex-col items-stretch"
         >
           {messages.length === 0 && (
-            // Use Tailwind for placeholder text styling
-            <div 
-              className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm italic"
-            >
-              Your conversation will appear here.
-            </div>
+            <LoadingMessage onComplete={onLoadingComplete} />
           )}
           <AnimatePresence mode="popLayout">
             {messages.map((msg, index) => (
@@ -586,174 +591,5 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
     </div>
   );
 };
-
-// Helper function to check if a message is requesting an email based on context
-// const checkIfMessageRequestsEmail = (message: string): boolean => {
-//   message = message.toLowerCase();
-  
-//   const exclusionPatterns = [
-//     /(email|address) (you|u) (submitted|provided|entered|gave)/i,
-//     /(already|previously) (submitted|provided|entered|gave) (your|the) email/i,
-//     /(email|address) (is|was) (already|now) (on file|recorded)/i
-//   ];
-  
-//   for (const pattern of exclusionPatterns) {
-//     if (pattern.test(message)) {
-//       console.log("Exclusion pattern matched - not an email request");
-//       return false;
-//     }
-//   }
-//   // Check for our special marker first - highest priority detection
-//   if (message.includes('[request_email]')) {
-//     console.log("Detected direct [REQUEST_EMAIL] marker in message");
-//     return true;
-//   }
-  
-//   // Check for direct email requests with more sophisticated patterns
-//   const emailRequestPatterns = [
-//     // Question about providing email
-//     /would you (like|want|mind|be willing) to (provide|share|give) your email/i,
-//     /can (i|we) (have|get|collect) your email/i,
-//     /your email (address|please)/i,
-//     // Requests for sending something
-//     /send you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-//     /email you (a|the|this) (summary|transcript|record|recording|conversation)/i,
-//     // Statements of intent
-//     /i('d| would) (like|love|want) to (send|email) you/i,
-//     /i can send (it|this|that|the summary|the transcript) to your email/i,
-//     // Direct requests
-//     /please (provide|share|enter|type) your email/i,
-//     /may i (have|ask for|request|get) your email/i
-//   ];
-  
-//   // Test against each pattern
-//   for (const pattern of emailRequestPatterns) {
-//     if (pattern.test(message)) {
-//       return true;
-//     }
-//   }
-  
-//   // Check for combination of keywords in context
-//   const emailKeywords = ['email', 'send', 'address', 'contact', 'reach'];
-//   const requestKeywords = ['would you', 'can i', 'please', 'could you', 'mind', 'would like'];
-//   const purposeKeywords = ['summary', 'transcript', 'record', 'conversation', 'chat', 'interview', 'session'];
-  
-//   // Count how many of each category appears in the message
-//   const emailCount = emailKeywords.filter(word => message.includes(word)).length;
-//   const requestCount = requestKeywords.filter(word => message.includes(word)).length;
-//   const purposeCount = purposeKeywords.filter(word => message.includes(word)).length;
-  
-//   // If we have matches in all three categories, likely a contextual email request
-//   if (emailCount > 0 && requestCount > 0 && purposeCount > 0) {
-//     return true;
-//   }
-  
-//   // Check if message ends with a question mark and contains email
-//   if (message.includes('email') && message.trim().endsWith('?')) {
-//     return true;
-//   }
-  
-//   return false;
-// };
-
-/**
- * Checks if a message from the assistant seems to be requesting a resume upload.
- * Uses similar logic to checkIfMessageRequestsEmail for robustness.
- * @param message The message string from the assistant.
- * @returns True if the message likely requests a resume upload, false otherwise.
- */
-// const checkIfMessageRequestsResume = (message: string): boolean => {
-//   if (!message) {
-//     return false;
-//   }
-
-  // const lowerCaseMessage = message.toLowerCase();
-
-  // --- Exclusion Patterns ---
-  // Phrases indicating the resume was already received or isn't needed right now.
-  // const exclusionPatterns = [
-  //   /(resume|cv|document|file) (you|u) (uploaded|submitted|provided|attached|sent)/i,
-  //   /(already|previously) (uploaded|submitted|provided|attached|sent) (your|the) (resume|cv)/i,
-  //   /got (your|the) (resume|cv|document|file)/i,
-  //   /(resume|cv) (is|was) (already|now) (uploaded|received|on file|submitted|saved)/i,
-  //   /(don't need|no need for) (a|your) (resume|cv) (yet|now|at the moment)/i,
-  //   // Added patterns for confirmation:
-  //   /(thanks|thank you) for (uploading|sending|sharing|providing|submitting) (your|the)? (resume|cv)/i,
-  //   /i('ve| have) (received|got|saved) (your|the) (resume|cv)/i,
-  //   /(resume|cv|file) (successfully|received|saved)/i, // Covers "resume successfully uploaded", "file received", etc.
-  //   /okay, (resume|cv) (uploaded|received|saved)/i,
-  //   /confirming (receipt|reception) of (your|the) (resume|cv)/i,
-  // ];
-
-  // for (const pattern of exclusionPatterns) {
-  //   if (pattern.test(lowerCaseMessage)) {
-  //     console.log("Exclusion pattern matched - not a resume request:", pattern);
-  //     return false;
-  //   }
-  // }
-
-  // --- Direct Marker ---
-  // Check for a specific marker first.
-  // if (lowerCaseMessage.includes('[request_resume]')) {
-  //   console.log("Detected direct [request_resume] marker in message");
-  //   return true;
-  // }
-
-  // --- Direct Request Patterns ---
-  // More specific regex patterns for common resume requests.
-  // const resumeRequestPatterns = [
-  //   // Asking for upload/attachment
-  //   /(upload|attach|provide|share|send|submit) (your|a) (resume|cv|curriculum vitae)/i,
-  //   /can (i|we) (have|get|see|review|receive) (your|a) (resume|cv)/i,
-  //   /(your|a) (resume|cv) (please|would be helpful|is needed)/i,
-  //   // Question about providing resume
-  //   /would you (like|want|mind|be willing) to (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-  //   /do you have (a|your) (resume|cv) (available|to upload|you could share)/i,
-  //   // Statements of need
-  //   /i('d| would)? (need|like|require) (your|a) (resume|cv)/i,
-  //   /we('ll| will) need (your|a) (resume|cv) for this/i,
-  //   // Direct requests
-  //   /please (upload|attach|provide|share|send|submit) (your|a) (resume|cv)/i,
-  //   /may i (have|ask for|request|get) (your|a) (resume|cv)/i,
-  // ];
-
-  // Test against each specific pattern
-  // for (const pattern of resumeRequestPatterns) {
-  //   if (pattern.test(lowerCaseMessage)) {
-  //     console.log("Direct resume request pattern matched:", pattern);
-  //     return true;
-  //   }
-  // }
-
-  // --- Keyword Combination Check ---
-  // Less strict check based on keywords appearing together.
-  // const resumeKeywords = ['resume', 'cv', 'curriculum vitae', 'document', 'file'];
-  // const requestKeywords = ['upload', 'attach', 'provide', 'send', 'share', 'submit', 'need', 'require', 'get', 'request', 'ask for'];
-  // // Optional: Purpose keywords might be less relevant here than for email, but could include:
-  // const purposeKeywords = ['application', 'job', 'position', 'review', 'consideration', 'profile'];
-
-  // const resumeCount = resumeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  // const requestCount = requestKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-  // // const purposeCount = purposeKeywords.filter(word => lowerCaseMessage.includes(word)).length;
-
-
-  // Check if at least one resume keyword and one request keyword are present.
-  // Adjust threshold as needed.
-  // if (resumeCount > 0 && requestCount > 0) {
-  //    console.log("Keyword combination matched for resume request.");
-  //    return true;
-  // }
-
-  // --- Ending Question Mark Check ---
-  // Check if message ends with a question mark and contains a resume keyword.
-//   const endsWithQuestion = lowerCaseMessage.trim().endsWith('?');
-//   if (endsWithQuestion && resumeCount > 0) {
-//      console.log("Resume keyword found in a question.");
-//      return true;
-//   }
-
-//   console.log("No resume request detected in message.");
-//   return false;
-// };
 
 export default SimpleVoiceAssistant;

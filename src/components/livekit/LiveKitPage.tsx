@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import SessionTimer from "@/utils/SessionTimer";
+import { TimerIcon } from "lucide-react";
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<
@@ -84,6 +85,10 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // State to hold the function for sending data via LiveKit (with topic)
   const [sendDataFn, setSendDataFn] = useState<((data: Uint8Array, topic?: string) => Promise<void>) | null>(null);
+
+  // State to control timer visibility
+  const [showTimer, setShowTimer] = useState(false);
+  const [timerKey, setTimerKey] = useState(0); // Add this to force timer re-render
 
   // Handlers are defined here, passed down to RoomContextManager
   const handleRequestEmail = useCallback(() => {
@@ -451,21 +456,23 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           </div>
         ) : (
           <>
-            <SessionTimer 
-              className="absolute top-4 right-4 z-50" 
-              initialMinutes={15} 
-              onTimeUp={() => {
-                console.log("Session timer ended, initiating disconnect.");
-                // Attempt to gracefully disconnect and then call onClose
-                if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
-                  window.liveKitRoom.disconnect();
-                }
-                forceStopAudioCapture(); // Ensure audio is stopped
-                updateConnectionDetails(undefined);
-                setRoomKey(Date.now());
-                onClose(); // Call the main close handler
-              }}
-            />
+            {showTimer && (
+              <SessionTimer 
+                key={timerKey} // Add key to force re-render
+                className="absolute top-4 right-4 z-50" 
+                initialMinutes={15} 
+                onTimeUp={() => {
+                  console.log("Session timer ended, initiating disconnect.");
+                  if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
+                    window.liveKitRoom.disconnect();
+                  }
+                  forceStopAudioCapture();
+                  updateConnectionDetails(undefined);
+                  setRoomKey(Date.now());
+                  onClose();
+                }}
+              />
+            )}
             <LiveKitErrorBoundary onError={handleError}>
               <LiveKitRoom
                 key={roomKey}
@@ -491,7 +498,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   setShowEmailInput(false);
                   setShowResumeUpload(false);
                   setSendDataFn(null);
-                  // Ensure navigation away happens when LiveKit signals disconnection
                   if (typeof onClose === 'function') {
                     console.log("Calling onClose from onDisconnected event.");
                     onClose(); 
@@ -499,7 +505,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 }}
                 className="flex h-full w-full flex-col"
               >
-                {/* Render RoomContextManager INSIDE LiveKitRoom - RESTORE */}
                 <RoomContextManager 
                   setSendDataFn={setSendDataFn} 
                   handleRequestEmail={handleRequestEmail}
@@ -517,6 +522,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   }}
                   jobResultsMarkdown={jobResultsMarkdown}
                   setJobResultsMarkdown={setJobResultsMarkdown}
+                  onLoadingComplete={() => {
+                    console.log("Loading animation complete, starting timer");
+                    setTimerKey(Date.now()); // Force timer re-render
+                    setShowTimer(true);
+                  }}
                 />
               </LiveKitRoom>
             </LiveKitErrorBoundary>
