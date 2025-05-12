@@ -41,7 +41,7 @@ const UseCasesSection = () => {
 
         <div className={`fade-in-section ${isVisible ? 'is-visible' : ''}`}>
           <Tabs defaultValue="job-seeker" className="w-full">
-            <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 mb-6 md:mb-8 overflow-x-auto">
+            <TabsList className="grid w-full grid-cols-3 mb-6 md:mb-8">
               <TabsTrigger value="job-seeker">Job Seeker</TabsTrigger>
               <TabsTrigger value="startup-founder">Startup Founder</TabsTrigger>
               <TabsTrigger value="career-growth">Career Growth</TabsTrigger>
