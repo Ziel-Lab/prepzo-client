@@ -213,22 +213,39 @@ const AgentModal: React.FC<AgentModalProps> = ({
         >
           {showPasswordEntry ? (
             <>
-              <Label htmlFor="agent-modal-password" className="sr-only">Enter Password to Proceed</Label> 
-              <Input
-                id="agent-modal-password"
-                type="password"
-                value={password}
-                onChange={handlePasswordChange}
-                placeholder="Enter password to proceed"
-                required
-                className={cn(
-                  "h-10 w-full sm:flex-1", // Full width on mobile, flexible on larger
-                  error ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-primary'
-                )}
-                aria-invalid={!!error}
-                aria-describedby={error ? 'password-modal-error' : undefined}
-                disabled={isVerifying}
-              />
+              <div className="relative w-full sm:flex-1 min-h-[60px] flex items-center">
+                <div className="w-full">
+                  <Label htmlFor="agent-modal-password" className="sr-only">Enter Password to Proceed</Label> 
+                  <Input
+                    id="agent-modal-password"
+                    type="password"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    placeholder="Enter password to proceed"
+                    required
+                    className={cn(
+                      "h-10 w-full", // Full width on mobile, flexible on larger
+                      error ? 'border-destructive focus:ring-destructive pr-4' : 'border-input focus:ring-primary'
+                    )}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'password-modal-error' : undefined}
+                    disabled={isVerifying}
+                  />
+                  {error && (
+                    <div 
+                      id="password-modal-error" 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-destructive flex items-center"
+                    >
+                      {/* <AlertTriangle className="h-4 w-4" /> */}
+                    </div>
+                  )}
+                  {error && (
+                    <div className="text-xs text-destructive mt-2 px-3 flex items-center absolute left-0 bottom-0 -mb-2">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              </div>
               <RippleButton
                 className="group px-5 py-2 text-base bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-[0_0_15px_2px_rgba(180,180,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(180,180,255,0.4)] 
                   transition-transform duration-300 ease-in-out hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 
@@ -239,12 +256,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
                 <LockKeyhole className="mr-2 h-5 w-5" />
                 {isVerifying ? 'Verifying...' : 'Verify & Start'}
               </RippleButton>
-              {/* Error positioned below input/button */}
-              {error && (
-                <p id="password-modal-error" className="text-sm text-destructive text-center w-full pt-1">
-                  {error}
-                </p>
-              )}
             </>
           ) : (
             // Initial "Start Talking" Button
