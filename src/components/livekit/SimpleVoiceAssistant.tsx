@@ -85,14 +85,49 @@ const ThinkingIndicator = () => {
         >
           Assistant
         </span>
-        <p
-          className={cn(
-            "text-sm font-medium h-[1.2em] leading-tight",
-            textColor
-          )}
-        >
-          ...
-        </p>
+        <div className="flex items-center gap-1">
+          <motion.span
+            animate={{
+              opacity: [0.4, 1, 0.4],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className={cn("text-sm font-medium", textColor)}
+          >
+            .
+          </motion.span>
+          <motion.span
+            animate={{
+              opacity: [0.4, 1, 0.4],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.2,
+            }}
+            className={cn("text-sm font-medium", textColor)}
+          >
+            .
+          </motion.span>
+          <motion.span
+            animate={{
+              opacity: [0.4, 1, 0.4],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.4,
+            }}
+            className={cn("text-sm font-medium", textColor)}
+          >
+            .
+          </motion.span>
+        </div>
       </div>
     </div>
   );

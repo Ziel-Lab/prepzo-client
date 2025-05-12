@@ -19,10 +19,11 @@ export default function LiveKitSessionPage() {
   }, [isAuthenticated, isAuthLoading, router]);
 
   const handleClose = () => {
-    console.log('LiveKit session closed, navigating to sign-up page.');
+    console.log('LiveKit session closed, navigating to feedback page.');
     // Navigate to the sign-up page
     router.push('/auth/sign-up'); 
   };
+  <LiveKitPage onClose={handleClose} />
 
   if (isAuthLoading) {
     return (

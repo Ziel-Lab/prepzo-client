@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import SessionTimer from "@/utils/SessionTimer";
 import { TimerIcon } from "lucide-react";
+import FeedbackForm from '@/components/feedback/feedbackForm';
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<
@@ -89,6 +90,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   // State to control timer visibility
   const [showTimer, setShowTimer] = useState(false);
   const [timerKey, setTimerKey] = useState(0); // Add this to force timer re-render
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  // Add debug logging for feedback state
+  useEffect(() => {
+    console.log("[LiveKitPage] Feedback state changed:", { showFeedback, hasConnectionDetails: !!connectionDetails });
+  }, [showFeedback, connectionDetails]);
 
   // Handlers are defined here, passed down to RoomContextManager
   const handleRequestEmail = useCallback(() => {
@@ -458,18 +465,17 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           <>
             {showTimer && (
               <SessionTimer 
-                key={timerKey} // Add key to force re-render
+                key={timerKey}
                 className="absolute top-4 right-4 z-50" 
                 initialMinutes={15} 
                 onTimeUp={() => {
-                  console.log("Session timer ended, initiating disconnect.");
+                  console.log("[LiveKitPage] Session timer ended, initiating disconnect.");
                   if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
                     window.liveKitRoom.disconnect();
                   }
                   forceStopAudioCapture();
-                  updateConnectionDetails(undefined);
-                  setRoomKey(Date.now());
-                  onClose();
+                  // Don't clear connectionDetails here, just show feedback
+                  setShowFeedback(true);
                 }}
               />
             )}
@@ -492,16 +498,13 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   });
                 }}
                 onDisconnected={async () => {
-                  console.log("LiveKitRoom disconnected event triggered. Ensuring full cleanup and navigation.");
-                  updateConnectionDetails(undefined);
+                  console.log("[LiveKitPage] LiveKitRoom disconnected event triggered. Ensuring full cleanup and navigation.");
+                  // Don't clear connectionDetails here, just show feedback
                   await forceStopAudioCapture();
                   setShowEmailInput(false);
                   setShowResumeUpload(false);
                   setSendDataFn(null);
-                  if (typeof onClose === 'function') {
-                    console.log("Calling onClose from onDisconnected event.");
-                    onClose(); 
-                  }
+                  setShowFeedback(true);
                 }}
                 className="flex h-full w-full flex-col"
               >
@@ -514,11 +517,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 <SimpleVoiceAssistant
                   onStateChange={handleAgentStateChange}
                   onEndCall={async () => {
-                    console.log("End call button clicked handler in LiveKitPage triggered.");
-                    await forceStopAudioCapture();
-                    updateConnectionDetails(undefined);
-                    setRoomKey(Date.now());
-                    onClose();
+                    console.log("[LiveKitPage] onEndCall triggered, showing feedback");
+                    setShowFeedback(true);
                   }}
                   jobResultsMarkdown={jobResultsMarkdown}
                   setJobResultsMarkdown={setJobResultsMarkdown}
@@ -530,6 +530,21 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 />
               </LiveKitRoom>
             </LiveKitErrorBoundary>
+            {showFeedback && connectionDetails && (
+              <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50">
+                <div className="w-full max-w-md p-4">
+                  <FeedbackFormWrapper
+                    roomId={connectionDetails.roomName}
+                    onDone={() => {
+                      console.log("[LiveKitPage] Feedback form done, clearing connection and closing");
+                      updateConnectionDetails(undefined);
+                      onClose();
+                    }}
+                    clearConnection={() => updateConnectionDetails(undefined)}
+                  />
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -762,5 +777,9 @@ const RoomContextManager: React.FC<{
 
   return null; // This component doesn't render UI
 };
+
+function FeedbackFormWrapper({ roomId, onDone, clearConnection }: { roomId: string, onDone: () => void, clearConnection: () => void }) {
+  return <FeedbackForm roomId={roomId} onDone={() => { clearConnection(); onDone(); }} />;
+}
 
 export default LiveKitPage;
