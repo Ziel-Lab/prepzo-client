@@ -485,7 +485,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 token={connectionDetails.participantToken}
                 serverUrl={connectionDetails.serverUrl}
                 connect={true}
-                audio={true}
+                audio={{
+                    echoCancellation: true,    // turn on echo cancellation
+                    noiseSuppression: true,    // turn on noise suppression
+                    autoGainControl: true,   // turn on auto gain control
+                }}
                 video={false}
                 onMediaDeviceFailure={onDeviceFailure}
                 onError={(error) => {
