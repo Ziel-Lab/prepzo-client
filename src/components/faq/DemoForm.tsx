@@ -56,7 +56,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
                 </Link>
                 <Button 
                   size="lg" 
-                  className="bg-prepzo hover:bg-prepzo-light text-white w-full"
+                  className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto"
                   onClick={onOpenAgentModal} // Use the prop here
                 >
                   Try Demo
