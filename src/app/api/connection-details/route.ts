@@ -43,7 +43,7 @@ export async function GET() {
       roomName,
     );
 
-    // Return connection details
+    
     const data: ConnectionDetails = {
       serverUrl: LIVEKIT_URL,
       roomName,
