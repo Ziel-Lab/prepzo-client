@@ -41,7 +41,7 @@ function useSafeVoiceAssistant() {
 
 interface SimpleVoiceAssistantProps {
   onStateChange: (state: AgentState) => void;
-  onEndCall?: () => void;
+  onEndCallInitiated?: () => void;
   jobResultsMarkdown: string | null;
   setJobResultsMarkdown: (markdown: string | null) => void;
   onLoadingComplete?: () => void;
@@ -198,7 +198,7 @@ function useSafeTrackTranscription() {
 }
 
 // Custom Control Bar with End Call Icon using Tailwind
-const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
+const CustomControlBar = ({ onEndCallInitiated }: { onEndCallInitiated?: () => void }) => {
   const room = useRoomContext();
   const bgColor = "bg-white dark:bg-gray-800";
   const borderColor = "border-gray-200 dark:border-gray-700";
@@ -216,10 +216,10 @@ const CustomControlBar = ({ onEndCall }: { onEndCall?: () => void }) => {
       }
     }
 
-    // 2. Call the onEndCall prop to trigger UI changes and further cleanup in LiveKitPage
-    if (onEndCall) {
-      onEndCall(); 
-      console.log("onEndCall prop triggered from CustomControlBar.");
+    // 2. Call the onEndCallInitiated prop to trigger UI changes and further cleanup in LiveKitPage
+    if (onEndCallInitiated) {
+      onEndCallInitiated(); 
+      console.log("onEndCallInitiated prop triggered from CustomControlBar.");
     }
 
     // 3. Send summary (fire and forget or handle errors without blocking UI)
@@ -322,7 +322,7 @@ const LoadingMessage = ({ onComplete }: { onComplete?: () => void }) => {
 
 const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ 
   onStateChange, 
-  onEndCall, 
+  onEndCallInitiated,
   jobResultsMarkdown, 
   setJobResultsMarkdown,
   onLoadingComplete 
@@ -620,7 +620,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
         className="p-4 bg-transparent"
       >
         <div className="mb-4 flex justify-center">
-          <CustomControlBar onEndCall={onEndCall} />
+          <CustomControlBar onEndCallInitiated={onEndCallInitiated} />
         </div>
       </div>
     </div>
