@@ -38,11 +38,11 @@ const OverviewCard: React.FC = () => (
         },
         {
           title: "On-the-Spot Email Summaries & Follow-Ups",
-          description: "At any point, ask “Email me a summary of this session” (or any custom request) and get a polished draft in real time."
+          description: "At any point, ask 'Email me a summary of this session' (or any custom request) and get a polished draft in real time."
         },
         {
           title: "Deep Career & Technical Expertise",
-          description: "From industry trends to coding challenges, dive into nuanced, up-to-date advice: “What’s the outlook for AI roles in finance?” or “Explain closures in JavaScript.”"
+          description: "From industry trends to coding challenges, dive into nuanced, up-to-date advice: 'What's the outlook for AI roles in finance?' or 'Explain closures in JavaScript.'"
         },
         {
           title: "Live Brainstorming & Strategy Sessions",
@@ -75,7 +75,7 @@ const SessionInfoCard: React.FC = () => (
       {[
         {
           title: "Stay on One Tab",
-          description: "Don’t refresh or close your browser—this ensures Prepzo remembers your context."
+          description: "Don't refresh or close your browser—this ensures Prepzo remembers your context."
         },
         {
           title: "Use Precise Prompts",
@@ -83,11 +83,11 @@ const SessionInfoCard: React.FC = () => (
         },
         {
           title: "Flag Key Moments",
-          description: "Say “Email me this” at any time to capture a snippet of the conversation in your inbox."
+          description: "Say 'Email me this' at any time to capture a snippet of the conversation in your inbox."
         },
         {
           title: "Upload Early & Often",
-          description: "After you upload your resume or cover letter, please tell Prepzo “My resume is uploaded” so it can parse and give you tailored feedback."
+          description: "After you upload your resume or cover letter, please tell Prepzo 'My resume is uploaded' so it can parse and give you tailored feedback."
         },
       ].map((item, index) => (
         <li key={index} className="flex items-start gap-3">
@@ -112,11 +112,11 @@ const TryAskingCard: React.FC = () => (
         "My resume is uploaded — what are the top 3 skills I should emphasize for a Senior Product Manager role?",
         "Can you draft a follow-up email requesting feedback after an interview?",
         "Explain the difference between REST and GraphQL — give me pros and cons for each.",
-        "I&apos;m stuck on career growth in UX design; can you map out a 6-month learning plan?",
+        "I'm stuck on career growth in UX design; can you map out a 6-month learning plan?",
         "Brainstorm 5 creative ways to motivate a disengaged sales team.",
         "Is the demand for cloud engineers in APAC set to rise next year?",
       ].map((item, index) => (
-        <p key={index} className="italic text-sm text-muted-foreground">“{item}”</p>
+        <p key={index} className="italic text-sm text-muted-foreground">"{item}"</p>
       ))}
     </div>
   </div>
@@ -236,6 +236,10 @@ const AgentModal: React.FC<AgentModalProps> = ({
               <DialogTitle className="text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
                 Meet Prepzo — Your Personal AI Career Coach
               </DialogTitle>
+              <p className="text-sm text-muted-foreground flex items-center">
+                <AlertTriangle className="w-4 h-4 text-red-500 mr-1.5 flex-shrink-0" />
+                <span className="font-semibold text-primary dark:text-primary-foreground">Guide to using Prepzo.</span>
+              </p>
             </div>
             <div className="flex-shrink-0">
               <img
