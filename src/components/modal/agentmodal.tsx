@@ -26,29 +26,41 @@ interface AgentModalProps {
 
 // Card Components
 const OverviewCard: React.FC = () => (
-  <div className="space-y-3">
+  <div className="space-y-4">
     <h3 className="text-lg font-semibold">
       Quick Overview: What Can Prepzo Do for You?
     </h3>
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {[
-        "Help you find better jobs (and tailor your applications)",
-        "Answer questions about skills, career moves, and job trends",
-        "Coach you on interview prep, salary negotiations, and workplace situations",
-        "Talk through career fears — from AI job disruption to job stagnation",
-        "Summarize insights in an email you can keep for reference",
-        "Brainstorm strategies to grow, lead, or reconnect with your team",
-        "Help you plan when you feel demotivated, stuck, or lost at work",
+        {
+          title: "Upload & Analyze Your Resume Instantly",
+          description: "Upload your latest CV and Prepzo will parse it, highlight strengths & gaps, and suggest tailored edits."
+        },
+        {
+          title: "On-the-Spot Email Summaries & Follow-Ups",
+          description: "At any point, ask “Email me a summary of this session” (or any custom request) and get a polished draft in real time."
+        },
+        {
+          title: "Deep Career & Technical Expertise",
+          description: "From industry trends to coding challenges, dive into nuanced, up-to-date advice: “What’s the outlook for AI roles in finance?” or “Explain closures in JavaScript.”"
+        },
+        {
+          title: "Live Brainstorming & Strategy Sessions",
+          description: "Jam on ideas with Prepzo: team-building exercises, negotiation tactics, networking outreach — all in an interactive dialogue."
+        },
+        {
+          title: "Interview Coaching & Salary Negotiation",
+          description: "Run mock interviews, refine answers, and get data-backed tips on how to ask (and get) the salary you deserve."
+        },
       ].map((item, index) => (
-        <li key={index} className="flex items-start gap-2">
-          <CheckCircle2 className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
-          <span className="text-sm text-muted-foreground">{item}</span>
+        <li key={index} className="flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <span className="text-sm font-medium text-foreground">{item.title}</span>
+            <p className="text-xs text-muted-foreground">{item.description}</p>
+          </div>
         </li>
       ))}
-      <li className="flex items-start gap-2">
-        <CheckCircle2 className="w-4 h-4 text-green-600 mt-1 flex-shrink-0" />
-        <span className="text-sm text-muted-foreground">Receive confirmation when your resume is successfully uploaded</span>
-      </li>
     </ul>
   </div>
 );
@@ -56,40 +68,57 @@ const OverviewCard: React.FC = () => (
 const SessionInfoCard: React.FC = () => (
   <div className="space-y-3">
     <h3 className="text-lg font-semibold flex items-center gap-2">
-      <AlertTriangle className="w-5 h-5 text-amber-500" />
-      Important Session Info
+      <Lightbulb className="w-5 h-5 text-blue-500" />
+      How to Get the Most Out of Your Session
     </h3>
-    <div className="bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-400 dark:border-amber-600 p-4 rounded-md space-y-2">
-      <p className="text-sm text-muted-foreground font-medium">
-        Please <span className="font-bold text-amber-700 dark:text-amber-400">do not refresh</span> your browser tab during the session, as this will end your current conversation.
-      </p>
-      <p className="text-sm text-muted-foreground">
-        If you accidentally get disconnected (e.g., network issues, power outage), don&apos;t worry! You can simply <span className="font-semibold">rejoin the session</span> using the same link or button.
-      </p>
-    </div>
+    <ul className="space-y-3">
+      {[
+        {
+          title: "Stay on One Tab",
+          description: "Don’t refresh or close your browser—this ensures Prepzo remembers your context."
+        },
+        {
+          title: "Use Precise Prompts",
+          description: "The more details you share (role, industry, seniority), the more tailored the advice."
+        },
+        {
+          title: "Flag Key Moments",
+          description: "Say “Email me this” at any time to capture a snippet of the conversation in your inbox."
+        },
+        {
+          title: "Upload Early & Often",
+          description: "After you upload your resume or cover letter, please tell Prepzo “My resume is uploaded” so it can parse and give you tailored feedback."
+        },
+      ].map((item, index) => (
+        <li key={index} className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <span className="text-sm font-medium text-foreground">{item.title}</span>
+            <p className="text-xs text-muted-foreground">{item.description}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
   </div>
 );
 
 const TryAskingCard: React.FC = () => (
   <div className="space-y-3">
     <h3 className="text-lg font-semibold">
-      Try Asking Prepzo:
+      Try Asking Prepzo…
     </h3>
-    <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 dark:border-blue-600 p-4 rounded-md space-y-1">
-      <p className="italic text-sm text-muted-foreground">“What kind of jobs fit my skills right now?”</p>
-      <p className="italic text-sm text-muted-foreground">“I want to switch industries. What should I learn first?”</p>
-      <p className="italic text-sm text-muted-foreground">“How can I talk to my manager about a promotion?”</p>
-      <p className="italic text-sm text-muted-foreground">“Is AI going to replace my job in marketing?”</p>
-      <p className="italic text-sm text-muted-foreground">“Can you email me a plan to improve my career this quarter?”</p>
+    <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 dark:border-blue-600 p-4 rounded-md space-y-2">
+      {[ 
+        "My resume is uploaded — what are the top 3 skills I should emphasize for a Senior Product Manager role?",
+        "Can you draft a follow-up email requesting feedback after an interview?",
+        "Explain the difference between REST and GraphQL — give me pros and cons for each.",
+        "I&apos;m stuck on career growth in UX design; can you map out a 6-month learning plan?",
+        "Brainstorm 5 creative ways to motivate a disengaged sales team.",
+        "Is the demand for cloud engineers in APAC set to rise next year?",
+      ].map((item, index) => (
+        <p key={index} className="italic text-sm text-muted-foreground">“{item}”</p>
+      ))}
     </div>
-    <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
-      <Lightbulb className="w-3 h-3" />
-      <span className="font-semibold">Tip:</span> The more honest and personal your questions, the better Prepzo can help.
-    </p>
-    <p className="mt-3 text-xs text-muted-foreground flex items-start gap-1">
-      <Info className="w-3 h-3 mt-0.5 flex-shrink-0" /> 
-      <span><span className="font-semibold">When Uploading:</span> Please let Prepzo know once your resume is uploaded by saying something like "My resume is uploaded" rather than just "Done".</span>
-    </p>
   </div>
 );
 
@@ -207,9 +236,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
               <DialogTitle className="text-xl md:text-2xl lg:text-3xl font-bold leading-tight">
                 Meet Prepzo — Your Personal AI Career Coach
               </DialogTitle>
-              <p className="text-sm md:text-md text-muted-foreground text-left">
-                Prepzo isn&apos;t just another chatbot. It&apos;s your career co-pilot — built to help you navigate work, job searches, upskilling, and everything in between.
-              </p>
             </div>
             <div className="flex-shrink-0">
               <img
