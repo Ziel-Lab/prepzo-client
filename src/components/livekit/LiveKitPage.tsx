@@ -89,7 +89,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // State to control timer visibility
   const [showTimer, setShowTimer] = useState(false);
-  const [timerKey, setTimerKey] = useState(0); // Add this to force timer re-render
+  const [timerKey, setTimerKey] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
   // Add debug logging for feedback state
@@ -288,6 +288,8 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
     updateConnectionDetails(undefined);
     setRoomKey(Date.now());
+    setShowFeedback(false);
+    setShowTimer(false);
 
     setTimeout(() => {
       onConnectButtonClicked();
@@ -362,6 +364,17 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     // Get fresh connection details
     onConnectButtonClicked();
   }, [onConnectButtonClicked]);
+
+  // Function to handle full disconnect and show feedback
+  const handleDisconnectAndShowFeedback = async () => {
+    console.log("[LiveKitPage] handleDisconnectAndShowFeedback called.");
+    await forceStopAudioCapture();
+    setShowEmailInput(false);
+    setShowResumeUpload(false);
+    setSendDataFn(null);
+    setShowTimer(false);
+    setShowFeedback(true);
+  };
 
   // Function to forcefully stop all audio capturing
   const forceStopAudioCapture = async () => {
@@ -446,11 +459,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
         console.log("[LiveKitPage] Calling window.liveKitRoom.disconnect() on unmount.");
         window.liveKitRoom.disconnect();
+      } else {
+        forceStopAudioCapture();
       }
-      forceStopAudioCapture(); // Ensure audio is stopped comprehensively
-      window.onbeforeunload = originalBeforeUnload; // Restore original handler
+      window.onbeforeunload = originalBeforeUnload;
     };
-  }, []); // Empty dependency array ensures this runs once on mount and cleanup on unmount
+  }, []);
 
   return (
     <div className="relative h-full w-full">
@@ -461,6 +475,23 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           <div className="flex h-full items-center justify-center text-lg text-gray-500">
             <p>Loading...</p>
           </div>
+        ) : showFeedback ? (
+          connectionDetails && (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50">
+              <div className="w-full max-w-md p-4">
+                <FeedbackForm
+                  roomId={connectionDetails.roomName}
+                  onDone={() => {
+                    console.log("[LiveKitPage] Feedback form done, clearing connection and closing.");
+                    updateConnectionDetails(undefined);
+                    setShowFeedback(false);
+                    setRoomKey(Date.now());
+                    onClose();
+                  }}
+                />
+              </div>
+            </div>
+          )
         ) : (
           <>
             {showTimer && (
@@ -472,10 +503,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   console.log("[LiveKitPage] Session timer ended, initiating disconnect.");
                   if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
                     window.liveKitRoom.disconnect();
+                  } else {
+                    handleDisconnectAndShowFeedback();
                   }
-                  forceStopAudioCapture();
-                  // Don't clear connectionDetails here, just show feedback
-                  setShowFeedback(true);
                 }}
               />
             )}
@@ -500,15 +530,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                     title: "Connection Error",
                     description: "An error occurred with the LiveKit connection. Please try again.",
                   });
+                  handleError(error);
                 }}
                 onDisconnected={async () => {
-                  console.log("[LiveKitPage] LiveKitRoom disconnected event triggered. Ensuring full cleanup and navigation.");
-                  // Don't clear connectionDetails here, just show feedback
-                  await forceStopAudioCapture();
-                  setShowEmailInput(false);
-                  setShowResumeUpload(false);
-                  setSendDataFn(null);
-                  setShowFeedback(true);
+                  console.log("[LiveKitPage] LiveKitRoom disconnected event triggered. Showing feedback.");
+                  await handleDisconnectAndShowFeedback();
                 }}
                 className="flex h-full w-full flex-col"
               >
@@ -520,65 +546,51 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 
                 <SimpleVoiceAssistant
                   onStateChange={handleAgentStateChange}
-                  onEndCall={async () => {
-                    console.log("[LiveKitPage] onEndCall triggered, showing feedback");
-                    setShowFeedback(true);
+                  onEndCallInitiated={async () => {
+                    console.log("[LiveKitPage] onEndCallInitiated triggered from SimpleVoiceAssistant, initiating disconnect.");
+                    if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
+                      window.liveKitRoom.disconnect();
+                    } else {
+                      await handleDisconnectAndShowFeedback();
+                    }
                   }}
                   jobResultsMarkdown={jobResultsMarkdown}
                   setJobResultsMarkdown={setJobResultsMarkdown}
                   onLoadingComplete={() => {
                     console.log("Loading animation complete, starting timer");
-                    setTimerKey(Date.now()); // Force timer re-render
+                    setTimerKey(Date.now());
                     setShowTimer(true);
                   }}
                 />
               </LiveKitRoom>
             </LiveKitErrorBoundary>
-            {showFeedback && connectionDetails && (
-              <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50">
-                <div className="w-full max-w-md p-4">
-                  <FeedbackFormWrapper
-                    roomId={connectionDetails.roomName}
-                    onDone={() => {
-                      console.log("[LiveKitPage] Feedback form done, clearing connection and closing");
-                      updateConnectionDetails(undefined);
-                      onClose();
-                    }}
-                    clearConnection={() => updateConnectionDetails(undefined)}
-                  />
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
 
-      {/* Email Input Popup Overlay - Clean White Background */}
-      {showEmailInput && (
+      {/* Email Input Popup Overlay - Render only if not showing feedback */}
+      {showEmailInput && !showFeedback && (
         <div
           className={cn(
             "absolute bottom-[120px] left-1/2 z-[100000] w-[90%] max-w-md -translate-x-1/2",
-            // White background, black border
             "rounded-md border border-black bg-white p-4 shadow-lg" 
           )}
         >
-          {/* Dark text color */}
           <p className="mb-3 text-center text-sm font-medium text-black">
             Please enter your email to stay connected
           </p>
           <div className="mb-3">
-            <Input // shadcn Input
+            <Input
               type="email"
               placeholder="your.email@example.com"
               value={email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              // Input style for light background
               className="h-10 rounded-md border-gray-300 text-black placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500"
               disabled={isSubmitting}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button // shadcn Button
+            <Button
               variant="ghost" 
               size="sm"
               onClick={() => {
@@ -586,13 +598,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 window.emailRequested = false;
                 console.log("[Email Popup] Cancelled, reset window.emailRequested");
               }}
-              // Ghost button style for light background
               className="text-gray-700 hover:bg-gray-100"
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button // shadcn Button (Primary action style - default)
+            <Button
               onClick={handleSendEmail} 
               size="sm"
               disabled={!email.includes('@') || isSubmitting}
@@ -604,38 +615,34 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         </div>
       )}
       
-      {/* Resume Upload Popup Overlay - Clean White Background & Improved UI */}
-      {showResumeUpload && (
+      {/* Resume Upload Popup Overlay - Render only if not showing feedback */}
+      {showResumeUpload && !showFeedback && (
         <div
           className={cn(
             "absolute bottom-[120px] left-1/2 z-[100001] w-[90%] max-w-md -translate-x-1/2", 
-            // White background, black border
             "rounded-md border border-black bg-white p-4 shadow-lg"
           )}
         >
-          {/* Dark text color */}
           <p className="mb-3 text-center text-sm font-medium text-black">
             Please upload your resume (PDF, DOCX)
           </p>
           <div className="mb-3">
-            <Input // shadcn Input for file
+            <Input
               id="resume-upload" 
               type="file"
               accept=".pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-              // File input styling for light background - match shadcn default look closer
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-gray-900 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isUploading}
             />
             {selectedFile && (
-              // Dark text color
               <p className="mt-2 text-xs text-gray-600">
                 Selected: {selectedFile.name}
               </p>
             )}
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <Button // shadcn Button
+            <Button
               variant="ghost"
               size="sm"
               onClick={() => {
@@ -644,13 +651,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 window.resumeRequested = false;
                 console.log("[Resume Popup] Cancelled, reset window.resumeRequested");
               }}
-              // Ghost button style for light background
               className="text-gray-700 hover:bg-gray-100"
               disabled={isUploading}
             >
               Cancel
             </Button>
-            <Button // shadcn Button (Primary action style - default)
+            <Button
               onClick={handleUploadResume}
               size="sm"
               disabled={!selectedFile || isUploading}
@@ -658,7 +664,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
             >
               {isUploading ? (
                 <>
-                  {/* Spinner for light background button */}
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -781,9 +786,5 @@ const RoomContextManager: React.FC<{
 
   return null; // This component doesn't render UI
 };
-
-function FeedbackFormWrapper({ roomId, onDone, clearConnection }: { roomId: string, onDone: () => void, clearConnection: () => void }) {
-  return <FeedbackForm roomId={roomId} onDone={() => { clearConnection(); onDone(); }} />;
-}
 
 export default LiveKitPage;
