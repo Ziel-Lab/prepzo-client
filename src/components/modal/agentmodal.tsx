@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -28,29 +29,29 @@ interface AgentModalProps {
 const OverviewCard: React.FC = () => (
   <div className="space-y-4">
     <h3 className="text-lg font-semibold">
-      Quick Overview: What Can Prepzo Do for You?
+      What You Can Do with Prepzo
     </h3>
     <ul className="space-y-3">
       {[
         {
-          title: "Upload & Analyze Your Resume Instantly",
-          description: "Upload your latest CV and Prepzo will parse it, highlight strengths & gaps, and suggest tailored edits."
+          title: "Improve Your Resume",
+          description: "Say: \"Hey, can you help improve my CV?\" → Get tailored edits and role-specific insights."
         },
         {
-          title: "On-the-Spot Email Summaries & Follow-Ups",
-          description: "At any point, ask 'Email me a summary of this session' (or any custom request) and get a polished draft in real time."
+          title: "Practice for Interviews",
+          description: "Ask for a mock interview in your domain. Get feedback, structure, and tips. Try this prompt: \"Run a mock interview for a senior marketing role\""
         },
         {
-          title: "Deep Career & Technical Expertise",
-          description: "From industry trends to coding challenges, dive into nuanced, up-to-date advice: 'What's the outlook for AI roles in finance?' or 'Explain closures in JavaScript.'"
+          title: "Plan Your Career Next Step",
+          description: "Say: \"Map a 3-month learning path for me\" or \"How do I move into product from design?\""
         },
         {
-          title: "Live Brainstorming & Strategy Sessions",
-          description: "Jam on ideas with Prepzo: team-building exercises, negotiation tactics, networking outreach — all in an interactive dialogue."
+          title: "Send Yourself a Summary",
+          description: "At any point: \"Email me this session.\" Boom — it's in your inbox."
         },
         {
-          title: "Interview Coaching & Salary Negotiation",
-          description: "Run mock interviews, refine answers, and get data-backed tips on how to ask (and get) the salary you deserve."
+          title: "Think Through Work Problems",
+          description: "From negotiation tactics to growth plateaus: just ask. \"How do I navigate a salary negotiation meeting with my manager?\""
         },
       ].map((item, index) => (
         <li key={index} className="flex items-start gap-3">
@@ -69,25 +70,25 @@ const SessionInfoCard: React.FC = () => (
   <div className="space-y-3">
     <h3 className="text-lg font-semibold flex items-center gap-2">
       <Lightbulb className="w-5 h-5 text-blue-500" />
-      How to Get the Most Out of Your Session
+      Before You Start
     </h3>
     <ul className="space-y-3">
       {[
         {
-          title: "Stay on One Tab",
-          description: "Don't refresh or close your browser—this ensures Prepzo remembers your context."
+          title: "Stay on the same tab",
+          description: "Don't refresh or close the browser to maintain context."
         },
         {
-          title: "Use Precise Prompts",
-          description: "The more details you share (role, industry, seniority), the more tailored the advice."
+          title: "Resume uploads work via prompt",
+          description: "After uploading, say: \"Here's my resume…\""
         },
         {
-          title: "Flag Key Moments",
-          description: "Say 'Email me this' at any time to capture a snippet of the conversation in your inbox."
+          title: "More detail = better responses",
+          description: "Provide specific context for tailored advice."
         },
         {
-          title: "Upload Early & Often",
-          description: "After you upload your resume or cover letter, please tell Prepzo 'My resume is uploaded' so it can parse and give you tailored feedback."
+          title: "Use \"Email this\" anytime",
+          description: "Save key moments of your conversation to your inbox."
         },
       ].map((item, index) => (
         <li key={index} className="flex items-start gap-3">
@@ -102,39 +103,21 @@ const SessionInfoCard: React.FC = () => (
   </div>
 );
 
-const TryAskingCard: React.FC = () => (
-  <div className="space-y-3">
-    <h3 className="text-lg font-semibold">
-      Try Asking Prepzo…
-    </h3>
-    <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 dark:border-blue-600 p-4 rounded-md space-y-2">
-      {[ 
-        "My resume is uploaded — what are the top 3 skills I should emphasize for a Senior Product Manager role?",
-        "Can you draft a follow-up email requesting feedback after an interview?",
-        "Explain the difference between REST and GraphQL — give me pros and cons for each.",
-        "I'm stuck on career growth in UX design; can you map out a 6-month learning plan?",
-        "Brainstorm 5 creative ways to motivate a disengaged sales team.",
-        "Is the demand for cloud engineers in APAC set to rise next year?",
-      ].map((item, index) => (
-        <p key={index} className="italic text-sm text-muted-foreground">"{item}"</p>
-      ))}
-    </div>
-  </div>
-);
-
-const cardComponents = [OverviewCard, SessionInfoCard, TryAskingCard];
+const cardComponents = [OverviewCard, SessionInfoCard];
 
 const AgentModal: React.FC<AgentModalProps> = ({
   isOpen,
   onClose,
   onStartTalking,
 }) => {
-  const { triggerAuthCheck } = useAuth();
+  const router = useRouter();
+  const { triggerAuthCheck, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [showPasswordEntry, setShowPasswordEntry] = useState(false);
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isAwaitingRedirect, setIsAwaitingRedirect] = useState(false);
 
   // Reset state when modal is closed/opened
   useEffect(() => {
@@ -144,8 +127,24 @@ const AgentModal: React.FC<AgentModalProps> = ({
       setIsVerifying(false);
       setError(null);
       setCurrentStep(0); // Reset to first card
+      setIsAwaitingRedirect(false); // Reset redirect state
     }
   }, [isOpen]);
+
+  // Effect to handle redirection after auth check is triggered
+  useEffect(() => {
+    if (isAwaitingRedirect && !isAuthLoading && isAuthenticated) {
+      router.push('/prepzo-session?verified=true');
+      onClose(); // Close modal AFTER successful redirect initiation
+      setIsAwaitingRedirect(false); // Reset state
+    } else if (isAwaitingRedirect && !isAuthLoading && !isAuthenticated) {
+      // Auth check completed but user is not authenticated
+      console.error("AgentModal: Auth check completed, but user not authenticated post-verification.");
+      setError("Authentication failed after verification. Please try again.");
+      setIsAwaitingRedirect(false);
+      setIsVerifying(false); // Reset verifying spinner from password input
+    }
+  }, [isAwaitingRedirect, isAuthLoading, isAuthenticated, router, onClose, setError]);
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
@@ -185,15 +184,17 @@ const AgentModal: React.FC<AgentModalProps> = ({
       console.log('AgentModal: Password verification successful.');
       triggerAuthCheck(); 
       onStartTalking(); 
-      onClose(); 
+      setIsAwaitingRedirect(true); // Set state to await redirect decision from useEffect
 
     } catch (err: any) {
       console.error("AgentModal: Password verification error:", err);
       if (!error && err instanceof Error) {
          setError(err.message || 'An error occurred during verification.');
       }
+      setIsVerifying(false); // Ensure verifying is reset on error
+      setIsAwaitingRedirect(false); // Ensure redirect state is reset
     } finally {
-      setIsVerifying(false);
+      // setIsVerifying(false); // Moved to specific paths (success/error) to allow useEffect to use it
     }
   };
   

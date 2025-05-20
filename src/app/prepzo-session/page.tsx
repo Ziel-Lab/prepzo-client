@@ -1,22 +1,50 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import LiveKitPage from '@/components/livekit/LiveKitPage';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster if using shadcn/ui toast
 import { useAuth } from '@/hooks/use-auth'; // Import useAuth
 
 export default function LiveKitSessionPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth(); // Get auth state
+  const searchParams = useSearchParams(); // Added
+  const { isAuthenticated, isLoading: isAuthLoading, triggerAuthCheck } = useAuth(); // Added triggerAuthCheck
+
+  const [hasAttemptedForcedCheck, setHasAttemptedForcedCheck] = useState(false); // Added state
 
   useEffect(() => {
-    // Only redirect if auth check is complete and user is not authenticated
-    if (!isAuthLoading && !isAuthenticated) {
-      console.log('LiveKitSessionPage: User not authenticated, redirecting to home.');
-      router.push('/');
+    const justVerified = searchParams.get('verified') === 'true';
+
+    if (!isAuthLoading) { // Auth check is complete (either initial or forced)
+      if (!isAuthenticated) { // And user is NOT authenticated
+        if (justVerified && !hasAttemptedForcedCheck) {
+          console.log('LiveKitSessionPage: Hinted verification, but not authenticated. Triggering a focused auth check.');
+          triggerAuthCheck();
+          setHasAttemptedForcedCheck(true);
+          // Don't redirect yet. isAuthLoading will become true, then false. Effect will run again.
+        } else {
+          // Not just verified, or forced check already attempted and failed.
+          console.log('LiveKitSessionPage: User not authenticated (or forced check failed), redirecting to home.');
+          router.push('/');
+        }
+      } else {
+        // User is authenticated. If justVerified was true, reset the forced check attempt state (might not be strictly necessary but good for consistency).
+        if (justVerified) {
+          setHasAttemptedForcedCheck(false); 
+        }
+      }
     }
-  }, [isAuthenticated, isAuthLoading, router]);
+  }, [isAuthenticated, isAuthLoading, triggerAuthCheck, searchParams, router, hasAttemptedForcedCheck]);
+
+  // Separate useEffect for cleaning up the URL query parameter
+  useEffect(() => {
+    const justVerified = searchParams.get('verified') === 'true';
+    // Clean up URL if the flag was present and user is either authenticated or the forced check has been made
+    if (justVerified && (isAuthenticated || hasAttemptedForcedCheck)) {
+        router.replace('/prepzo-session', { scroll: false });
+    }
+  }, [isAuthenticated, hasAttemptedForcedCheck, searchParams, router]);
 
   const handleClose = () => {
     console.log('LiveKit session closed, navigating to feedback page.');
