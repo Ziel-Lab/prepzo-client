@@ -35,6 +35,11 @@ const Navbar = () => {
               Join Waitlist
             </Button>
           </Link>
+          <Link href="/dashboard">
+            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+              Login
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile menu button */}
@@ -58,6 +63,11 @@ const Navbar = () => {
             <Link href="/auth/sign-up" className="w-full">
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Join Waitlist
+              </Button>
+            </Link>
+            <Link href="/dashboard">
+              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                Login
               </Button>
             </Link>
           </div>
