@@ -14,11 +14,9 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Use NEXT_PUBLIC_SITE_URL if available, otherwise fall back to origin
       const redirectUrlBase = process.env.NEXT_PUBLIC_SITE_URL || origin;
 
-      // Always redirect to the waitlist page upon successful OAuth login
-      const finalRedirectPath = '/waitlist'; 
+      const finalRedirectPath = '/dashboard'; 
       console.log(`Successfully exchanged code for session. Redirecting to: ${redirectUrlBase}${finalRedirectPath}`);
       return NextResponse.redirect(`${redirectUrlBase}${finalRedirectPath}`)
     }
