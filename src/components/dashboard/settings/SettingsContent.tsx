@@ -52,9 +52,9 @@ const SettingsContent = () => {
             </div>
             <div className="flex items-center space-x-4">
               <img
-                src="https://via.placeholder.com/80"
+                src="/static/images/profile-placeholder.png"
                 alt="Profile avatar"
-                className="rounded-full"
+                className="w-16 h-16 rounded-full object-cover"
               />
               <Button size="sm">Change Avatar</Button>
             </div>
@@ -144,7 +144,7 @@ const SettingsContent = () => {
           <p className="mb-4">
             Current Plan: <span className="font-medium">Pro Monthly</span>
           </p>
-          <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-3 sm:space-y-0">
             <Button>Upgrade to Pro Annual</Button>
             <Button variant="outline">Change Billing Info</Button>
             <Button variant="destructive">Cancel Subscription</Button>

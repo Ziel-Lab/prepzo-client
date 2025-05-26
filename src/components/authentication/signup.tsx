@@ -16,7 +16,6 @@ const SignUpForm = () => {
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
     setIsOAuthLoading(provider);
     setError(null);
-    console.log(`Initiating OAuth Sign Up with ${provider}...`);
     const supabaseProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
 
     try {
@@ -29,7 +28,6 @@ const SignUpForm = () => {
       });
 
       if (oauthError) throw oauthError;
-      console.log(`Redirecting to ${supabaseProvider} for authentication...`);
 
     } catch (error: any) {
       console.error(`Error signing in with ${supabaseProvider}:`, error);

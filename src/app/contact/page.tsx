@@ -42,7 +42,6 @@ const ContactPage = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
-    console.log("Form submitted:", values);
 
     try {
       const response = await fetch('/api/contact', {

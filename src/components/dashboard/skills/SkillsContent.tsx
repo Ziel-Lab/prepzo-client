@@ -10,55 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // Data structure with time-based progress points for each skill
 const skillsData = [
   {
-    category: "Technical Skills",
-    skills: [
-      { 
-        name: "React Development", 
-        maxPoints: 1000,
-        progress: [
-          { date: "2025-01-05", points: 600 },
-          { date: "2025-02-10", points: 720 },
-          { date: "2025-03-15", points: 780 },
-          { date: "2025-04-20", points: 850 }
-        ],
-        description: "Built multiple React applications using hooks, context API, and custom components. Completed advanced courses on state management and performance optimization."
-      },
-      { 
-        name: "System Design", 
-        maxPoints: 1000,
-        progress: [
-          { date: "2025-01-05", points: 300 },
-          { date: "2025-02-10", points: 400 },
-          { date: "2025-03-15", points: 520 },
-          { date: "2025-04-20", points: 600 }
-        ],
-        description: "Studied system design principles and patterns. Designed scalable architectures for two medium-sized applications and participated in architecture reviews."
-      },
-      { 
-        name: "Data Structures & Algorithms", 
-        maxPoints: 1000,
-        progress: [
-          { date: "2025-01-05", points: 450 },
-          { date: "2025-02-10", points: 580 },
-          { date: "2025-03-15", points: 650 },
-          { date: "2025-04-20", points: 750 }
-        ],
-        description: "Solved 150+ algorithmic problems on coding platforms. Mastered common patterns like two-pointers, sliding window, and dynamic programming approaches."
-      },
-      { 
-        name: "Backend Development", 
-        maxPoints: 1000,
-        progress: [
-          { date: "2025-01-05", points: 350 },
-          { date: "2025-02-10", points: 480 },
-          { date: "2025-03-15", points: 600 },
-          { date: "2025-04-20", points: 700 }
-        ],
-        description: "Developed RESTful APIs using Node.js and Express. Implemented authentication, database integration, and deployed serverless functions for production use."
-      }
-    ]
-  },
-  {
     category: "Soft Skills",
     skills: [
       { 

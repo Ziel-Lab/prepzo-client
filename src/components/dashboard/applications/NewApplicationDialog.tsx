@@ -77,8 +77,6 @@ const NewApplicationDialog = ({ trigger }: NewApplicationDialogProps) => {
   };
 
   const handleSubmit = (data: JobData) => {
-    console.log("Submitting application:", data);
-    // Here you would save the application
     setOpen(false);
     setStep(1);
   };

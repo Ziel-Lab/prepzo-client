@@ -10,10 +10,6 @@ const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL =  process.env.LIVEKIT_URL;
 
-// Log the API keys (with sensitive parts masked)
-console.log("LIVEKIT_URL:", LIVEKIT_URL);
-
-// don't cache the results
 export const revalidate = 0;
 
 export type ConnectionDetails = {

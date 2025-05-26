@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid file type. Only PDF, DOC, and DOCX are allowed.' }, { status: 400 });
     }
 
-    console.log(`Received resume for session: ${sessionId}, name: ${resumeFile.name}, type: ${resumeFile.type}, size: ${resumeFile.size} bytes`);
 
     // Construct the Flask endpoint URL safely, removing potential double slashes
     const flaskBaseUrl = FLASK_BACKEND_URL?.replace(/\/$/, '') || ''; // Remove trailing slash if present
@@ -43,9 +42,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal server configuration error.' }, { status: 500 });
     }
 
-    console.log(`Forwarding resume to Flask endpoint: ${flaskEndpoint}`);
-
-    // --- Forward file to Flask backend --- 
     const flaskFormData = new FormData();
     flaskFormData.append('resume', resumeFile, resumeFile.name);
     flaskFormData.append('session_id', sessionId);
@@ -74,7 +70,6 @@ export async function POST(request: NextRequest) {
     }
     
     const successData = await flaskResponse.json();
-    console.log('Flask backend processed resume successfully:', successData);
 
     // Return success response based on Flask response
     return NextResponse.json({ 
