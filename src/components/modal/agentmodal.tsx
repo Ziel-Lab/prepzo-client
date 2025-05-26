@@ -181,7 +181,6 @@ const AgentModal: React.FC<AgentModalProps> = ({
         throw new Error(errorMsg);
       }
 
-      console.log('AgentModal: Password verification successful.');
       triggerAuthCheck(); 
       onStartTalking(); 
       setIsAwaitingRedirect(true); // Set state to await redirect decision from useEffect

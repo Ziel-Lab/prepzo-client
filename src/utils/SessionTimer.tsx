@@ -21,9 +21,6 @@ const SessionTimer: React.FC<SessionTimerProps> = ({
 
   // Start timer immediately when component mounts
   useEffect(() => {
-    console.log("SessionTimer mounted, starting countdown");
-    
-    // Clear any existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
@@ -36,7 +33,6 @@ const SessionTimer: React.FC<SessionTimerProps> = ({
             clearInterval(intervalRef.current);
           }
           if (onTimeUp && !timeUpCalledRef.current) {
-            console.log("Timer reached zero, calling onTimeUp");
             onTimeUp();
             timeUpCalledRef.current = true;
           }

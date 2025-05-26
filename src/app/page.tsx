@@ -15,7 +15,6 @@ const HomePage = () => {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
 
   const handleStartTalking = () => {
-    console.log("Start Talking action initiated from HomePage, navigating to LiveKit session...");
     router.push('/prepzo-session'); 
   };
   

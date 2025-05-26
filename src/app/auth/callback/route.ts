@@ -17,7 +17,6 @@ export async function GET(request: Request) {
       const redirectUrlBase = process.env.NEXT_PUBLIC_SITE_URL || origin;
 
       const finalRedirectPath = '/dashboard'; 
-      console.log(`Successfully exchanged code for session. Redirecting to: ${redirectUrlBase}${finalRedirectPath}`);
       return NextResponse.redirect(`${redirectUrlBase}${finalRedirectPath}`)
     }
      console.error('Error exchanging code for session:', error);

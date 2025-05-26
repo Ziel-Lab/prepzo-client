@@ -204,22 +204,17 @@ const CustomControlBar = ({ onEndCallInitiated }: { onEndCallInitiated?: () => v
   const borderColor = "border-gray-200 dark:border-gray-700";
   const sessionId=room?.name;
   const handleDisconnect = async () => {
-    console.log("Handle disconnect called, initiating immediate disconnect and UI update.");
 
-    // 1. Disconnect from LiveKit Room immediately
     if (room) {
       try {
         room.disconnect();
-        console.log("Disconnected from room (called from CustomControlBar).");
       } catch (e) {
-        console.error("Error disconnecting room in CustomControlBar:", e);
       }
     }
 
     // 2. Call the onEndCallInitiated prop to trigger UI changes and further cleanup in LiveKitPage
     if (onEndCallInitiated) {
       onEndCallInitiated(); 
-      console.log("onEndCallInitiated prop triggered from CustomControlBar.");
     }
 
     // 3. Send summary (fire and forget or handle errors without blocking UI)
@@ -231,7 +226,6 @@ const CustomControlBar = ({ onEndCallInitiated }: { onEndCallInitiated?: () => v
         },
         body:JSON.stringify({room_id:sessionId}),
       }).then(()=>{
-        console.log("Summary API call initiated.");
       }).catch((e)=>{
         console.error("Error initiating summary API call:",e);
       })
@@ -341,8 +335,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   useEffect(() => {
     const refreshMicrophonePermissions = async () => {
       try {
-        console.log("Requesting fresh microphone permissions...");
-        // Close any existing streams first
         const existingStreams = await navigator.mediaDevices.getUserMedia({ audio: true });
         existingStreams.getTracks().forEach(track => track.stop());
         
@@ -354,11 +346,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
             autoGainControl: true
           } 
         });
-        
-        console.log("Microphone permissions granted:", stream.getAudioTracks());
-        
-        // Don't actually use this stream - LiveKit will handle that
-        // Just keeping the reference so it doesn't get garbage collected too soon
         return () => {
           stream.getTracks().forEach(track => track.stop());
         };
@@ -371,17 +358,12 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   }, []);
 
   // Add logging to debug transcription issues
-  // useEffect(() => {
-  //   console.log("Agent state:", state);
-  //   console.log("Agent transcriptions:", agentTranscriptions);
-  //   console.log("User transcriptions:", userTranscriptions);
-  // }, [state, agentTranscriptions, userTranscriptions]);
+  useEffect(() => {
+  }, [state, agentTranscriptions, userTranscriptions]);
 
   // Let the audio track create and attach its own audio element.
   useEffect(() => {
     if (!audioTrack) return; // Exit early if no audioTrack
-    
-    console.log("Audio track received:", audioTrack);
     
     let attachedAudio: HTMLAudioElement | undefined;
     if (audioTrack?.publication?.track) {
@@ -392,7 +374,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
         if (typeof audioTrack.publication.track.attach === 'function') {
       audioTrack.publication.track.attach(attachedAudio);
       document.body.appendChild(attachedAudio);
-          console.log("Audio track attached successfully");
         }
       } catch (error) {
         console.error("Error attaching audio track:", error);
@@ -506,14 +487,10 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
 
   useEffect(() => {
     return () => {
-      // Cleanup function that runs on component unmount
-      console.log("Component unmounting, cleaning up microphone...");
-      // Stop any active microphone tracks
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           stream.getTracks().forEach(track => {
             track.stop();
-            console.log("Stopped microphone track on unmount");
           });
         })
         .catch(err => console.error("Error stopping microphone on unmount:", err));
@@ -558,7 +535,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   // Effect to handle displaying job results markdown when received 
   useEffect(() => {
     if (jobResultsMarkdown) {
-      console.log("Displaying job results markdown");
       const jobResultMessage: TranscriptionMessage = {
         id: `job-results-${Date.now()}`,
         text: `Okay, here are the job details I found:\n\n${jobResultsMarkdown}`,

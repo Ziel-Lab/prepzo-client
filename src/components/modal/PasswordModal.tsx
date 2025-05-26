@@ -40,8 +40,6 @@ const PasswordModal: React.FC = () => {
          throw new Error(errorMsg);
       }
 
-      // On successful verification, trigger an auth state re-check
-      console.log('PasswordModal: Verification successful, triggering auth check.');
       triggerAuthCheck();
 
     } catch (err: any) {

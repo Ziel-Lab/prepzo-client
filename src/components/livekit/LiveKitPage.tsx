@@ -92,38 +92,24 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [timerKey, setTimerKey] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
-  // Add debug logging for feedback state
-  useEffect(() => {
-    console.log("[LiveKitPage] Feedback state changed:", { showFeedback, hasConnectionDetails: !!connectionDetails });
-  }, [showFeedback, connectionDetails]);
 
   // Handlers are defined here, passed down to RoomContextManager
   const handleRequestEmail = useCallback(() => {
-    console.log("[LiveKitPage] handleRequestEmail called. Setting showEmailInput to true.");
     setShowEmailInput(true);
   }, []);
   const handleRequestResumeUpload = useCallback(() => {
     if (Date.now() < ignoreResumeRequestsUntil) {
-      console.log("Ignoring resume request signal shortly after upload.");
       return;
     }
-    console.log("[LiveKitPage] handleRequestResumeUpload called. Setting showResumeUpload to true.");
     setShowResumeUpload(true);
   }, [ignoreResumeRequestsUntil]);
   
-  // ***** REMOVE DATA HANDLER FROM HERE *****
-  // const handleDataReceived = useCallback(...);
 
-  // Function to handle agent state changes
   const handleAgentStateChange = (state: string) => {
-    // Add this log to see all incoming states
-    console.log("handleAgentStateChange received state:", state); 
-    console.log("Current window flags:", { emailRequested: window.emailRequested, resumeRequested: window.resumeRequested });
     
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
     if (state.startsWith(markdownPrefix)) {
       const markdown = state.substring(markdownPrefix.length);
-      console.log("Received job results markdown:", markdown);
       setJobResultsMarkdown(markdown);
       return;
     }
@@ -201,11 +187,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const handleUploadResume = async () => {
     // **** ADD VERY OBVIOUS LOG ****
     console.error("!!!!!!!!!!!!!!!! handleUploadResume ENTERED !!!!!!!!!!!!!!!!");
-    // Log the call
-    console.log("handleUploadResume CALLED. Selected file:", selectedFile, "showResumeUpload state:", showResumeUpload);
-    
-    // **** ADD GUARD ****
-    // Only proceed if the popup is supposed to be shown
     if (!showResumeUpload) {
         console.warn("handleUploadResume called but showResumeUpload is false. Aborting.");
         return;
@@ -264,7 +245,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     } finally {
       setIsUploading(false);
       window.resumeRequested = false;
-      console.log("[handleUploadResume] Finished, reset window.resumeRequested");
     }
   };
 
@@ -298,14 +278,10 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   const onConnectButtonClicked = useCallback(async () => {
     try {
-      console.log("Attempting to connect to LiveKit server...");
       const url = new URL(
         process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
         window.location.origin
       );
-      console.log("Connection URL:", url.toString());
-
-      // Use cache-busting query parameter
       url.searchParams.append("_", Date.now().toString());
 
       const response = await fetch(url.toString(), {
@@ -317,7 +293,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         },
       });
       const connectionDetailsData = await response.json();
-      console.log("Connection details received:", connectionDetailsData);
       updateConnectionDetails(connectionDetailsData);
     } catch (error) {
       console.error("Failed to fetch connection details:", error);
@@ -333,14 +308,10 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   useEffect(() => {
     // Clear caches when the component mounts
     if ("caches" in window) {
-      console.log("Clearing caches to ensure fresh connection...");
-
-      // Clear fetch cache to ensure we get fresh connection details
       caches
         .keys()
         .then((cacheNames) => {
           cacheNames.forEach((cacheName) => {
-            console.log(`Clearing cache: ${cacheName}`);
             caches.delete(cacheName);
           });
         })
@@ -354,7 +325,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       );
 
       liveKitKeys.forEach((key) => {
-        console.log(`Clearing localStorage key: ${key}`);
         localStorage.removeItem(key);
       });
     } catch (err) {
@@ -367,7 +337,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // Function to handle full disconnect and show feedback
   const handleDisconnectAndShowFeedback = async () => {
-    console.log("[LiveKitPage] handleDisconnectAndShowFeedback called.");
     await forceStopAudioCapture();
     setShowEmailInput(false);
     setShowResumeUpload(false);
@@ -378,21 +347,15 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
   // Function to forcefully stop all audio capturing
   const forceStopAudioCapture = async () => {
-    console.log("Forcefully stopping all audio capture");
     try {
-      // 1. Stop any active LiveKit tracks - ROOM DISCONNECT SHOULD HANDLE THIS
-
-      // 2. Use getUserMedia to get and immediately stop all tracks
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach((track) => {
             track.stop();
-            console.log("Forcefully stopped getUserMedia audio track:", track.id);
           });
         } catch (gumError) {
           if (gumError instanceof Error && (gumError.name === 'NotAllowedError' || gumError.name === 'NotFoundError')) {
-            console.log("getUserMedia failed (likely no permission or device), skipping track stop.");
           } else {
             console.error("Error getting/stopping getUserMedia tracks:", gumError);
           }
@@ -415,7 +378,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
           el.removeAttribute("src");
           el.load();
           el.remove();
-          console.log("Cleaned up audio element.");
         } catch (e) {
           console.error("Error cleaning up audio element:", e);
         }
@@ -425,13 +387,11 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       if ("permissions" in navigator) {
         try {
           const status = await (navigator as any).permissions.query({ name: "microphone" });
-          console.log("Microphone permission status after cleanup:", status.state);
         } catch (e) {
           console.error("Error checking microphone permission status:", e);
         }
       }
 
-      console.log("Audio capture cleanup completed");
       return true;
     } catch (e) {
       console.error("Error in forceStopAudioCapture:", e);
@@ -455,9 +415,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
 
     // Return a cleanup function that also runs on component unmount (e.g., SPA navigation away)
     return () => {
-      console.log("[LiveKitPage] Unmounting - ensuring full disconnect.");
       if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
-        console.log("[LiveKitPage] Calling window.liveKitRoom.disconnect() on unmount.");
         window.liveKitRoom.disconnect();
       } else {
         forceStopAudioCapture();
@@ -481,8 +439,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               <div className="w-full max-w-md p-4">
                 <FeedbackForm
                   roomId={connectionDetails.roomName}
-                  onDone={() => {
-                    console.log("[LiveKitPage] Feedback form done, clearing connection and closing.");
+                  onThankYouContinue={() => {
                     updateConnectionDetails(undefined);
                     setShowFeedback(false);
                     setRoomKey(Date.now());
@@ -500,7 +457,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 className="absolute top-4 right-4 z-50" 
                 initialMinutes={15} 
                 onTimeUp={() => {
-                  console.log("[LiveKitPage] Session timer ended, initiating disconnect.");
                   if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
                     window.liveKitRoom.disconnect();
                   } else {
@@ -533,7 +489,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   handleError(error);
                 }}
                 onDisconnected={async () => {
-                  console.log("[LiveKitPage] LiveKitRoom disconnected event triggered. Showing feedback.");
                   await handleDisconnectAndShowFeedback();
                 }}
                 className="flex h-full w-full flex-col"
@@ -547,7 +502,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 <SimpleVoiceAssistant
                   onStateChange={handleAgentStateChange}
                   onEndCallInitiated={async () => {
-                    console.log("[LiveKitPage] onEndCallInitiated triggered from SimpleVoiceAssistant, initiating disconnect.");
                     if (window.liveKitRoom && typeof window.liveKitRoom.disconnect === 'function') {
                       window.liveKitRoom.disconnect();
                     } else {
@@ -557,7 +511,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   jobResultsMarkdown={jobResultsMarkdown}
                   setJobResultsMarkdown={setJobResultsMarkdown}
                   onLoadingComplete={() => {
-                    console.log("Loading animation complete, starting timer");
                     setTimerKey(Date.now());
                     setShowTimer(true);
                   }}
@@ -596,7 +549,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
               onClick={() => {
                 setShowEmailInput(false);
                 window.emailRequested = false;
-                console.log("[Email Popup] Cancelled, reset window.emailRequested");
               }}
               className="text-gray-700 hover:bg-gray-100"
               disabled={isSubmitting}
@@ -649,7 +601,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 setShowResumeUpload(false);
                 setSelectedFile(null);
                 window.resumeRequested = false;
-                console.log("[Resume Popup] Cancelled, reset window.resumeRequested");
               }}
               className="text-gray-700 hover:bg-gray-100"
               disabled={isUploading}
@@ -701,13 +652,9 @@ const RoomContextManager: React.FC<{
     handleRequestResumeUploadRef.current = handleRequestResumeUpload;
   }, [handleRequestResumeUpload]);
 
-  // Log the room object on render
-  console.log("[RoomContextManager] Rendering, room object:", room);
-
   // useEffect for setting up sendDataFn
   useEffect(() => {
     if (room && room.localParticipant) {
-      console.log("[RoomContextManager] Setting up sendDataFn.");
       const sender = async (data: Uint8Array, topic?: string) => {
         try {
           if (room.state !== 'connected') {
@@ -715,7 +662,6 @@ const RoomContextManager: React.FC<{
             throw new Error(`Cannot send data when room is not connected (state: ${room.state})`);
           }
           await room.localParticipant.publishData(data, { reliable: true, topic });
-          console.log(`[RoomContextManager] Sent data signal. Topic: ${topic || 'none'}`);
         } catch (error) {
           console.error(`[RoomContextManager] Failed to send data signal (Topic: ${topic || 'none'}):`, error);
           throw error;
@@ -723,34 +669,28 @@ const RoomContextManager: React.FC<{
       };
       setSendDataFn(() => sender);
     } else {
-      console.log("[RoomContextManager] Clearing sendDataFn (room or local participant missing).");
       setSendDataFn(null);
     }
     return () => {
-      console.log("[RoomContextManager] Cleaning up sendDataFn.");
       setSendDataFn(null);
     };
   }, [room, setSendDataFn]); // Depend on room and setter
 
   // useEffect for setting up dataReceived listener and exposing room
   useEffect(() => {
-    console.log(`[RoomContextManager] Listener effect attempting run. Room state: ${room ? 'available' : 'unavailable'}`);
     if (!room) {
-      console.log("[RoomContextManager] Listener effect exiting - room not available.");
       if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear if room becomes null
       return; 
     }
 
     if (typeof window !== 'undefined') window.liveKitRoom = room; // Expose room instance
     
-    console.log(`[RoomContextManager] Attaching dataReceived listener for room: ${room.name}`);
     const handleDataReceivedInternal = (
       payload: Uint8Array,
       participant?: RemoteParticipant,
       kind?: DataPacket_Kind,
       topic?: string
     ) => {
-      console.log(`[RoomContextManager] Received data - Topic: ${topic}, From: ${participant?.identity}`);
       if (!participant) return;
 
       const decoder = new TextDecoder();
@@ -763,24 +703,16 @@ const RoomContextManager: React.FC<{
       }
 
       if (topic === "email_request") {
-        console.log("[RoomContextManager] Email request received:", message);
-        // **** Call handler via ref ****
         handleRequestEmailRef.current(); 
       } else if (topic === "resume_request") {
-        console.log("[RoomContextManager] Resume request received:", message);
-        // **** Call handler via ref ****
         handleRequestResumeUploadRef.current(); 
       }
     };
 
     room.on('dataReceived', handleDataReceivedInternal);
-    console.log(`[RoomContextManager] Successfully attached dataReceived listener.`);
-
     return () => {
-      console.log(`[RoomContextManager] Cleaning up listener for room: ${room.name}`);
       room.off('dataReceived', handleDataReceivedInternal);
-      if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear on cleanup
-      console.log(`[RoomContextManager] Successfully detached dataReceived listener.`);
+      if (typeof window !== 'undefined') window.liveKitRoom = undefined;
     };
   }, [room]); // Depend ONLY on room
 

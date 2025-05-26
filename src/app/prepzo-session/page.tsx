@@ -26,12 +26,10 @@ const SessionPageClientContent = () => {
     if (!isAuthLoading) {
       if (!isAuthenticated) {
         if (justVerified && !hasAttemptedForcedCheck) {
-          console.log('LiveKitSessionPage: Hinted verification, but not authenticated. Triggering a focused auth check.');
           triggerAuthCheck();
           setHasAttemptedForcedCheck(true);
         } else {
-          console.log('LiveKitSessionPage: User not authenticated (or forced check failed), redirecting to home.');
-          router.push('/');
+          console.log('LiveKitSessionPage: User not authenticated (or forced check failed), redirecting to home.');          router.push('/');
         }
       } else {
         if (justVerified) {
@@ -49,7 +47,6 @@ const SessionPageClientContent = () => {
   }, [isAuthenticated, hasAttemptedForcedCheck, searchParams, router]);
 
   const handleClose = () => {
-    console.log('LiveKit session closed, navigating to feedback page.');
     router.push('/auth/sign-up');
   };
 
