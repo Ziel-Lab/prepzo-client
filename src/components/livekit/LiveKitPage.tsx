@@ -106,6 +106,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   
 
   const handleAgentStateChange = (state: string) => {
+    // Add this log to see all incoming states
+    // console.log("handleAgentStateChange received state:", state); 
+    // console.log("Current window flags:", { emailRequested: window.emailRequested, resumeRequested: window.resumeRequested });
     
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
     if (state.startsWith(markdownPrefix)) {
@@ -511,6 +514,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                   jobResultsMarkdown={jobResultsMarkdown}
                   setJobResultsMarkdown={setJobResultsMarkdown}
                   onLoadingComplete={() => {
+                    // console.log("Loading animation complete, starting timer");
                     setTimerKey(Date.now());
                     setShowTimer(true);
                   }}
