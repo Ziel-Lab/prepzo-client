@@ -371,11 +371,11 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({
   }, []);
 
   // Add logging to debug transcription issues
-  useEffect(() => {
-    console.log("Agent state:", state);
-    console.log("Agent transcriptions:", agentTranscriptions);
-    console.log("User transcriptions:", userTranscriptions);
-  }, [state, agentTranscriptions, userTranscriptions]);
+  // useEffect(() => {
+  //   console.log("Agent state:", state);
+  //    console.log("Agent transcriptions:", agentTranscriptions);
+  //    console.log("User transcriptions:", userTranscriptions);
+  // }, [state, agentTranscriptions, userTranscriptions]);
 
   // Let the audio track create and attach its own audio element.
   useEffect(() => {
