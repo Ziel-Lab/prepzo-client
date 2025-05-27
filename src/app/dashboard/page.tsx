@@ -9,7 +9,18 @@ const quotes = [
   { quote: "The future depends on what you do today.", author: "Mahatma Gandhi" },
   { quote: "The best way to predict the future is to create it.", author: "Peter Drucker" },
   { quote: "Great things are not done by impulse, but by a series of small things brought together.", author: "Vincent Van Gogh" },
+  { quote: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { quote: "Success is not final, failure is not fatal: It is the courage to continue that counts.", author: "Winston Churchill" },
+  { quote: "Dream big. Start small. Act now.", author: "Robin Sharma" },
+  { quote: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { quote: "Small deeds done are better than great deeds planned.", author: "Peter Marshall" },
+  { quote: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+  { quote: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+  { quote: "If you're working on something exciting, it will keep you motivated.", author: "Steve Jobs" },
+  { quote: "Opportunities don't happen. You create them.", author: "Chris Grosser" },
+  { quote: "Never doubt that a small group of thoughtful, committed people can change the world.", author: "Margaret Mead" },
 ];
+
 
 const DashboardPage = () => {
   const [userName, setUserName] = useState<string | null>(null);
