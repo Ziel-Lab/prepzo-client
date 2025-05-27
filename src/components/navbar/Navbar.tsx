@@ -1,15 +1,41 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { createClient } from '@/utils/supabase/client';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authStatusLoading, setAuthStatusLoading] = useState(true);
+  const supabase = createClient();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  useEffect(() => {
+    const checkUserSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    };
+
+    checkUserSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const loginTargetHref = authStatusLoading ? "#" : isAuthenticated ? "/dashboard" : "/auth/sign-up";
+  const loginButtonDisabled = authStatusLoading;
 
   return (
     <nav className="fixed w-full bg-background/95 backdrop-blur-sm z-50 py-4 border-b border-border">
@@ -35,8 +61,8 @@ const Navbar = () => {
               Join Waitlist
             </Button>
           </Link>
-          <Link href="/dashboard">
-            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+          <Link href={loginTargetHref} passHref>
+            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={loginButtonDisabled}>
               Login
             </Button>
           </Link>
@@ -65,8 +91,8 @@ const Navbar = () => {
                 Join Waitlist
               </Button>
             </Link>
-            <Link href="/dashboard">
-              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+            <Link href={loginTargetHref} passHref>
+              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={loginButtonDisabled}>
                 Login
               </Button>
             </Link>

@@ -13,11 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RippleButton } from "@/components/ripple-button";
 import { CheckCircle2, Lightbulb, Rocket, AlertTriangle, Info, LockKeyhole, ArrowLeft, ArrowRight } from "lucide-react";
-import { useAuth } from '@/hooks/use-auth';
 import { cn } from "@/lib/utils";
 
-// Define backend URL
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface AgentModalProps {
   isOpen: boolean;
@@ -111,21 +108,12 @@ const AgentModal: React.FC<AgentModalProps> = ({
   onStartTalking,
 }) => {
   const router = useRouter();
-  const { triggerAuthCheck, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const [showPasswordEntry, setShowPasswordEntry] = useState(false);
-  const [password, setPassword] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isAwaitingRedirect, setIsAwaitingRedirect] = useState(false);
 
   // Reset state when modal is closed/opened
   useEffect(() => {
     if (!isOpen) {
-      setShowPasswordEntry(false);
-      setPassword('');
-      setIsVerifying(false);
-      setError(null);
       setCurrentStep(0); // Reset to first card
       setIsAwaitingRedirect(false); // Reset redirect state
     }
@@ -133,68 +121,16 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
   // Effect to handle redirection after auth check is triggered
   useEffect(() => {
-    if (isAwaitingRedirect && !isAuthLoading && isAuthenticated) {
-      router.push('/prepzo-session?verified=true');
-      onClose(); // Close modal AFTER successful redirect initiation
-      setIsAwaitingRedirect(false); // Reset state
-    } else if (isAwaitingRedirect && !isAuthLoading && !isAuthenticated) {
-      // Auth check completed but user is not authenticated
-      console.error("AgentModal: Auth check completed, but user not authenticated post-verification.");
-      setError("Authentication failed after verification. Please try again.");
-      setIsAwaitingRedirect(false);
-      setIsVerifying(false); // Reset verifying spinner from password input
+    if (isAwaitingRedirect) {
+      router.push('/prepzo-session');
+      onClose(); 
+      setIsAwaitingRedirect(false); 
     }
-  }, [isAwaitingRedirect, isAuthLoading, isAuthenticated, router, onClose, setError]);
+  }, [isAwaitingRedirect, router, onClose]);
 
-  const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(event.target.value);
-    setError(null); // Clear error on typing
-  };
-
-  const handleInitialButtonClick = () => {
-    setError(null);
-    setShowPasswordEntry(true);
-  };
-
-  const handleVerifyAndStart = async () => {
-    if (!password) {
-      setError("Password cannot be empty.");
-      return;
-    }
-    setIsVerifying(true);
-    setError(null);
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/verify-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-        credentials: 'include', 
-      });
-
-      if (!response.ok) {
-        let errorMsg = 'Invalid password. Please try again.';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.message || errorMsg;
-        } catch (e) { /* Ignore JSON parsing error */ }
-        setError(errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      triggerAuthCheck(); 
-      onStartTalking(); 
-      setIsAwaitingRedirect(true); // Set state to await redirect decision from useEffect
-
-    } catch (err: any) {
-      console.error("AgentModal: Password verification error:", err);
-      if (!error && err instanceof Error) {
-         setError(err.message || 'An error occurred during verification.');
-      }
-      setIsVerifying(false); // Ensure verifying is reset on error
-      setIsAwaitingRedirect(false); // Ensure redirect state is reset
-    } finally {
-      // setIsVerifying(false); // Moved to specific paths (success/error) to allow useEffect to use it
-    }
+  const handleStartClick = () => {
+    router.push('/prepzo-session?ref=agentmodal');
+    onClose();
   };
   
   const handleNextStep = () => {
@@ -209,19 +145,15 @@ const AgentModal: React.FC<AgentModalProps> = ({
     }
   };
 
-  // Reset showPasswordEntry if the modal is closed externally, also reset step
+  // Reset step if the modal is closed externally
   useEffect(() => {
     if (!isOpen) {
-      setShowPasswordEntry(false);
-      setError(null);
-      setPassword('');
-      setIsVerifying(false);
       setCurrentStep(0);
     }
   }, [isOpen]);
 
   if (!isOpen) {
-    return null; // Explicitly return null if not open, satisfying FC type
+    return null;
   }
 
   const CurrentCard = cardComponents[currentStep];
@@ -256,57 +188,11 @@ const AgentModal: React.FC<AgentModalProps> = ({
           <CurrentCard />
         </div>
 
-        {/* Footer - Conditionally shows password input or step navigation/start button */}
+        {/* Footer - Conditionally shows step navigation/start button */}
         <DialogFooter className={cn(
             "w-full p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0 relative"
           )}
         >
-          {showPasswordEntry ? (
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-3 w-full">
-              <div className="relative w-full sm:flex-1 min-h-[60px] flex items-center">
-                <div className="w-full">
-                  <Label htmlFor="agent-modal-password" className="sr-only">Enter Password to Proceed</Label> 
-                  <Input
-                    id="agent-modal-password"
-                    type="password"
-                    value={password}
-                    onChange={handlePasswordChange}
-                    placeholder="Enter password to proceed"
-                    required
-                    className={cn(
-                      "h-10 w-full", 
-                      error ? 'border-destructive focus:ring-destructive pr-4' : 'border-input focus:ring-primary'
-                    )}
-                    aria-invalid={!!error}
-                    aria-describedby={error ? 'password-modal-error' : undefined}
-                    disabled={isVerifying}
-                  />
-                  {error && (
-                    <div 
-                      id="password-modal-error" 
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-destructive flex items-center"
-                    >
-                    </div>
-                  )}
-                  {error && (
-                    <div className="text-xs text-destructive mt-2 px-3 flex items-center absolute left-0 bottom-0 -mb-2">
-                      {error}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <RippleButton
-                className="group px-5 py-2 text-base bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-[0_0_15px_2px_rgba(180,180,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(180,180,255,0.4)] 
-                  transition-transform duration-300 ease-in-out hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 
-                  flex-shrink-0 h-10 w-full sm:w-auto" 
-                onClick={handleVerifyAndStart}
-                disabled={isVerifying || !password}
-              >
-                <LockKeyhole className="mr-2 h-5 w-5" />
-                {isVerifying ? 'Verifying...' : 'Verify & Start'}
-              </RippleButton>
-            </div>
-          ) : (
             <div className="w-full flex justify-between items-center">
               <RippleButton
                 onClick={handlePrevStep}
@@ -343,17 +229,18 @@ const AgentModal: React.FC<AgentModalProps> = ({
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </RippleButton>
               ) : (
-                <RippleButton
-                  className="group px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
-                  transition-transform duration-300 ease-in-out hover:scale-105 flex-shrink-0"
-                  onClick={handleInitialButtonClick} 
-                >
-                  <Rocket className="mr-2 h-5 w-5 group-hover:animate-vibrate" />
-                  Great — Start Talking to Prepzo Now!
-                </RippleButton>
+                <div className="w-full flex justify-center">
+                  <RippleButton
+                    className="group px-5 py-2 text-base bg-gradient-to-r from-green-800 to-green-950 text-white shadow-[0_0_15px_2px_rgba(200,200,255,0.3)] hover:shadow-[0_0_25px_5px_rgba(200,200,255,0.4)] 
+                    transition-transform duration-300 ease-in-out hover:scale-105"
+                    onClick={handleStartClick} 
+                  >
+                    <Rocket className="mr-2 h-5 w-5 group-hover:animate-vibrate" />
+                    Great — Start Talking to Prepzo Now!
+                  </RippleButton>
+                </div>
               )}
             </div>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

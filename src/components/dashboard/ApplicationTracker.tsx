@@ -1,6 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
+import { format } from 'date-fns';
 
 const applications = [
   {
@@ -85,7 +86,7 @@ const ApplicationTracker = () => {
                   <div>
                     <p className="text-sm text-gray-700 font-medium">{application.position}</p>
                     <p className="text-sm text-gray-500">
-                      {new Date(application.date).toLocaleDateString()}
+                      {format(new Date(application.date), 'MMM d, yyyy')}
                     </p>
                   </div>
 
