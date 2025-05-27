@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { createClient } from "@/utils/supabase/client";
 
 const sidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -36,9 +37,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const supabase = createClient();
 
-  const handleLogout = () => {
-    // TODO: Implement actual logout logic (e.g., clearing auth tokens, resetting user state)
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/');
   };
 

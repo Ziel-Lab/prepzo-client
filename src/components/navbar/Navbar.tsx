@@ -17,7 +17,8 @@ const Navbar = () => {
 
   useEffect(() => {
     const checkUserSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      setAuthStatusLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
       setIsAuthenticated(!!session);
       setAuthStatusLoading(false);
     };
@@ -34,8 +35,7 @@ const Navbar = () => {
     };
   }, [supabase]);
 
-  const loginTargetHref = authStatusLoading ? "#" : isAuthenticated ? "/dashboard" : "/auth/sign-up";
-  const loginButtonDisabled = authStatusLoading;
+  const loginTargetHref = "/auth/login";
 
   return (
     <nav className="fixed w-full bg-background/95 backdrop-blur-sm z-50 py-4 border-b border-border">
@@ -52,25 +52,23 @@ const Navbar = () => {
           <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors">Features</Link>
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
-          <Link href="https://www.prepzo.co/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
-          {/* <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white">
-            Login
-          </Button> */}
+          <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
+          
           <Link href="/auth/sign-up">
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
               Join Waitlist
             </Button>
           </Link>
           <Link href={loginTargetHref} passHref>
-            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={loginButtonDisabled}>
-              Login
+            <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={authStatusLoading}>
+              {authStatusLoading ? "Loading..." : "Login"}
             </Button>
           </Link>
         </div>
 
         {/* Mobile menu button */}
         <div className="md:hidden">
-          <Button variant="ghost" size="icon" onClick={toggleMenu} aria-label="Toggle Menu">
+          <Button variant="ghost" size="icon" onClick={toggleMenu} aria-label="Toggle Menu" disabled={authStatusLoading}>
             {isMenuOpen ? <X /> : <Menu />}
           </Button>
         </div>
@@ -83,17 +81,15 @@ const Navbar = () => {
             <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Features</Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
-            {/* <Button variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
-              Sign In
-            </Button> */}
-            <Link href="/auth/sign-up" className="w-full">
+            
+            <Link href="/auth/sign-up" className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Join Waitlist
               </Button>
             </Link>
-            <Link href={loginTargetHref} passHref>
-              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={loginButtonDisabled}>
-                Login
+            <Link href={loginTargetHref} className="w-full" onClick={toggleMenu}>
+              <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={authStatusLoading}>
+                {authStatusLoading ? "Loading..." : "Login"}
               </Button>
             </Link>
           </div>

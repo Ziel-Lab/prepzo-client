@@ -38,10 +38,9 @@ const DashboardPage = () => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !user) {
-        console.error("Error fetching auth user:", authError);
-        setUserName("there");
-        // setLoading(false); // Will be set after quote is also set
-        return;
+        console.error("User not authenticated or error fetching user. Redirecting to login.", authError);
+        window.location.href = '/auth/login'; // Redirect to your login page
+        return; // Stop further execution in this effect
       }
 
       let fetchedFullName = user.user_metadata?.full_name;
