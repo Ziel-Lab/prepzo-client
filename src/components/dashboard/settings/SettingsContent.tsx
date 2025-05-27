@@ -15,9 +15,39 @@ import {
   Lock as LockIcon,
   Link as LinkIcon,
   CreditCard as CreditCardIcon,
+  LogOut as LogOutIcon,
+  LogIn as LogInIcon,
 } from "lucide-react";
 
-const SettingsContent = () => {
+interface SettingsContentProps {
+  email?: string;
+  fullName?: string;
+  avatarUrl?: string;
+  linkedProviders?: string[];
+}
+
+const handleOAuthSignIn = async (provider: 'google' | 'linkedin') => {
+  // Assuming you have a createClient function for Supabase
+  // import { createClient } from '@/utils/supabase/client';
+  // const supabase = createClient();
+  // const { error } = await supabase.auth.signInWithOAuth({
+  //   provider: provider,
+  //   options: {
+  //     redirectTo: window.location.origin + '/auth/callback' // Or your settings page to refresh
+  //   }
+  // });
+  // if (error) console.error(`Error signing in with ${provider}:`, error);
+  alert(`Placeholder: Sign in with ${provider}`);
+};
+
+const handleOAuthUnlink = async (provider: 'google' | 'linkedin') => {
+  alert(`Placeholder: Unlink ${provider} (requires server-side logic or specific Supabase handling)`);
+};
+
+const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avatarUrl, linkedProviders = [] }) => {
+  const isGoogleConnected = linkedProviders.includes('google');
+  const isLinkedInConnected = linkedProviders.includes('linkedin');
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-10">
       {/* Header */}
@@ -40,11 +70,7 @@ const SettingsContent = () => {
           <form className="space-y-4">
             <div>
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="John Doe" className="mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="username">Username</Label>
-              <Input id="username" placeholder="johndoe" className="mt-1" />
+              <Input id="name" value={fullName || ''} className="mt-1" readOnly disabled />
             </div>
             <div>
               <Label htmlFor="bio">Bio</Label>
@@ -52,13 +78,11 @@ const SettingsContent = () => {
             </div>
             <div className="flex items-center space-x-4">
               <img
-                src="/static/images/profile-placeholder.png"
+                src={avatarUrl || "/static/images/profile-placeholder.png"}
                 alt="Profile avatar"
                 className="w-16 h-16 rounded-full object-cover"
               />
-              <Button size="sm">Change Avatar</Button>
             </div>
-            <Button type="submit">Save Profile</Button>
           </form>
         </CardContent>
       </Card>
@@ -76,9 +100,25 @@ const SettingsContent = () => {
             Connect or disconnect your social accounts for easy login.
           </p>
           <div className="flex flex-col space-y-3">
-            <Button variant="outline">Connect Google</Button>
-            <Button variant="outline">Connect GitHub</Button>
-            <Button variant="outline">Disconnect Facebook</Button>
+            {isGoogleConnected ? (
+              <Button variant="outline" onClick={() => handleOAuthUnlink('google')} className="justify-start">
+                <LogOutIcon className="mr-2 h-4 w-4" /> Disconnect Google
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => handleOAuthSignIn('google')} className="justify-start">
+                <LogInIcon className="mr-2 h-4 w-4" /> Connect Google
+              </Button>
+            )}
+
+            {isLinkedInConnected ? (
+              <Button variant="outline" onClick={() => handleOAuthUnlink('linkedin')} className="justify-start">
+                <LogOutIcon className="mr-2 h-4 w-4" /> Disconnect LinkedIn
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => handleOAuthSignIn('linkedin')} className="justify-start">
+                <LogInIcon className="mr-2 h-4 w-4" /> Connect LinkedIn
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -98,8 +138,10 @@ const SettingsContent = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="john@example.com"
+                value={email || ''}
                 className="mt-1"
+                readOnly
+                disabled
               />
             </div>
             <Separator className="my-2" />

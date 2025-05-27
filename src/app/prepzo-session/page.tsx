@@ -3,8 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import LiveKitPage from '@/components/livekit/LiveKitPage';
-import { Toaster } from '@/components/ui/toaster'; // Import Toaster if using shadcn/ui toast
-import { useAuth } from '@/hooks/use-auth'; // Import useAuth
+import { Toaster } from '@/components/ui/toaster';
 
 // Define a fallback component for Suspense
 const PageLoader = () => (
@@ -13,68 +12,75 @@ const PageLoader = () => (
   </div>
 );
 
-// This component contains the original logic that uses useSearchParams
 const SessionPageClientContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: isAuthLoading, triggerAuthCheck } = useAuth();
-  const [hasAttemptedForcedCheck, setHasAttemptedForcedCheck] = useState(false);
+
+  // 'initial_check': Verifying the 'ref' query parameter.
+  // 'url_cleaning': 'ref' was valid, now cleaning the URL.
+  // 'verified': URL is clean, access granted.
+  // 'redirecting_home': 'ref' was invalid or missing, redirecting to home.
+  const [pageStatus, setPageStatus] = useState<'initial_check' | 'url_cleaning' | 'verified' | 'redirecting_home'>('initial_check');
 
   useEffect(() => {
-    const justVerified = searchParams.get('verified') === 'true';
-
-    if (!isAuthLoading) {
-      if (!isAuthenticated) {
-        if (justVerified && !hasAttemptedForcedCheck) {
-          triggerAuthCheck();
-          setHasAttemptedForcedCheck(true);
-        } else {
-          console.log('LiveKitSessionPage: User not authenticated (or forced check failed), redirecting to home.');          router.push('/');
-        }
+    if (pageStatus === 'initial_check') {
+      const ref = searchParams.get('ref');
+      if (ref === 'agentmodal') {
+        setPageStatus('url_cleaning');
+        // Replace the URL to remove the 'ref' parameter.
+        // The effect will re-run when searchParams changes.
+        router.replace('/prepzo-session', { scroll: false });
       } else {
-        if (justVerified) {
-          setHasAttemptedForcedCheck(false);
-        }
+        // 'ref' is missing or invalid.
+        setPageStatus('redirecting_home');
+        router.push('/');
       }
+    } else if (pageStatus === 'url_cleaning') {
+      // We are in this state after 'ref' was confirmed valid and URL replacement was initiated.
+      // Now, we wait for searchParams to update (ref to be gone).
+      if (!searchParams.get('ref')) {
+        // 'ref' is now gone, URL is clean.
+        setPageStatus('verified');
+      }
+      // If 'ref' is still present, this effect will run again when searchParams updates after router.replace fully processes.
     }
-  }, [isAuthenticated, isAuthLoading, triggerAuthCheck, searchParams, router, hasAttemptedForcedCheck]);
-
-  useEffect(() => {
-    const justVerified = searchParams.get('verified') === 'true';
-    if (justVerified && (isAuthenticated || hasAttemptedForcedCheck)) {
-      router.replace('/prepzo-session', { scroll: false });
-    }
-  }, [isAuthenticated, hasAttemptedForcedCheck, searchParams, router]);
+    // No further actions needed in this effect for 'verified' or 'redirecting_home' states.
+  }, [searchParams, router, pageStatus]);
 
   const handleClose = () => {
-    router.push('/auth/sign-up');
+    router.push('/'); // Redirect to home on close
   };
 
-  if (isAuthLoading) {
+  if (pageStatus === 'initial_check' || pageStatus === 'url_cleaning') {
     return (
       <div className="h-screen w-screen bg-background flex items-center justify-center">
-        <p className="text-lg text-muted-foreground">Loading session...</p>
+        <p className="text-lg text-muted-foreground">Verifying access...</p>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (pageStatus === 'redirecting_home') {
     return (
       <div className="h-screen w-screen bg-background flex items-center justify-center">
-        <p className="text-lg text-muted-foreground">Access denied. Redirecting to homepage...</p>
+        <p className="text-lg text-muted-foreground">Access denied. Redirecting...</p>
       </div>
     );
   }
 
-  return (
-    <div className="h-screen w-screen bg-background">
-      <Toaster />
-      <LiveKitPage onClose={handleClose} />
-    </div>
-  );
+  // Only render LiveKitPage if pageStatus is 'verified'
+  if (pageStatus === 'verified') {
+    return (
+      <div className="h-screen w-screen bg-background">
+        <Toaster />
+        <LiveKitPage onClose={handleClose} isOpen={true} />
+      </div>
+    );
+  }
+
+  // Fallback for any unexpected state, though ideally not reached.
+  return null;
 };
 
-// The main page component now wraps the client content with Suspense
 export default function LiveKitSessionPage() {
   return (
     <Suspense fallback={<PageLoader />}>

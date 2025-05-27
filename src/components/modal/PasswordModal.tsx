@@ -1,12 +1,10 @@
 "use client";
 import React, { useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
 
 // Define backend URL (make sure NEXT_PUBLIC_BACKEND_URL is set in your .env.local)
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 const PasswordModal: React.FC = () => {
-  const { isAuthenticated, isLoading: isAuthLoading, triggerAuthCheck } = useAuth();
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +38,6 @@ const PasswordModal: React.FC = () => {
          throw new Error(errorMsg);
       }
 
-      triggerAuthCheck();
 
     } catch (err: any) {
       console.error("Password verification error:", err);
@@ -52,11 +49,7 @@ const PasswordModal: React.FC = () => {
     }
   };
 
-  if (isAuthLoading) {
-    return null;
-  }
 
-  if (!isAuthenticated) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="bg-card text-card-foreground rounded-lg shadow-xl w-11/12 sm:w-3/4 md:w-1/2 lg:w-1/3 p-0 flex flex-col max-h-[90vh]">
@@ -111,7 +104,5 @@ const PasswordModal: React.FC = () => {
     );
   }
 
-  return null;
-};
 
 export default PasswordModal; 

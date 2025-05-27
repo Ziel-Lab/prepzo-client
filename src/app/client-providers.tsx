@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/hooks/use-auth";
 
 // Create a client instance INSIDE the Client Component or keep it stable
 // It's often recommended to keep the client stable across renders, 
@@ -42,15 +41,14 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          {children} {/* Render the actual page content passed down */}
-          {/* Render Toasters here so they are within the client context */}
-          <ShadcnToaster />
-          <SonnerToaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        {children} {/* Render the actual page content passed down */}
+        {/* Render Toasters here so they are within the client context */}
+        <ShadcnToaster />
+        <SonnerToaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+
   );
 } 

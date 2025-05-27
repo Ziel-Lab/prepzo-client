@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import SessionTimer from "@/utils/SessionTimer";
 import { TimerIcon } from "lucide-react";
 import FeedbackForm from '@/components/feedback/feedbackForm';
+import { useRouter } from "next/navigation";
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<
@@ -63,9 +64,11 @@ class LiveKitErrorBoundary extends React.Component<
 
 interface LiveKitPageProps {
   onClose: () => void;
+  isOpen: boolean;
 }
 
-const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
+const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
+  const router = useRouter();
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [roomKey, setRoomKey] = useState(Date.now());
   const { toast } = useToast();
@@ -92,21 +95,19 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   const [timerKey, setTimerKey] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
-
   // Handlers are defined here, passed down to RoomContextManager
   const handleRequestEmail = useCallback(() => {
     setShowEmailInput(true);
   }, []);
+
   const handleRequestResumeUpload = useCallback(() => {
     if (Date.now() < ignoreResumeRequestsUntil) {
       return;
     }
     setShowResumeUpload(true);
   }, [ignoreResumeRequestsUntil]);
-  
 
   const handleAgentStateChange = (state: string) => {
-    
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
     if (state.startsWith(markdownPrefix)) {
       const markdown = state.substring(markdownPrefix.length);
@@ -114,7 +115,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
       return;
     }
 
-    // Restore checks for window flags and explicit states
     if (state === "email_requested" || window.emailRequested) {
       if(window.emailRequested) window.emailRequested = false;
       handleRequestEmail();
@@ -128,7 +128,26 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
   };
 
-  // Function to handle storing the email
+  const handleError = (error: Error) => {
+    console.error("LiveKit error handled:", error);
+    toast({
+      variant: "destructive",
+      title: "Connection Error",
+      description: "We encountered an issue with the voice connection. Please try again later.",
+    });
+    updateConnectionDetails(undefined);
+    setRoomKey(Date.now());
+  };
+
+  const onDeviceFailure = (error?: MediaDeviceFailure) => {
+    console.error(error);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Error acquiring camera or microphone permissions. Please ensure permissions are granted.",
+    });
+  };
+
   const handleSendEmail = async () => {
     if (!email || !email.includes('@')) {
       toast({
@@ -140,30 +159,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
     
     setIsSubmitting(true);
-    
     try {
-      const sessionId = connectionDetails?.roomName;
-      if (!sessionId) throw new Error('No active session');
-
-      const cleanSessionId = sessionId.startsWith('voice_assistant_room_') 
-        ? sessionId 
-        : `voice_assistant_room_${sessionId}`;
-      
-      const response = await fetch('/api/store-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: cleanSessionId,
-          recipient_email: email,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to store email');
-
-      if (typeof window !== 'undefined') localStorage.setItem('prepzo_user_email', email);
-      
       setShowEmailInput(false);
       setEmail("");
       window.emailSent = email;
@@ -185,13 +181,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
   };
 
   const handleUploadResume = async () => {
-    // **** ADD VERY OBVIOUS LOG ****
-    console.error("!!!!!!!!!!!!!!!! handleUploadResume ENTERED !!!!!!!!!!!!!!!!");
-    if (!showResumeUpload) {
-        console.warn("handleUploadResume called but showResumeUpload is false. Aborting.");
-        return;
-    }
-    
     if (!selectedFile) {
       toast({
         variant: "destructive", 
@@ -202,29 +191,7 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
   
     setIsUploading(true);
-  
     try {
-      const sessionId = connectionDetails?.roomName;
-      if (!sessionId) throw new Error('No active session');
-  
-      const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
-        ? sessionId
-        : `voice_assistant_room_${sessionId}`;
-  
-      const formData = new FormData();
-      formData.append('resume', selectedFile);
-      formData.append('session_id', cleanSessionId);
-  
-      const response = await fetch('/api/resume-uploads', {
-        method: 'POST',
-        body: formData,
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
-        throw new Error(errorData.message || 'Failed to upload resume');
-      }
-  
       setShowResumeUpload(false);
       setSelectedFile(null);
       setIgnoreResumeRequestsUntil(Date.now() + 3000);
@@ -233,14 +200,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
         title: "Resume Uploaded",
         description: "Your resume has been uploaded successfully.",
       });
-  
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error uploading resume:', error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to upload your resume. Please try again.";
       toast({
         variant: "destructive",
         title: "Upload Error",
-        description: errorMessage,
+        description: "Failed to upload your resume. Please try again.",
       });
     } finally {
       setIsUploading(false);
@@ -248,33 +213,13 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
     }
   };
 
-  const onDeviceFailure = (error?: MediaDeviceFailure) => {
-    console.error(error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description:
-        "Error acquiring camera or microphone permissions. Please ensure permissions are granted.",
-    });
-  };
-
-  const handleError = (error: Error) => {
-    console.error("LiveKit error handled:", error);
-    toast({
-      variant: "destructive",
-      title: "Connection Error",
-      description: "We encountered an issue with the voice connection. Please try again later.",
-    });
-
-    updateConnectionDetails(undefined);
-    setRoomKey(Date.now());
-    setShowFeedback(false);
-    setShowTimer(false);
-
-    setTimeout(() => {
-      onConnectButtonClicked();
-    }, 2000);
-  };
+  // Effect to handle redirection
+  useEffect(() => {
+    if (!isOpen) {
+      setShowFeedback(false);
+      setShowTimer(false);
+    }
+  }, [isOpen]);
 
   const onConnectButtonClicked = useCallback(async () => {
     try {
@@ -472,9 +417,9 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                 serverUrl={connectionDetails.serverUrl}
                 connect={true}
                 audio={{
-                    echoCancellation: true,    // turn on echo cancellation
-                    noiseSuppression: true,    // turn on noise suppression
-                    autoGainControl: true,   // turn on auto gain control
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
                 }}
                 video={false}
                 onMediaDeviceFailure={onDeviceFailure}
@@ -486,7 +431,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose }) => {
                     title: "Connection Error",
                     description: "An error occurred with the LiveKit connection. Please try again.",
                   });
-                  handleError(error);
                 }}
                 onDisconnected={async () => {
                   await handleDisconnectAndShowFeedback();

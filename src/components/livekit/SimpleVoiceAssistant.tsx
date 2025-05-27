@@ -26,11 +26,9 @@ declare global {
 // Custom hook to safely use voice assistant
 function useSafeVoiceAssistant() {
   try {
-    // Try to use the hook safely
     return useVoiceAssistant();
   } catch (error) {
     console.error("Error in useVoiceAssistant:", error);
-    // Return fallback values
     return {
       state: "connecting" as AgentState,
       agentTranscriptions: [],
