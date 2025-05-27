@@ -21,26 +21,30 @@ const quotes = [
   { quote: "Never doubt that a small group of thoughtful, committed people can change the world.", author: "Margaret Mead" },
 ];
 
+interface Quote {
+  quote: string;
+  author: string;
+}
 
 const DashboardPage = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchUserName = async () => {
-      setLoading(true);
+    const fetchUserData = async () => {
+      // setLoading(true); // setLoading is already true by default
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !user) {
         console.error("Error fetching auth user:", authError);
         setUserName("there");
-        setLoading(false);
+        // setLoading(false); // Will be set after quote is also set
         return;
       }
 
       let fetchedFullName = user.user_metadata?.full_name;
-
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('full_name')
@@ -52,15 +56,18 @@ const DashboardPage = () => {
       } else if (profileData?.full_name) {
         fetchedFullName = profileData.full_name;
       }
-
       setUserName(fetchedFullName || "there");
-      setLoading(false);
     };
 
-    fetchUserName();
-  }, [supabase]);
+    fetchUserData();
+    
+    // Set the random quote only on the client side after mount
+    setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    setLoading(false); // Set loading to false after all initial data (user + quote) is ready
 
-  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+  }, [supabase]); // supabase client instance is stable, so this effect runs once on mount
+
+  // const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]; // Moved to useEffect
 
   return (
     <DashboardLayout>
@@ -68,19 +75,27 @@ const DashboardPage = () => {
         <div className="flex items-center space-x-2">
           <Hammer className="w-6 h-6 text-[#183723]" />
           <h1 className="text-3xl font-bold text-[#183723]">
-            {loading ? "Welcome!" : `Hi ${userName}, we're building something great`}
+            {loading || !userName ? "Welcome!" : `Hi ${userName}, we're building something great`}
           </h1>
           <Sparkles className="w-6 h-6 text-[#183723]" />
         </div>
 
         <p className="text-gray-600 max-w-xl">
-          Thanks for being an early user of <strong>Prepzo</strong>. We’re working hard behind the scenes to bring powerful career tools your way.
+          Thanks for being an early user of <strong>Prepzo</strong>. We're working hard behind the scenes to bring powerful career tools your way.
         </p>
 
-        <div className="bg-[#f4f4f4] rounded-lg px-6 py-4 shadow-md max-w-md">
-          <p className="italic text-[#12231B] text-lg">“{randomQuote.quote}”</p>
-          <p className="mt-2 text-right text-sm text-gray-700">— {randomQuote.author}</p>
-        </div>
+        {!loading && currentQuote && (
+          <div className="bg-[#f4f4f4] rounded-lg px-6 py-4 shadow-md max-w-md">
+            <p className="italic text-[#12231B] text-lg">"{currentQuote.quote}"</p>
+            <p className="mt-2 text-right text-sm text-gray-700">— {currentQuote.author}</p>
+          </div>
+        )}
+        {/* Show a placeholder or nothing if quote isn't ready yet during loading */}
+        {loading && (
+          <div className="bg-[#f4f4f4] rounded-lg px-6 py-4 shadow-md max-w-md opacity-50">
+            <p className="italic text-[#12231B] text-lg">Loading a bit of inspiration...</p>
+          </div>
+        )}
 
         <p className="text-sm text-gray-500 mt-8 flex items-center space-x-2">
           <Timer className="w-4 h-4 inline mr-1" />

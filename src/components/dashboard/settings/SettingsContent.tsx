@@ -68,6 +68,13 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
         </CardHeader>
         <CardContent>
           <form className="space-y-4">
+          <div className="flex items-center space-x-4">
+              <img
+                src={avatarUrl || "/static/images/profile-placeholder.png"}
+                alt="Profile avatar"
+                className="w-16 h-16 rounded-full object-cover"
+              />
+            </div>
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input id="name" value={fullName || ''} className="mt-1" readOnly disabled />
@@ -75,13 +82,6 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
             <div>
               <Label htmlFor="bio">Bio</Label>
               <Input id="bio" placeholder="Tell us about yourself" className="mt-1" />
-            </div>
-            <div className="flex items-center space-x-4">
-              <img
-                src={avatarUrl || "/static/images/profile-placeholder.png"}
-                alt="Profile avatar"
-                className="w-16 h-16 rounded-full object-cover"
-              />
             </div>
           </form>
         </CardContent>
