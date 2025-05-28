@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import ApplicationTracker from "@/components/dashboard/ApplicationTracker";
-import NewApplicationDialog from "@/components/dashboard/applications/NewApplicationDialog";
 
 const ApplicationsContent = () => {
   return (
@@ -13,7 +12,6 @@ const ApplicationsContent = () => {
           <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
           <p className="text-gray-600 mt-1">Track your job applications and progress</p>
         </div>
-        <NewApplicationDialog />
       </div>
       <ApplicationTracker />
     </div>
