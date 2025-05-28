@@ -55,7 +55,7 @@ const DashboardPage = () => {
       } else if (profileData?.full_name) {
         fetchedFullName = profileData.full_name;
       }
-      setUserName(fetchedFullName || "there");
+      setUserName((fetchedFullName?.split(' ')[0]) || "there");
     };
 
     fetchUserData();
