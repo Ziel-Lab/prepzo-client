@@ -79,10 +79,6 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
               <Label htmlFor="name">Full Name</Label>
               <Input id="name" value={fullName || ''} className="mt-1" readOnly disabled />
             </div>
-            <div>
-              <Label htmlFor="bio">Bio</Label>
-              <Input id="bio" placeholder="Tell us about yourself" className="mt-1" />
-            </div>
           </form>
         </CardContent>
       </Card>
@@ -120,57 +116,6 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Security Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-            <LockIcon className="h-5 w-5" />
-            Security &amp; Password
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email || ''}
-                className="mt-1"
-                readOnly
-                disabled
-              />
-            </div>
-            <Separator className="my-2" />
-            <div>
-              <Label htmlFor="current_password">Current Password</Label>
-              <Input
-                id="current_password"
-                type="password"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="new_password">New Password</Label>
-              <Input
-                id="new_password"
-                type="password"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirm_password">Confirm New Password</Label>
-              <Input
-                id="confirm_password"
-                type="password"
-                className="mt-1"
-              />
-            </div>
-            <Button type="submit">Update Security</Button>
-          </form>
         </CardContent>
       </Card>
 
