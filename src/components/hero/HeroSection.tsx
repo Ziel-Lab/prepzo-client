@@ -1,11 +1,13 @@
 "use client"; // Need client component for state and event handlers
 
-import React from "react"; // Removed useState
-import { useRouter } from 'next/navigation'; // Keep useRouter if needed elsewhere, or remove
+import React from "react"; 
+import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
+import { createClient } from '@/utils/supabase/client';
 
 // Define props for HeroSection
 interface HeroSectionProps {
@@ -21,6 +23,29 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
     "/lovable-uploads/d611d3b0-8ca3-42f4-81e4-78a7f787b870.png",
     "/lovable-uploads/941a96f8-537c-4f68-9ffb-e125224f7a9f.png"
   ];
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authStatusLoading, setAuthStatusLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkUserSession = async () => {
+      setAuthStatusLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    };
+
+    checkUserSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   return (
     <section className="pt-32 pb-20 sm:pt-48 sm:pb-32 bg-prepzo overflow-hidden">
@@ -49,10 +74,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
              </p>
 
             <div className="flex gap-3">
-              <Link href="/auth/sign-up">
-              <Button className="bg-white text-prepzo hover:bg-white/90 rounded px-10">
-                Join Waitlist
-              </Button>
+              <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
+                <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                  Join Waitlist
+                </Button>
               </Link>
               {/* Button uses the passed-in handler */}
               <Button 

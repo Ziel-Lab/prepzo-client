@@ -2,8 +2,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import Link from "next/link";
+import { createClient } from '@/utils/supabase/client';
 
 // Define props for DemoForm
 interface DemoFormProps {
@@ -12,6 +13,30 @@ interface DemoFormProps {
 
 const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destructure the prop
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authStatusLoading, setAuthStatusLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkUserSession = async () => {
+      setAuthStatusLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    };
+
+    checkUserSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setAuthStatusLoading(false);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   const faqs = [{
     question: "How long is the demo session?",
     answer: "Each demo session is 15 minutes long, designed to give you a quick but comprehensive overview of Prepzo's AI voice guidance capabilities."
@@ -49,8 +74,8 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
-                <Link href="/auth/sign-up" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="border-prepzo text-prepzo hover:bg-prepzo hover:text-white w-full">
+                <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
+                  <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                     Join Waitlist
                   </Button>
                 </Link>
