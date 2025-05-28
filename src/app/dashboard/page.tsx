@@ -39,7 +39,7 @@ const DashboardPage = () => {
 
       if (authError || !user) {
         console.error("User not authenticated or error fetching user. Redirecting to login.", authError);
-        window.location.href = '/auth/login'; // Redirect to your login page
+        window.location.href = '/'; // Redirect to your login page
         return; // Stop further execution in this effect
       }
 

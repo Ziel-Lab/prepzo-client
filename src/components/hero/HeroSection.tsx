@@ -75,7 +75,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
 
             <div className="flex gap-3">
               <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
-                <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                <Button className="bg-white text-prepzo border border-prepzo hover:bg-gray-100 w-full px-8 py-3">
                   Join Waitlist
                 </Button>
               </Link>

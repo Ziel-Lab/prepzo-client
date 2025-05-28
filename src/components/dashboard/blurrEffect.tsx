@@ -16,7 +16,7 @@ const BlurOverlay: React.FC<BlurOverlayProps> = ({
 }) => {
   return (
     <div 
-      className="absolute top-16 left-0 right-0 bottom-0 z-40 flex flex-col items-center justify-center bg-background/20 backdrop-blur-sm p-8 text-center"
+      className="fixed top-24 left-64 right-0 bottom-0 z-40 flex flex-col items-center justify-center bg-background/20 backdrop-blur-sm p-8 text-center"
       aria-hidden="true" 
     >
       <Lock className="h-16 w-16 text-primary mb-6 opacity-80" />
