@@ -26,7 +26,6 @@ import SessionTimer from "@/utils/SessionTimer";
 import { TimerIcon } from "lucide-react";
 import FeedbackForm from '@/components/feedback/feedbackForm';
 import { useRouter } from "next/navigation";
-import { useRouter } from "next/navigation";
 
 // Error boundary class component
 class LiveKitErrorBoundary extends React.Component<
@@ -66,11 +65,8 @@ class LiveKitErrorBoundary extends React.Component<
 interface LiveKitPageProps {
   onClose: () => void;
   isOpen: boolean;
-  isOpen: boolean;
 }
 
-const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
-  const router = useRouter();
 const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
   const router = useRouter();
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
@@ -104,14 +100,12 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
     setShowEmailInput(true);
   }, []);
 
-
   const handleRequestResumeUpload = useCallback(() => {
     if (Date.now() < ignoreResumeRequestsUntil) {
       return;
     }
     setShowResumeUpload(true);
   }, [ignoreResumeRequestsUntil]);
-
 
   const handleAgentStateChange = (state: string) => {
     const markdownPrefix = "JOB_RESULTS_MARKDOWN:::";
@@ -132,26 +126,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
       handleRequestResumeUpload();
       return;
     }
-  };
-
-  const handleError = (error: Error) => {
-    console.error("LiveKit error handled:", error);
-    toast({
-      variant: "destructive",
-      title: "Connection Error",
-      description: "We encountered an issue with the voice connection. Please try again later.",
-    });
-    updateConnectionDetails(undefined);
-    setRoomKey(Date.now());
-  };
-
-  const onDeviceFailure = (error?: MediaDeviceFailure) => {
-    console.error(error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: "Error acquiring camera or microphone permissions. Please ensure permissions are granted.",
-    });
   };
 
   const handleError = (error: Error) => {
@@ -227,12 +201,10 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
         description: "Your resume has been uploaded successfully.",
       });
     } catch (error) {
-    } catch (error) {
       console.error('Error uploading resume:', error);
       toast({
         variant: "destructive",
         title: "Upload Error",
-        description: "Failed to upload your resume. Please try again.",
         description: "Failed to upload your resume. Please try again.",
       });
     } finally {
@@ -241,13 +213,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
     }
   };
 
-  // Effect to handle redirection
-  useEffect(() => {
-    if (!isOpen) {
-      setShowFeedback(false);
-      setShowTimer(false);
-    }
-  }, [isOpen]);
   // Effect to handle redirection
   useEffect(() => {
     if (!isOpen) {
@@ -420,7 +385,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
                 <FeedbackForm
                   roomId={connectionDetails.roomName}
                   onThankYouContinue={() => {
-                  onThankYouContinue={() => {
                     updateConnectionDetails(undefined);
                     setShowFeedback(false);
                     setRoomKey(Date.now());
@@ -453,9 +417,6 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
                 serverUrl={connectionDetails.serverUrl}
                 connect={true}
                 audio={{
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
@@ -658,16 +619,16 @@ const RoomContextManager: React.FC<{
     return () => {
       setSendDataFn(null);
     };
-  }, [room, setSendDataFn]); // Depend on room and setter
+  }, [room, setSendDataFn]);
 
   // useEffect for setting up dataReceived listener and exposing room
   useEffect(() => {
     if (!room) {
-      if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear if room becomes null
+      if (typeof window !== 'undefined') window.liveKitRoom = undefined;
       return; 
     }
 
-    if (typeof window !== 'undefined') window.liveKitRoom = room; // Expose room instance
+    if (typeof window !== 'undefined') window.liveKitRoom = room; 
     
     const handleDataReceivedInternal = (
       payload: Uint8Array,
@@ -697,11 +658,10 @@ const RoomContextManager: React.FC<{
     return () => {
       room.off('dataReceived', handleDataReceivedInternal);
       if (typeof window !== 'undefined') window.liveKitRoom = undefined;
-      if (typeof window !== 'undefined') window.liveKitRoom = undefined;
     };
-  }, [room]); // Depend ONLY on room
+  }, [room]);
 
-  return null; // This component doesn't render UI
+  return null;
 };
 
 export default LiveKitPage;
