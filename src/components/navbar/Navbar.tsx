@@ -54,16 +54,16 @@ const Navbar = () => {
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
           <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
           
-          <Link href="/auth/sign-up">
+          <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
               Join Waitlist
             </Button>
           </Link>
-          <Link href={loginTargetHref} passHref>
+          {/* <Link href={loginTargetHref} passHref>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={authStatusLoading}>
               {authStatusLoading ? "Loading..." : "Login"}
             </Button>
-          </Link>
+          </Link> */}
         </div>
 
         {/* Mobile menu button */}
@@ -82,16 +82,16 @@ const Navbar = () => {
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
             
-            <Link href="/auth/sign-up" className="w-full" onClick={toggleMenu}>
+            <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Join Waitlist
               </Button>
             </Link>
-            <Link href={loginTargetHref} className="w-full" onClick={toggleMenu}>
+            {/* <Link href={loginTargetHref} className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full" disabled={authStatusLoading}>
                 {authStatusLoading ? "Loading..." : "Login"}
               </Button>
-            </Link>
+            </Link> */}
           </div>
         </div>
       )}
