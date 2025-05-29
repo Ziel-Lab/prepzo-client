@@ -4,14 +4,14 @@ import {
   VideoGrant,
 } from "livekit-server-sdk";
 import { NextResponse } from "next/server";
-
+import { v4 as uuidv4 } from 'uuid';
 // NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL =  process.env.LIVEKIT_URL;
 
 export const revalidate = 0;
-
+const session_id = uuidv4();
 export type ConnectionDetails = {
   serverUrl: string;
   roomName: string;
@@ -33,7 +33,7 @@ export async function GET() {
 
     // Generate participant token
     const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
-    const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+    const roomName = `voice_assistant_room_${session_id}`;
     const participantToken = await createParticipantToken(
       { identity: participantIdentity },
       roomName,

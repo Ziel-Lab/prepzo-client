@@ -160,6 +160,26 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
     
     setIsSubmitting(true);
     try {
+      console.log('connectionDetails', connectionDetails);
+      const sessionId = connectionDetails?.roomName;
+      if (!sessionId) throw new Error('No active session');
+
+      
+      
+      const response = await fetch('/api/store-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          recipient_email: email,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to store email');
+
+      if (typeof window !== 'undefined') localStorage.setItem('prepzo_user_email', email);
       setShowEmailInput(false);
       setEmail("");
       window.emailSent = email;
@@ -192,6 +212,26 @@ const LiveKitPage: React.FC<LiveKitPageProps> = ({ onClose, isOpen }) => {
   
     setIsUploading(true);
     try {
+      const sessionId = connectionDetails?.roomName;
+      if (!sessionId) throw new Error('No active session');
+  
+      // const cleanSessionId = sessionId.startsWith('voice_assistant_room_')
+      //   ? sessionId
+      //   : `voice_assistant_room_${sessionId}`;
+  
+      const formData = new FormData();
+      formData.append('resume', selectedFile);
+      formData.append('session_id', sessionId);
+  
+      const response = await fetch('/api/resume-uploads', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(errorData.message || 'Failed to upload resume');
+      }
       setShowResumeUpload(false);
       setSelectedFile(null);
       setIgnoreResumeRequestsUntil(Date.now() + 3000);

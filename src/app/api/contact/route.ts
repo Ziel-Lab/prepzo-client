@@ -22,20 +22,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { data, error } = await supabase
-      .from('contact us') // Table name as per your image
+      .from('contact_us') // Table name as per your image
       .insert([
         { 
           name, 
           email, 
           organization, 
-          'inquiry type': inquiryType, // Column name with space needs quotes
+          'inquiry_type': inquiryType, // Column name with space needs quotes
           message 
         },
       ])
       .select(); // Optionally, select the inserted data if needed
 
     if (error) {
-      console.error('Supabase insert error:', error);
+      console.error('Supabase insert error:', JSON.stringify(error, null, 2));
       return new NextResponse(
         JSON.stringify({ error: 'Failed to store contact information', details: error.message }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
