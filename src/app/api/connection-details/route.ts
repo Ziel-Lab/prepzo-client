@@ -11,7 +11,7 @@ const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL =  process.env.LIVEKIT_URL;
 
 export const revalidate = 0;
-const session_id = uuidv4();
+
 export type ConnectionDetails = {
   serverUrl: string;
   roomName: string;
@@ -21,6 +21,7 @@ export type ConnectionDetails = {
 
 export async function GET() {
   try {
+    const session_id = uuidv4();
     if (LIVEKIT_URL === undefined) {
       throw new Error("LIVEKIT_URL is not defined");
     }
