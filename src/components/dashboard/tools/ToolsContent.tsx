@@ -1,25 +1,33 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wrench, FileText, Link as LinkIcon } from "lucide-react";
+import { Wrench } from "lucide-react";
+import Link from "next/link";
 
 const toolsData = [
   {
+    id: "linkedin-optimizer",
     title: "LinkedIn Profile Optimizer",
     description: "Enhance your LinkedIn profile with AI-powered suggestions",
     comingSoon: false,
+    path: "/dashboard/tools/linkedin-optimizer",
   },
   {
-    title: "Resume Generator",
-    description: "Create ATS-friendly resumes tailored to job descriptions",
+    id: "resume-analyzer",
+    title: "Resume Analyzer",
+    description: "Analyze your resume against job descriptions for tailored feedback.",
     comingSoon: false,
+    path: "/dashboard/tools/analyze-resume",
   },
   {
+    id: "cover-letter-generator",
     title: "Cover Letter Generator",
     description: "Generate customized cover letters for your applications",
     comingSoon: false,
+    path: "/dashboard/tools/cover-letter",
   },
   {
+    id: "mock-interview-simulator",
     title: "Mock Interview Simulator",
     description: "Practice interviews with AI-powered feedback",
     comingSoon: true,
@@ -35,8 +43,8 @@ const ToolsContent = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {toolsData.map((tool, index) => (
-          <Card key={index} className={tool.comingSoon ? "opacity-70" : ""}>
+        {toolsData.map((tool) => (
+          <Card key={tool.id} className={tool.comingSoon ? "opacity-70" : ""}>
             <CardHeader>
               <CardTitle className="text-xl font-semibold flex items-center gap-2">
                 <Wrench className="h-5 w-5" />
@@ -48,10 +56,15 @@ const ToolsContent = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600">{tool.description}</p>
-              {!tool.comingSoon && (
-                <button className="mt-4 text-purple-600 hover:text-purple-700 font-medium">
+              {!tool.comingSoon && tool.path && (
+                <Link href={tool.path} className="mt-4 inline-block text-purple-600 hover:text-purple-700 font-medium">
                   Launch Tool →
-                </button>
+                </Link>
+              )}
+              {!tool.comingSoon && !tool.path && (
+                 <button className="mt-4 text-gray-400 font-medium cursor-not-allowed">
+                    Launch Tool → (No path defined)
+                  </button>
               )}
             </CardContent>
           </Card>

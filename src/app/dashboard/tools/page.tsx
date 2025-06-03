@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import ToolsContent from "@/components/dashboard/tools/ToolsContent";
-import BlurOverlay from "@/components/dashboard/blurrEffect";
 
 const ToolsPage = () => {
   const [isFeatureAvailable, setIsFeatureAvailable] = useState(false); 
@@ -16,7 +15,6 @@ const ToolsPage = () => {
   return (
     <DashboardLayout>
       <div className="relative h-full">
-        {!isFeatureAvailable && !loading && <BlurOverlay />}
         <ToolsContent />
       </div>
     </DashboardLayout>
