@@ -5,48 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import Footer from "@/components/footer/Footer";
+import Navbar from "@/components/navbar/Navbar";
 
-const mockBlogs = [
-  {
-    id: "free-resume-builder-tools",
-    title: "10 Free Resume Builder Tools That Will Transform Your Job Search in 2025",
-    excerpt: "Discover the 10 best free resume builder tools of 2025 that will transform your job search. Compare features, pros, cons, and find the perfect tool for your career needs.",
-    author: {
-      name: "Sarah Johnson",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face"
-    },
-    publishDate: "June 1, 2025",
-    readTime: "8 min read",
-    image: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=400&fit=crop",
-    category: "Career Tools"
-  },
-  {
-    id: "interview-tips-2025",
-    title: "Master Your Next Interview: 15 Expert Tips for 2025",
-    excerpt: "Learn the latest interview strategies and techniques that will help you stand out from the competition and land your dream job.",
-    author: {
-      name: "Michael Chen",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
-    },
-    publishDate: "May 28, 2025",
-    readTime: "12 min read",
-    image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=400&fit=crop",
-    category: "Interview Prep"
-  },
-  {
-    id: "linkedin-optimization",
-    title: "LinkedIn Profile Optimization: Complete Guide for 2025",
-    excerpt: "Transform your LinkedIn profile into a powerful career tool that attracts recruiters and opens new opportunities.",
-    author: {
-      name: "Emma Davis",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face"
-    },
-    publishDate: "May 25, 2025",
-    readTime: "10 min read",
-    image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=800&h=400&fit=crop",
-    category: "Personal Branding"
-  }
-];
+
 
 const categories = ["All", "Career Tools", "Interview Prep", "Personal Branding", "Job Search"];
 
@@ -55,23 +17,30 @@ const Blog = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [page, setPage]= useState(1);
+  const [total, setTotal] = useState(0);
 
+  const pageSize= 6;
   useEffect(()=>{
     const fetchBlogs= async()=>{
       setLoading(true);
-      const {data,error} = await createClient()
+      const from = (page-1)*pageSize;
+      const to = from + pageSize-1;
+      const {data,error, count} = await createClient()
         .from("posts")
-        .select("*")
-        .order("created_at",{ascending:false});
+        .select("*", {count: "exact"})
+        .order("created_at",{ascending:false})
+        .range(from,to);
       if (error){
         setBlogs([]);
       }else{
         setBlogs(data);
+        setTotal(count || 0);
       }
       setLoading(false);
     };
     fetchBlogs();
-  },[]);
+  },[page, pageSize]);
 
   const filteredBlogs = blogs.filter(blog => {
     const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,12 +50,14 @@ const Blog = () => {
   });
 
   return (
+    <>
+    <Navbar />
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-gradient-to-r from-prepzo-800 to-prepzo-900 text-white">
-        <div className="container mx-auto px-4 py-16">
+      <header className="bg-prepzo-900 text-white">
+        <div className="container mx-auto px-4 py-10">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <h1 className="text-4xl mt-20 md:text-5xl font-bold mb-6">
               Career Insights & Tips
             </h1>
             <p className="text-xl text-prepzo-100 mb-8">
@@ -150,9 +121,29 @@ const Blog = () => {
               </div>
             )}
           </div>
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+            Previous
+            </Button>
+            <span>
+            Page {page} of {Math.ceil(total / pageSize) || 1}
+            </span>
+          <Button
+            onClick={() => setPage((p) => (p * pageSize < total ? p + 1 : p))}
+            disabled={page * pageSize >= total}
+          >
+            Next
+          </Button>
+        </div>
         </div>
       </section>
+      
     </div>
+    <Footer />
+    </>
   );
 };
 

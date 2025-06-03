@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-
+import Footer from "@/components/footer/Footer";
 
 export default function BlogPost({ params }: { params: { slug: string } }) {
   const [blog, setBlog] = useState<any>(null);
@@ -112,32 +112,7 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
     }
   };
 
-  const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": blog.title,
-    "image": blog.image_url,
-    "author": {
-      "@type": "Person",
-      "name": blog.author_name,
-      "url": blog.author_linkedin_url
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Prepzo.ai",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://www.prepzo.ai/images/logo.png"
-      }
-    },
-    "datePublished": "2025-06-01",
-    "dateModified": "2025-06-01",
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": typeof window !== "undefined" ? window.location.href : ""
-    },
-    "description": "Discover the 10 best free resume builder tools of 2025 that will transform your job search."
-  };
+  const articleSchema = blog.schema ;
 
 
   return (
@@ -202,6 +177,7 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
           <RelatedBlogs blogs={relatedBlogs} />
         </div>
       </article>
+      <Footer />
     </div>
   );
 }
