@@ -1,5 +1,5 @@
 "use client"
-import { useRouter } from "next/navigation";
+
 import { Calendar, Clock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,58 @@ import { RelatedBlogs } from "@/components/blog/RelatedBlogs";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 import { SchemaMarkup } from "@/components/blog/SchemaMarkup";
 import { toast } from "sonner";
-import { mockBlogData, relatedBlogs } from "@/data/blogMockdata/data";
-
-
+import { relatedBlogs } from "@/data/blogMockdata/data";
+import { supabase } from "@/utils/supabase/client";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 
 
 export default function BlogPost({ params }: { params: { slug: string } }) {
-  const router = useRouter();
-  const blog = mockBlogData[params.slug as keyof typeof mockBlogData];
+  const [blog, setBlog] = useState<any>(null);
+  const [markdown, setMarkdown] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(()=>{
+    const fetchBlog = async () => {
+      setLoading(true);
+      const {data, error}= await supabase
+        .from("posts")
+        .select("*")
+        .eq("slug", params.slug)
+        .single();
+
+        if(error || !data){
+          setBlog(null);
+          setLoading(false);
+          return;
+        }
+        setBlog(data);
+
+        const {data: file, error: fileError} = await supabase
+          .storage
+          .from("blog-md")
+          .download("free-resume-builder-tools.md");
+
+        if(fileError || !file){
+          setMarkdown("Could not load blog post");
+        }else{
+          const text = await file.text();
+          setMarkdown(text);
+        }
+        setLoading(false);
+    };
+    fetchBlog();
+  }, [params.slug]);
+  
+  // const blog = mockBlogData[params.slug as keyof typeof mockBlogData];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
   if (!blog) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -49,11 +92,11 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": blog.title,
-    "image": blog.image,
+    "image": blog.image_url,
     "author": {
       "@type": "Person",
-      "name": blog.author.name,
-      "url": blog.author.linkedin
+      "name": blog.author_name,
+      "url": blog.author_linkedin_url
     },
     "publisher": {
       "@type": "Organization",
@@ -122,36 +165,38 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
             <div className="flex items-center gap-4 text-gray-500">
               <div className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
-                <span className="text-sm">{blog.publishDate}</span>
+                <span className="text-sm">{blog.publish_date}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                <span className="text-sm">{blog.readTime}</span>
+                <span className="text-sm">{blog.read_time}</span>
               </div>
             </div>
           </div>
           {/* Featured image */}
           <div className="aspect-video mb-12 rounded-lg overflow-hidden">
-            <img 
-              src={blog.image} 
+            <Image 
+              src={blog.image_url} 
               alt={blog.title}
               className="w-full h-full object-cover"
+              width={1000}
+              height={1000}
             />
           </div>
 
           {/* Author card */}
           <div className="mb-12">
-            <AuthorCard author={blog.author} onShare={handleShare} />
+            <AuthorCard author={blog} onShare={handleShare} />
           </div>
 
           {/* Content */}
           <div className="mb-16">
-            <MarkdownRenderer content={blog.content} />
+            <MarkdownRenderer content={markdown} />
           </div>
 
           {/* Author card again */}
           <div className="mb-16">
-            <AuthorCard author={blog.author} onShare={handleShare} />
+            <AuthorCard author={blog} onShare={handleShare} />
           </div>
 
           {/* Related blogs */}
