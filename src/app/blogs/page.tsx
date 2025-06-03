@@ -1,9 +1,10 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BlogCard } from "@/components/blog/BlogCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 const mockBlogs = [
   {
@@ -50,10 +51,29 @@ const mockBlogs = [
 const categories = ["All", "Career Tools", "Interview Prep", "Personal Branding", "Job Search"];
 
 const Blog = () => {
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const filteredBlogs = mockBlogs.filter(blog => {
+  useEffect(()=>{
+    const fetchBlogs= async()=>{
+      setLoading(true);
+      const {data,error} = await createClient()
+        .from("posts")
+        .select("*")
+        .order("created_at",{ascending:false});
+      if (error){
+        setBlogs([]);
+      }else{
+        setBlogs(data);
+      }
+      setLoading(false);
+    };
+    fetchBlogs();
+  },[]);
+
+  const filteredBlogs = blogs.filter(blog => {
     const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          blog.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "All" || blog.category === selectedCategory;
@@ -114,7 +134,11 @@ const Blog = () => {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            {filteredBlogs.length > 0 ? (
+          {loading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">Loading articles...</p>
+              </div>
+          ): filteredBlogs.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredBlogs.map((blog) => (
                   <BlogCard key={blog.id} {...blog} />
