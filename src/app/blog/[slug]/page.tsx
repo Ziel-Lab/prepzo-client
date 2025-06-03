@@ -8,7 +8,7 @@ import { RelatedBlogs } from "@/components/blog/RelatedBlogs";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 import { SchemaMarkup } from "@/components/blog/SchemaMarkup";
 import { toast } from "sonner";
-import { relatedBlogs } from "@/data/blogMockdata/data";
+// import { relatedBlogs } from "@/data/blogMockdata/data";
 import { supabase } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -17,6 +17,7 @@ import Image from "next/image";
 export default function BlogPost({ params }: { params: { slug: string } }) {
   const [blog, setBlog] = useState<any>(null);
   const [markdown, setMarkdown] = useState<string>("");
+  const [relatedBlogs, setRelatedBlogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +48,29 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
           const text = await file.text();
           setMarkdown(text);
         }
+
+        const {data: relatedBlogs, error: relatedBlogsError} = await supabase
+          .from("posts")
+          .select("*")
+          .eq("category",data.category)
+          .neq("slug", data.slug)
+          .limit(3);
+        
+        const relatedBlogsData = (relatedBlogs || []).map((b: any) => ({
+          id: b.slug,
+          title: b.title,
+          excerpt: b.excerpt,
+          author: {
+            name: b.author_name,
+            image: b.author_image,
+          },
+          publishDate: b.publish_date,
+          readTime: b.read_time,
+          image: b.image_url,
+          category: b.category,
+        }));
+
+        setRelatedBlogs(relatedBlogsData);
         setLoading(false);
     };
     fetchBlog();
