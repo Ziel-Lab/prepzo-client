@@ -8,7 +8,7 @@ import { RelatedBlogs } from "@/components/blog/RelatedBlogs";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 import { SchemaMarkup } from "@/components/blog/SchemaMarkup";
 import { toast } from "sonner";
-// import { relatedBlogs } from "@/data/blogMockdata/data";
+
 import { supabase } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -139,40 +139,15 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
     "description": "Discover the 10 best free resume builder tools of 2025 that will transform your job search."
   };
 
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "Are free resume builders really worth it?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Absolutely. Modern free resume builders offer professional templates, content guidance, and design tools that would have cost hundreds of dollars through professional resume writing services just a few years ago."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Will resumes made with free builders pass ATS systems?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Most of the builders mentioned (particularly Standard Resume, Resume Genius, and Indeed Resume Builder) create ATS-friendly resumes by default."
-        }
-      }
-    ]
-  };
 
   return (
     <div className="min-h-screen bg-white">
-      <SchemaMarkup articleSchema={articleSchema} faqSchema={faqSchema} />
-      
-      
+      <SchemaMarkup articleSchema={articleSchema} />
       
       <br />
       <br />
       <br />
       
-
       {/* Hero section */}
       <article className="container mx-auto px-4 pb-12">
         <div className="max-w-4xl mx-auto">

@@ -3,10 +3,9 @@ import { useEffect } from 'react';
 
 interface SchemaMarkupProps {
   articleSchema: any;
-  faqSchema?: any;
 }
 
-export const SchemaMarkup = ({ articleSchema, faqSchema }: SchemaMarkupProps) => {
+export const SchemaMarkup = ({ articleSchema }: SchemaMarkupProps) => {
   useEffect(() => {
     // Remove existing schema scripts
     const existingScripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -19,19 +18,14 @@ export const SchemaMarkup = ({ articleSchema, faqSchema }: SchemaMarkupProps) =>
     document.head.appendChild(articleScript);
 
     // Add FAQ schema if provided
-    if (faqSchema) {
-      const faqScript = document.createElement('script');
-      faqScript.type = 'application/ld+json';
-      faqScript.textContent = JSON.stringify(faqSchema);
-      document.head.appendChild(faqScript);
-    }
+    
 
     return () => {
       // Cleanup on unmount
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
       scripts.forEach(script => script.remove());
     };
-  }, [articleSchema, faqSchema]);
+  }, [articleSchema]);
 
   return null;
 };
