@@ -50,6 +50,7 @@ const Navbar = () => {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
           <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors">Features</Link>
+          <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Blogs</Link>
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
           <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
@@ -79,6 +80,7 @@ const Navbar = () => {
         <div className="md:hidden absolute w-full bg-background border-b border-border animate-fade-in">
           <div className="container flex flex-col py-4 space-y-4">
             <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Features</Link>
+            <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Blogs</Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
             
