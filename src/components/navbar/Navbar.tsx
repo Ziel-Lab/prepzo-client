@@ -49,10 +49,22 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
-          <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors">Features</Link>
-          <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
-          <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
-          <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
+          <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+            <span>Features</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
+          <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group whitespace-nowrap">
+            <span>Use Cases</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
+          <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+            <span>Contact</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
+          <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+            <span>Legacy Prepzo</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
           
           <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
@@ -78,9 +90,15 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute w-full bg-background border-b border-border animate-fade-in">
           <div className="container flex flex-col py-4 space-y-4">
-            <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Features</Link>
-            <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
-            <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
+            <Link href="#features" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              Features
+            </Link>
+            <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              Use Cases
+            </Link>
+            <Link href="/contact" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              Contact
+            </Link>
             
             <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">

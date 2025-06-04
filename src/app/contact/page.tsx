@@ -12,7 +12,8 @@ import { Building, HandshakeIcon, School } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
+import Navbar from "@/components/navbar/Navbar";
+import Footer from "@/components/footer/Footer";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -77,14 +78,10 @@ const ContactPage = () => {
 
   return (
     <div className="bg-background">
+      <Navbar/>
       <div className="container py-12">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <Link href="/">
-              <Button variant="ghost" className="mb-4">
-                ← Back to Home
-              </Button>
-            </Link>
+        <div className="max-w-3xl mt-16 mb-10 mx-auto">
+          <div className="mb-8"> 
             <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
             <p className="text-muted-foreground text-left mb-8">
               Get in touch with us to discuss partnerships and opportunities
@@ -185,6 +182,7 @@ const ContactPage = () => {
            </Form>
         </div>
       </div>
+      <Footer/>
     </div>
   );
 };

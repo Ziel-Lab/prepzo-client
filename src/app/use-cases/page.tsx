@@ -61,16 +61,15 @@ const UseCasesPage = () => {
   // export const metadata = { title: 'Use Cases' };
 
   return (
-    // Removed min-h-screen flex flex-col. Navbar/Footer might need to be in layout.tsx instead.
-    // Adjusting padding assuming Navbar/Footer are handled by layout
     <div className="bg-background">
-      <main className="pt-12 pb-16"> {/* Adjusted padding */}
-        <div className="container">
+      <Navbar/>
+      <main className="pt-12 pb-16"> 
+        <div className="container mt-16 mb-10">
           <div className="mb-12">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-prepzo flex items-center gap-2 mb-4"> {/* Changed to next/link and href */}
-              <ArrowLeft className="w-4 h-4" /> {/* Used ArrowLeft */} 
+            {/* <Link href="/" className="text-sm text-muted-foreground hover:text-prepzo flex items-center gap-2 mb-4"> 
+              <ArrowLeft className="w-4 h-4" /> 
               Back to Home
-            </Link>
+            </Link> */}
             <h1 className="text-4xl font-bold mb-4">Use Cases</h1>
             <p className="text-xl text-muted-foreground max-w-2xl">
               Discover how Prepzo helps professionals across different stages of their career journey with personalized AI mentorship.
@@ -97,7 +96,7 @@ const UseCasesPage = () => {
           </div>
         </div>
       </main>
-      {/* Footer might need to be moved to layout.tsx */}
+      <Footer/>
     </div>
   );
 };
