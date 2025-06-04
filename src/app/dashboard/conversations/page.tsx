@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import ConversationsContent from "@/components/dashboard/conversations/ConversationsContent";
-import BlurOverlay from "@/components/dashboard/blurrEffect";
+// BlurOverlay will be used within ConversationsContent
+// import BlurOverlay from "@/components/dashboard/blurrEffect";
 
 const ConversationsPage = () => {
   const [isFeatureAvailable, setIsFeatureAvailable] = useState(false); 
@@ -15,9 +16,14 @@ const ConversationsPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="relative h-full">
-        {!isFeatureAvailable && !loading && <BlurOverlay />}
-        <ConversationsContent />
+      <div className="flex-grow flex flex-col h-full">
+        {/* Pass isFeatureAvailable and loading to ConversationsContent */}
+        <div className="flex-grow p-4 md:p-6 lg:p-8">
+            <ConversationsContent 
+              isFeatureAvailable={isFeatureAvailable} 
+              isLoading={loading} 
+            />
+        </div>
       </div>
     </DashboardLayout>
   );

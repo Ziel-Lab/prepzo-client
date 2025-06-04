@@ -11,12 +11,12 @@ interface BlurOverlayProps {
 
 const BlurOverlay: React.FC<BlurOverlayProps> = ({ 
   message = "We are building this feature for you. Please check back soon!",
-  ctaText = "Thank you for your patience!",
+  ctaText,
   onCtaClick 
 }) => {
   return (
     <div 
-      className="fixed top-24 left-64 right-0 bottom-0 z-40 flex flex-col items-center justify-center bg-background/20 backdrop-blur-sm p-8 text-center"
+      className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm p-8 text-center"
       aria-hidden="true" 
     >
       <Lock className="h-16 w-16 text-primary mb-6 opacity-80" />
