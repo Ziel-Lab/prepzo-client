@@ -62,19 +62,15 @@ const LinkedInOptimizerContent: React.FC = () => {
 
   // Get the backend URL from environment variables
   const getAuthToken = async () => {
-    console.log("[LinkedInOptimizerContent] Attempting to get session with client from @/utils/supabase/client...");
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      console.log("[LinkedInOptimizerContent] supabase.auth.getSession() response:", { data: sessionData, error: sessionError });
-
       if (sessionError || !sessionData || !sessionData.session) {
         console.error('[LinkedInOptimizerContent] Error getting session or session not found:', sessionError);
         setError('Authentication session not found. Please ensure you are logged in.');
         return null;
       }
       
-      console.log("[LinkedInOptimizerContent] Session found successfully:", sessionData.session);
       return sessionData.session.access_token;
 
     } catch (e) {
@@ -106,7 +102,6 @@ const LinkedInOptimizerContent: React.FC = () => {
 
     try {
       const targetUrl = `${backendUrl.replace(/\/$/, '')}/linkedin-optimizer`;
-      console.log(`[DEBUG] handleSubmit: Submitting to POST ${targetUrl}`);
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
@@ -116,8 +111,6 @@ const LinkedInOptimizerContent: React.FC = () => {
         body: JSON.stringify({ linkedin_url: linkedinUrl, comments }),
       });
 
-      console.log(`[DEBUG] handleSubmit: Response status: ${response.status}`);
-
       if (!response.ok) {
         let errorData = { error: `HTTP error! status: ${response.status}` };
         try {
@@ -126,35 +119,24 @@ const LinkedInOptimizerContent: React.FC = () => {
             console.error("[DEBUG] handleSubmit: Failed to parse error JSON", e);
         }
         console.error("[DEBUG] handleSubmit: Response not OK. Error data:", errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setIsLoading(false);
+        return;
       }
 
       const data: DirectApiResponse = await response.json();
-      console.log("[DEBUG] handleSubmit: Data received from API:", data);
 
       const newChangesRequired = data.changes_required?.trim() ? data.changes_required : null;
       const newExplanation = data.explanation?.trim() ? data.explanation : null;
-
-      console.log("[DEBUG] handleSubmit: Processed newChangesRequired:", newChangesRequired);
-      console.log("[DEBUG] handleSubmit: Processed newExplanation:", newExplanation);
-      
+     
       setChangesRequired(newChangesRequired);
       setExplanation(newExplanation);
       
       fetchHistory();
-      setTimeout(() => {
-        console.log("[DEBUG] handleSubmit: Scrolling to resultsRef");
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
     } catch (err) {
       console.error("[DEBUG] handleSubmit: Catch block error:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred during submission.');
-      }
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
     } finally {
-      console.log("[DEBUG] handleSubmit: Setting isLoading to false");
       setIsLoading(false);
     }
   };
@@ -177,32 +159,27 @@ const LinkedInOptimizerContent: React.FC = () => {
 
     try {
       const targetUrl = `${backendUrl.replace(/\/$/, '')}/linkedin-optimizer/history`;
-      console.log(`[DEBUG] fetchHistory: Fetching from GET ${targetUrl}`);
       const response = await fetch(targetUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      console.log(`[DEBUG] fetchHistory: Response status: ${response.status}`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP error fetching history: status: ${response.status}` }));
         console.error("[DEBUG] fetchHistory: Response not OK. Error data:", errorData);
-        throw new Error(errorData.error || `HTTP error fetching history: status: ${response.status}`);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setIsLoading(false);
+        return;
       }
 
       const data: OptimizationRecord[] = await response.json();
-      console.log("[DEBUG] fetchHistory: Data received:", data);
       setHistory(data);
       if (activeTab === 'history') setError(null);
     } catch (err) {
       console.error("[DEBUG] fetchHistory: Catch block error:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred while fetching history.');
-      }
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
     } finally {
       console.log("[DEBUG] fetchHistory: Setting isLoading to false");
       setIsLoading(false);
@@ -216,6 +193,17 @@ const LinkedInOptimizerContent: React.FC = () => {
       setError("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL_USER_PORTAL.");
     }
   }, [supabase, backendUrl]);
+
+  useEffect(() => {
+    // Scroll to results when they are populated, the tab is active, and not loading
+    if (activeTab === 'optimizer' && (changesRequired || explanation) && resultsRef.current && !isLoading) {
+      const timerId = setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log("[DEBUG] useEffect: Scrolling to resultsRef due to changesRequired/explanation and optimizer tab active");
+      }, 100); // setTimeout can help ensure rendering is complete
+      return () => clearTimeout(timerId);
+    }
+  }, [changesRequired, explanation, activeTab, isLoading, resultsRef]);
 
   // Determine if there are any results to show
   const hasResultsToDisplay = (changesRequired && changesRequired.trim() !== '') || (explanation && explanation.trim() !== '');
@@ -335,7 +323,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                         <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
                           <Edit3 className="h-6 w-6 text-indigo-500 mr-2" /> Suggested Changes
                         </h3>
-                        <div className="prose prose-indigo max-w-none">
+                        <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
                           <ReactMarkdown>{changesRequired}</ReactMarkdown>
                         </div>
                       </div>
@@ -346,7 +334,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                         <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
                           <HelpCircle className="h-6 w-6 text-sky-500 mr-2" /> Explanation
                         </h3>
-                        <div className="prose prose-indigo max-w-none">
+                        <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
                           <ReactMarkdown>{explanation}</ReactMarkdown>
                         </div>
                       </div>
@@ -415,7 +403,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                           <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
                             <Edit3 className="h-5 w-5 text-indigo-500 mr-2" />Changes Suggested:
                           </h4>
-                          <div className="prose prose-sm max-w-none">
+                          <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
                               <ReactMarkdown>{changesFromHistory}</ReactMarkdown>
                           </div>
                         </div>
@@ -425,7 +413,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                           <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
                             <HelpCircle className="h-5 w-5 text-sky-500 mr-2" />Explanation:
                           </h4>
-                          <div className="prose prose-sm max-w-none">
+                          <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
                               <ReactMarkdown>{explanationFromHistory}</ReactMarkdown>
                           </div>
                         </div>

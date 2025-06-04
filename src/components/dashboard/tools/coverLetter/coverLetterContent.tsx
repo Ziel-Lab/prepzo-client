@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -105,6 +105,7 @@ const CoverLetterContent = () => {
   const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<CoverLetterHistoryItem | null>(null);
 
   const supabase = createClient();
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -154,7 +155,7 @@ const CoverLetterContent = () => {
         }
       } catch (err: any) {
         console.error("Error fetching user documents:", err);
-        setError((prev) => (prev ? `${prev} ${err.message}` : err.message));
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
         setResumeInputMethod("upload");
       } finally {
         setIsFetchingUserDocs(false);
@@ -175,14 +176,14 @@ const CoverLetterContent = () => {
           company_website: item.company_website,
           current_resume: item.current_resume,
           resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop().split('?')[0]) : 'N/A',
-          user_additional_comments: item.additional_comments, // User's comments for that run
-          generated_outputs: item.generated_outputs, // This should be {cover_letter: "...", additional_comments: "..."}
+          user_additional_comments: item.additional_comments, // User's input comments for this generation
+          generated_outputs: item.feedback, // Corrected: Map from item.feedback
           created_at: new Date(item.created_at).toLocaleDateString(),
         })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setHistory(formattedHistory);
       } catch (err: any) {
         console.error("Error fetching cover letter history:", err);
-        setHistoryError(err.message || "Failed to fetch cover letter history.");
+        setHistoryError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       } finally {
         setIsFetchingHistory(false);
       }
@@ -236,7 +237,7 @@ const CoverLetterContent = () => {
       return result.file_url;
     } catch (err: any) {
       console.error("New resume upload error:", err);
-      setError(err.message || "Failed to upload new resume.");
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       return null;
     } finally {
       setIsUploadingNewResume(false);
@@ -316,7 +317,9 @@ const CoverLetterContent = () => {
         if (responseData && (responseData.error || responseData.details)) {
             errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
         }
-        throw new Error(errorMessage);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setIsLoading(false);
+        return;
       }
       
       // EXPECTED: responseData = { feedback: "{\"cover_letter\":\"...\", \"additional_comments\":\"...\"}" }
@@ -342,7 +345,8 @@ const CoverLetterContent = () => {
             setNewResumeFile(null); 
         } else {
             console.error("Parsed feedback from backend is missing cover_letter or additional_comments:", parsedFeedback);
-            throw new Error("Received data, but content is incomplete.");
+            setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+            setIsLoading(false);
         }
       } else if (responseData.cover_letter && responseData.additional_comments !== undefined) {
         // Fallback: if backend ALREADY parsed it and sent it as top-level (less likely based on new info)
@@ -366,14 +370,14 @@ const CoverLetterContent = () => {
         setNewResumeFile(null);
       } else if (responseData.message && responseData.details) { // Your existing specific error handling
         console.error("Error processing cover letter from backend:", responseData.details);
-        setError(`Backend processing error: ${responseData.details.error || responseData.message}. Raw: ${responseData.details.raw_feedback ? responseData.details.raw_feedback.substring(0,100) + '...' : 'N/A'}`);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       } else {
-        throw new Error("Unexpected response structure from backend.");
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       }
 
     } catch (err: any) {
       console.error("Cover letter generation error:", err);
-      setError(err.message || "Failed to generate cover letter.");
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
     } finally {
       setIsLoading(false);
     }
@@ -391,6 +395,15 @@ const CoverLetterContent = () => {
   const handleUseSuggestion = (suggestion: string) => {
     setUserComments(prev => prev ? `${prev}\n\n${suggestion}` : suggestion);
   };
+
+  useEffect(() => {
+    if (generatedResult && resultsRef.current && !isLoading) {
+      const timerId = setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+  }, [generatedResult, isLoading, resultsRef]);
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto py-8 px-4">
@@ -439,20 +452,26 @@ const CoverLetterContent = () => {
                             </DialogDescription>
                           </DialogHeader>
                           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                            <div>
-                                <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                    Generated Cover Letter
-                                    <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs.cover_letter)}><Copy size={12} className="mr-1"/>Copy</Button>
-                                </h4>
-                                <Textarea value={selectedHistoryItemForDialog.generated_outputs.cover_letter} readOnly rows={10} className="bg-gray-50 text-sm"/>
-                            </div>
-                            {selectedHistoryItemForDialog.generated_outputs.additional_comments && (
+                            {selectedHistoryItemForDialog.generated_outputs ? (
+                              <>
                                 <div>
-                                    <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
-                                    <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md overflow-x-auto">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
-                                    </div>
+                                    <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                        Generated Cover Letter
+                                        <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
+                                    </h4>
+                                    <Textarea value={selectedHistoryItemForDialog.generated_outputs?.cover_letter || "(Cover letter content not available for this item.)"} readOnly rows={10} className="bg-gray-50 text-sm"/>
                                 </div>
+                                {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
+                                    <div>
+                                        <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
+                                        <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md overflow-x-auto overflow-y-auto">
+                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
+                                        </div>
+                                    </div>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
                             )}
                           </div>
                            <DialogFooter>
@@ -549,7 +568,7 @@ const CoverLetterContent = () => {
 
       {/* Results Section */}
       {generatedResult && !isLoading && (
-        <Card className="mt-8">
+        <Card className="mt-8" ref={resultsRef}>
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center"><CheckCircle2 className="mr-2 h-6 w-6 text-green-600" /> Your Generated Cover Letter</CardTitle>
           </CardHeader>
@@ -560,20 +579,20 @@ const CoverLetterContent = () => {
                 Cover Letter Text
                 <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(generatedResult.cover_letter)}><Copy size={14} className="mr-1"/>Copy All</Button>
               </h3>
-              <Textarea value={generatedResult.cover_letter} readOnly rows={20} className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 h-full min-h-[300px] md:min-h-[400px]" />
+              <Textarea value={generatedResult.cover_letter} readOnly rows={20} className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 h-full min-h-[300px] md:min-h-[400px] overflow-y-auto" />
             </div>
             
             {/* Column 2: AI Suggestions */}
             {generatedResult.additional_comments && (
-              <div>
+              <div className="flex flex-col">
                 <h3 className="text-lg font-semibold mb-2 flex items-center"><Lightbulb className="mr-2 h-5 w-5 text-yellow-500"/> AI Suggestions for Improvement</h3>
-                <Card className="bg-amber-50 border-amber-200 p-4 h-full">
-                  <CardContent className="p-0 space-y-3">
-                      <p className="text-sm text-gray-700">Consider incorporating these points into the "Your Additional Comments" field above and regenerating for an even better cover letter.</p>
-                      <div className="prose prose-sm max-w-none p-3 bg-white border border-gray-200 rounded-md overflow-x-auto max-h-[250px] md:max-h-[calc(100%-80px)]">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedResult.additional_comments}</ReactMarkdown>
-                      </div>
-                      <Button variant="link" size="sm" className="px-0 text-purple-600 hover:text-purple-700" onClick={() => handleUseSuggestion(generatedResult.additional_comments || '')}>Use these suggestions</Button>
+                <Card className="bg-amber-50 border-amber-200 p-4 flex-grow">
+                  <CardContent className="p-0 flex flex-col h-full">
+                    <p className="text-sm text-gray-700 mb-2">Consider incorporating these points into the "Your Additional Comments" field above and regenerating for an even better cover letter.</p>
+                    <div className="prose prose-sm max-w-none p-3 bg-white border border-gray-200 rounded-md overflow-y-auto flex-grow min-h-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedResult.additional_comments}</ReactMarkdown>
+                    </div>
+                    <Button variant="link" size="sm" className="px-0 text-purple-600 hover:text-purple-700 mt-2 self-start" onClick={() => handleUseSuggestion(generatedResult.additional_comments || '')}>Use these suggestions</Button>
                   </CardContent>
                 </Card>
               </div>

@@ -314,7 +314,6 @@ const DocumentsContent = () => {
         throw new Error("Backend URL is not configured.");
       }
       const updateUrl = `${backendUrl.replace(/$/, '')}/update-document-comments/${docIdStr}`;
-      console.log(`handleUpdateComment: Fetching to: ${updateUrl}`);
       
       const response = await fetch(updateUrl, {
         method: "PATCH",

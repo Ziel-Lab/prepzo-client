@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -112,6 +112,7 @@ const AnalyzerToolContent = () => {
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | number | null>(null);
 
   const supabase = createClient();
+  const resultsCardRef = useRef<HTMLDivElement>(null);
 
   // Fetch user documents and analysis history on mount
   useEffect(() => {
@@ -161,7 +162,7 @@ const AnalyzerToolContent = () => {
         }
       } catch (err: any) {
         console.error("Error fetching user documents:", err);
-        setError(prev => prev ? `${prev} ${err.message}` : err.message || "Failed to fetch documents.");
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
         setResumeInputMethod('upload'); 
       } finally {
         setIsFetchingUserDocs(false);
@@ -181,7 +182,6 @@ const AnalyzerToolContent = () => {
           throw new Error(errorData.error || `HTTP error fetching history: ${historyResponse.status}`);
         }
         const historyDataFromApi: any[] = await historyResponse.json();
-        console.log("Raw Analysis History from API:", JSON.stringify(historyDataFromApi, null, 2)); // DEBUG LOG
 
         const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item: any) => {
           let parsedScore: number | undefined = undefined;
@@ -261,7 +261,7 @@ const AnalyzerToolContent = () => {
         setAnalysisHistory(formattedHistory);
       } catch (err: any) {
         console.error("Error fetching analysis history:", err);
-        setHistoryError(err.message || "Failed to fetch analysis history.");
+        setHistoryError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       } finally {
         setIsFetchingHistory(false);
       }
@@ -320,7 +320,7 @@ const AnalyzerToolContent = () => {
       return result.file_url;
     } catch (err:any) {
       console.error("New resume upload error:", err);
-      setError(err.message || "Failed to upload the new resume.");
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       return null;
     } finally {
       setIsUploadingNewResume(false);
@@ -430,7 +430,9 @@ const AnalyzerToolContent = () => {
 
         if (!response.ok) {
           let specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
-          throw new Error(specificError);
+          setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          setIsLoadingRoast(false);
+          return;
         }
 
         console.log("Roast successful, raw responseData:", responseData);
@@ -484,7 +486,7 @@ const AnalyzerToolContent = () => {
 
       } catch (err: any) {
         console.error("Roast Resume Submit Error:", err);
-        setRoastError(err.message || "An unexpected error occurred during roast.");
+        setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       } finally {
         setIsLoadingRoast(false);
       }
@@ -541,7 +543,9 @@ const AnalyzerToolContent = () => {
         } else {
             specificError = `HTTP error! status: ${response.status}`;
         }
-        throw new Error(specificError);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setIsLoadingAnalysis(false);
+        return;
       }
       
       console.log("Raw Analysis successful:", responseData);
@@ -580,12 +584,12 @@ const AnalyzerToolContent = () => {
       } catch (parseError: any) {
         console.error("Error parsing nested JSON from API response:", parseError);
         console.error("Raw response was:", responseData);
-        setError(`Failed to parse analysis results. Raw data: ${JSON.stringify(responseData).substring(0, 200)}...`);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
       }
 
     } catch (err: any) {
       console.error("AnalyzeResume Submit Error:", err);
-      setError(err.message || "An unexpected error occurred during analysis.");
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
     } finally {
       setIsLoadingAnalysis(false);
     }
@@ -645,6 +649,15 @@ const AnalyzerToolContent = () => {
     }
     */
   };
+
+  useEffect(() => {
+    if (resultsCardRef.current && ((toolMode === 'analyze' && analysisResult && !isLoadingAnalysis) || (toolMode === 'roast' && roastResult && !isLoadingRoast))) {
+      const timerId = setTimeout(() => {
+        resultsCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+  }, [analysisResult, roastResult, toolMode, isLoadingAnalysis, isLoadingRoast, resultsCardRef]);
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-8">
@@ -948,7 +961,7 @@ const AnalyzerToolContent = () => {
 
       {/* Analysis Results - Conditionally shown for 'analyze' mode results */}
       {toolMode === 'analyze' && analysisResult && !isLoadingAnalysis && (
-        <Card className="mt-8">
+        <Card className="mt-8" ref={resultsCardRef}>
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center">
               <CheckCircle2 className="h-5 w-5 mr-2 text-green-600" />
@@ -964,7 +977,7 @@ const AnalyzerToolContent = () => {
                     <p className="text-md font-medium">Overall Score: <span className="text-blue-600 font-bold">{analysisResult.feedback.score}/10</span></p>
                 </div>
                 <h4 className="text-sm font-semibold mb-1">Detailed Feedback:</h4>
-                <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto">
+                <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {analysisResult.feedback.feedback}
                   </ReactMarkdown>
@@ -991,7 +1004,7 @@ const AnalyzerToolContent = () => {
                     </div>
                     
                     <h4 className="text-sm font-semibold mb-1">Summary of Changes:</h4>
-                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto mb-4">
+                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72 mb-4">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {analysisResult.new_resume.changes}
                       </ReactMarkdown>
@@ -1012,7 +1025,7 @@ const AnalyzerToolContent = () => {
                       value={analysisResult.new_resume.new_resume}
                       readOnly
                       rows={15}
-                      className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300"
+                      className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 overflow-y-auto max-h-[400px]"
                     />
                   </Card>
                 </div>
@@ -1025,7 +1038,7 @@ const AnalyzerToolContent = () => {
 
       {/* Roast Results - Conditionally shown for 'roast' mode results */}
       {toolMode === 'roast' && roastResult && !isLoadingRoast && (
-        <Card className="mt-8">
+        <Card className="mt-8" ref={resultsCardRef}>
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center">
               <Flame className="h-6 w-6 mr-2 text-red-600" />
@@ -1034,7 +1047,7 @@ const AnalyzerToolContent = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Card className="p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 shadow-lg border-orange-300">
-                <div className="prose prose-sm max-w-none p-3 rounded-md overflow-x-auto text-gray-800">
+                <div className="prose prose-sm max-w-none p-3 rounded-md overflow-x-auto overflow-y-auto max-h-96 text-gray-800">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {roastResult}
                   </ReactMarkdown>
