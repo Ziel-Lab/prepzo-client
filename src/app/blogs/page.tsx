@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { BlogCard } from "@/components/blog/BlogCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
-
+import { ArrowLeft } from 'lucide-react';
 
 
 const categories = ["All", "Career Tools", "Interview Prep", "Personal Branding", "Job Search"];
@@ -21,33 +21,42 @@ const Blog = () => {
   const [total, setTotal] = useState(0);
 
   const pageSize= 6;
-  useEffect(()=>{
-    const fetchBlogs= async()=>{
+  useEffect(() => {
+    const fetchBlogs = async () => {
       setLoading(true);
-      const from = (page-1)*pageSize;
-      const to = from + pageSize-1;
-      const {data,error, count} = await createClient()
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = createClient()
         .from("posts")
-        .select("*", {count: "exact"})
-        .order("created_at",{ascending:false})
-        .range(from,to);
-      if (error){
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false });
+
+      // Apply category filter
+      if (selectedCategory !== "All") {
+        query = query.eq("category", selectedCategory);
+      }
+
+      // Apply search filter (case-insensitive, on title and excerpt)
+      if (searchTerm) {
+        query = query.or(
+          `title.ilike.%${searchTerm}%,excerpt.ilike.%${searchTerm}%`
+        );
+      }
+
+      const { data, error, count } = await query.range(from, to);
+
+      if (error) {
         setBlogs([]);
-      }else{
+        setTotal(0);
+      } else {
         setBlogs(data);
         setTotal(count || 0);
       }
       setLoading(false);
     };
     fetchBlogs();
-  },[page, pageSize]);
-
-  const filteredBlogs = blogs.filter(blog => {
-    const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         blog.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || blog.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  }, [page, pageSize, selectedCategory, searchTerm]);
 
   return (
     <>
@@ -109,9 +118,9 @@ const Blog = () => {
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg">Loading articles...</p>
               </div>
-          ): filteredBlogs.length > 0 ? (
+          ): blogs.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredBlogs.map((blog) => (
+                {blogs.map((blog) => (
                   <BlogCard key={blog.id} {...blog} />
                 ))}
               </div>
@@ -126,7 +135,7 @@ const Blog = () => {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
             >
-            Previous
+            <ArrowLeft className="w-4 h-4 " />
             </Button>
             <span>
             Page {page} of {Math.ceil(total / pageSize) || 1}
@@ -135,7 +144,7 @@ const Blog = () => {
             onClick={() => setPage((p) => (p * pageSize < total ? p + 1 : p))}
             disabled={page * pageSize >= total}
           >
-            Next
+            <ArrowRight className="w-4 h-4 " />
           </Button>
         </div>
         </div>

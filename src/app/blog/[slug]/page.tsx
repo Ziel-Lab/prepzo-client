@@ -13,6 +13,7 @@ import { supabase } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Footer from "@/components/footer/Footer";
+import Navbar from "@/components/navbar/Navbar";
 
 export default function BlogPost({ params }: { params: { slug: string } }) {
   const [blog, setBlog] = useState<any>(null);
@@ -118,13 +119,13 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
   return (
     <div className="min-h-screen bg-white">
       <SchemaMarkup articleSchema={articleSchema} />
-      
+      <Navbar />
       <br />
       <br />
       <br />
       
       {/* Hero section */}
-      <article className="container mx-auto px-4 pb-12">
+      <article className="container mx-auto mt-16 px-4 pb-12">
         <div className="max-w-4xl mx-auto">
           {/* Category and metadata */}
           
