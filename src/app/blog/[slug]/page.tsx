@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, Clock, ArrowLeft } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, Home, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthorCard } from "@/components/blog/AuthorCard";
@@ -123,9 +123,32 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
       <br />
       <br />
       <br />
-      
+      <div className="container mx-auto px-4 pt-16 ">
+        <div className="max-w-4xl mx-auto">
+          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+            <Link 
+              href="/" 
+              className="flex items-center hover:text-prepzo transition-colors duration-200"
+            >
+              <Home className="w-4 h-4 mr-1" />
+              Home
+            </Link>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <Link 
+              href="/blogs" 
+              className="hover:text-prepzo transition-colors duration-200"
+            >
+              Blog
+            </Link>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-800 font-medium truncate max-w-xs">
+              {blog?.title || "Blog Post"}
+            </span>
+          </nav>
+        </div>
+      </div>
       {/* Hero section */}
-      <article className="container mx-auto mt-16 px-4 pb-12">
+      <article className="container mx-auto mt-10 px-4 pb-12">
         <div className="max-w-4xl mx-auto">
           {/* Category and metadata */}
           
