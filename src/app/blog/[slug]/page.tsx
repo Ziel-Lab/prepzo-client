@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, Clock, ArrowLeft } from "lucide-react";
+import { Calendar, Clock, ArrowLeft, Home, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthorCard } from "@/components/blog/AuthorCard";
@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { supabase } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-
+import Footer from "@/components/footer/Footer";
+import Navbar from "@/components/navbar/Navbar";
 
 export default function BlogPost({ params }: { params: { slug: string } }) {
   const [blog, setBlog] = useState<any>(null);
@@ -112,44 +113,42 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
     }
   };
 
-  const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": blog.title,
-    "image": blog.image_url,
-    "author": {
-      "@type": "Person",
-      "name": blog.author_name,
-      "url": blog.author_linkedin_url
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Prepzo.ai",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://www.prepzo.ai/images/logo.png"
-      }
-    },
-    "datePublished": "2025-06-01",
-    "dateModified": "2025-06-01",
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": typeof window !== "undefined" ? window.location.href : ""
-    },
-    "description": "Discover the 10 best free resume builder tools of 2025 that will transform your job search."
-  };
+  const articleSchema = blog.schema ;
 
 
   return (
     <div className="min-h-screen bg-white">
       <SchemaMarkup articleSchema={articleSchema} />
-      
+      <Navbar />
       <br />
       <br />
       <br />
-      
+      <div className="container mx-auto px-4 pt-16 ">
+        <div className="max-w-4xl mx-auto">
+          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+            <Link 
+              href="/" 
+              className="flex items-center hover:text-prepzo transition-colors duration-200"
+            >
+              <Home className="w-4 h-4 mr-1" />
+              Home
+            </Link>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <Link 
+              href="/blogs" 
+              className="hover:text-prepzo transition-colors duration-200"
+            >
+              Blog
+            </Link>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-800 font-medium truncate max-w-xs">
+              {blog?.title || "Blog Post"}
+            </span>
+          </nav>
+        </div>
+      </div>
       {/* Hero section */}
-      <article className="container mx-auto px-4 pb-12">
+      <article className="container mx-auto mt-10 px-4 pb-12">
         <div className="max-w-4xl mx-auto">
           {/* Category and metadata */}
           
@@ -202,6 +201,7 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
           <RelatedBlogs blogs={relatedBlogs} />
         </div>
       </article>
+      <Footer />
     </div>
   );
 }

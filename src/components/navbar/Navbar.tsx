@@ -53,7 +53,7 @@ const Navbar = () => {
           <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Blogs</Link>
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors whitespace-nowrap">Use Cases</Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors">Contact</Link>
-          <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
+          <Link href="https://www.prepzo.co/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors">Legacy Prepzo</Link>
           
           <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
@@ -83,7 +83,8 @@ const Navbar = () => {
             <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Blogs</Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Use Cases</Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Contact</Link>
-            
+            <Link href="https://www.prepzo.co/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-colors py-2" onClick={toggleMenu}>Legacy Prepzo</Link>
+
             <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
                 Join Waitlist
