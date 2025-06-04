@@ -17,11 +17,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
 
-const sidebarItems = [
+const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
   { icon: MessageSquare, label: "Conversations", href: "/dashboard/conversations" },
   { icon: FileText, label: "Applications", href: "/dashboard/applications" },
@@ -33,28 +33,23 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
-const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const supabase = createClient();
+interface InternalSidebarLayoutProps {
+  pathname: string;
+  onLogoutClick: () => void;
+  onNavigateToDashboard: () => void;
+  items: typeof staticSidebarItems;
+}
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
-
-  // Close mobile menu when navigating to a new page
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
-  
-  const renderSidebarContent = () => (
+// Memoized internal layout for the sidebar content
+const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
+  { pathname, onLogoutClick, onNavigateToDashboard, items }
+) => {
+  return (
     <>
       <SidebarHeader className="p-4 flex flex-col items-center">
       <div
         className="flex items-center mb-4 cursor-pointer"
-        onClick={() => router.push('/dashboard')}
+        onClick={onNavigateToDashboard}
       >
         <span className="text-white text-2xl font-bold">Prepzo</span>
         <span className="ml-2 bg-white text-[#12231B] px-2 py-1 rounded-md text-sm font-semibold">Pro</span>
@@ -67,12 +62,14 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         </Button>
       </SidebarHeader>
       <SidebarContent>
-        <ScrollArea className="h-[calc(100vh-8rem)]">
+        {/* Adjusted height: consider header and footer heights if they are substantial */}
+        {/* Assuming header ~4rem, footer ~3rem. 100vh - 7rem should be safe for scroll area if header/footer fixed height */}
+        <ScrollArea className="h-[calc(100%-8rem)]"> {/* Use 100% of parent, parent will be sized by Sidebar/SheetContent */}
           <SidebarGroup>
             <SidebarGroupLabel className="text-white/70">Dashboard</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {sidebarItems.map((item) => (
+                {items.map((item) => (
                   <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton asChild>
                       <Link
@@ -93,7 +90,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       </SidebarContent>
       <SidebarFooter className="absolute bottom-4 left-0 right-0 px-4 flex flex-col gap-2">
         <Button 
-          onClick={handleLogout}
+          onClick={onLogoutClick}
           className="w-full bg-[#2a4a3a] text-white hover:bg-[#3c6a50] transition-colors"
           size="lg"
           variant="outline"
@@ -104,13 +101,40 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       </SidebarFooter>
     </>
   );
+});
+InternalSidebarLayout.displayName = 'InternalSidebarLayout'; // For better debugging
+
+const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const supabase = createClient();
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  }, [supabase, router]);
+
+  const handleNavigateToDashboard = useCallback(() => {
+    router.push('/dashboard');
+  }, [router]);
+
+  // Close mobile menu when navigating to a new page
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
   
   return (
     <SidebarProvider>
       <div className="h-screen flex w-full overflow-hidden">
         {/* Desktop sidebar - hidden on small screens */}
         <Sidebar className="bg-[#12231B] border-r border-[#1e3529] fixed top-0 bottom-0 left-0 z-40 hidden md:block">
-          {renderSidebarContent()}
+          <InternalSidebarLayout 
+            pathname={pathname} 
+            onLogoutClick={handleLogout} 
+            onNavigateToDashboard={handleNavigateToDashboard}
+            items={staticSidebarItems}
+          />
         </Sidebar>
 
         {/* Mobile burger menu */}
@@ -127,7 +151,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[80%] bg-[#12231B] border-r border-[#1e3529] p-0">
-              {renderSidebarContent()}
+              <InternalSidebarLayout 
+                pathname={pathname} 
+                onLogoutClick={handleLogout} 
+                onNavigateToDashboard={handleNavigateToDashboard}
+                items={staticSidebarItems}
+              />
             </SheetContent>
           </Sheet>
         </div>

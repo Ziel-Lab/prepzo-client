@@ -73,16 +73,16 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
                 <p>Get a taste of personalized career advice</p>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                 <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
-                  <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                  <Button size="lg" className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto">
                     Join Waitlist
                   </Button>
                 </Link>
                 <Button 
                   size="lg" 
                   className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto"
-                  onClick={onOpenAgentModal} // Use the prop here
+                  onClick={onOpenAgentModal}
                 >
                   Try Demo
                 </Button>
