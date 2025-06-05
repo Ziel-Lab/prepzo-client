@@ -12,6 +12,9 @@ import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
 import { ShareWrapper } from "@/components/blog/ShareWrapper";
 
+// Enable SSR for this page
+export const dynamic = "force-dynamic";
+
 // Create server-side Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,7 +57,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 // Make the page component async for static generation
 export default async function BlogPost({ params }: { params: { slug: string } }) {
-  // Fetch blog data at build time
+  // Fetch blog data at request time (SSR)
   const { data: blog } = await supabase
     .from("posts")
     .select("*")
