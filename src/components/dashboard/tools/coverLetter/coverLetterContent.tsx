@@ -572,7 +572,7 @@ const CoverLetterContent = () => {
           <CardHeader>
             <CardTitle className="text-xl font-bold flex items-center"><CheckCircle2 className="mr-2 h-6 w-6 text-green-600" /> Your Generated Cover Letter</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="flex flex-col gap-6">
             {/* Column 1: Cover Letter Text */}
             <div>
               <h3 className="text-lg font-semibold mb-2 flex justify-between items-center">

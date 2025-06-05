@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 // Import the centralized Supabase client creator
 import { createClient } from "@/utils/supabase/client";
@@ -61,7 +61,7 @@ const LinkedInOptimizerContent: React.FC = () => {
   };
 
   // Get the backend URL from environment variables
-  const getAuthToken = async () => {
+  const getAuthToken = useCallback(async () => {
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
@@ -78,7 +78,7 @@ const LinkedInOptimizerContent: React.FC = () => {
       setError('Authentication token not found due to an exception. Please log in.');
       return null;
     }
-  };
+  }, [supabase]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -141,7 +141,7 @@ const LinkedInOptimizerContent: React.FC = () => {
     }
   };
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -176,7 +176,6 @@ const LinkedInOptimizerContent: React.FC = () => {
 
       const data: OptimizationRecord[] = await response.json();
       setHistory(data);
-      if (activeTab === 'history') setError(null);
     } catch (err) {
       console.error("[DEBUG] fetchHistory: Catch block error:", err);
       setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
@@ -184,15 +183,40 @@ const LinkedInOptimizerContent: React.FC = () => {
       console.log("[DEBUG] fetchHistory: Setting isLoading to false");
       setIsLoading(false);
     }
-  };
+  }, [backendUrl, getAuthToken, setIsLoading, setError, setHistory]);
 
   useEffect(() => {
-    if (supabase && backendUrl) {
-      fetchHistory();
-    } else if (!backendUrl) {
-      setError("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL_USER_PORTAL.");
+    if (!supabase || !backendUrl) {
+      if (!backendUrl) {
+        setError("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL_USER_PORTAL.");
+      }
+      return;
     }
-  }, [supabase, backendUrl]);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[LinkedInOptimizerContent] Auth event: ${event}, session:`, session ? 'exists' : 'null');
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (session) {
+          console.log("[LinkedInOptimizerContent] Session available. Attempting to fetch history.");
+          fetchHistory();
+        } else {
+          console.log("[LinkedInOptimizerContent] No session on INITIAL_SESSION or SIGNED_IN. User might be logged out.");
+          setHistory([]); // Clear history if no session
+          // If getAuthToken is called (e.g. by a manual fetch action later), it will set the appropriate error.
+          // For initial load, if no session, we simply don't fetch.
+        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log("[LinkedInOptimizerContent] User signed out. Clearing history and error.");
+        setHistory([]);
+        setError(null); 
+      }
+    });
+
+    // Cleanup subscription on component unmount
+    return () => {
+      authListener.subscription?.unsubscribe();
+    };
+  }, [supabase, backendUrl, fetchHistory]);
 
   useEffect(() => {
     // Scroll to results when they are populated, the tab is active, and not loading
