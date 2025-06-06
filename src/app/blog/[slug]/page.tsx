@@ -1,5 +1,3 @@
-"use client"
-
 import { Calendar, Clock, ArrowLeft, Home, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -7,84 +5,65 @@ import { AuthorCard } from "@/components/blog/AuthorCard";
 import { RelatedBlogs } from "@/components/blog/RelatedBlogs";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 import { SchemaMarkup } from "@/components/blog/SchemaMarkup";
-import { toast } from "sonner";
-
-import { supabase } from "@/utils/supabase/client";
-import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import Image from "next/image";
+import type { Metadata } from 'next'
 import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
+import { ShareWrapper } from "@/components/blog/ShareWrapper";
 
-export default function BlogPost({ params }: { params: { slug: string } }) {
-  const [blog, setBlog] = useState<any>(null);
-  const [markdown, setMarkdown] = useState<string>("");
-  const [relatedBlogs, setRelatedBlogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Enable SSR for this page
+export const dynamic = "force-dynamic";
 
-  useEffect(()=>{
-    const fetchBlog = async () => {
-      setLoading(true);
-      const {data, error}= await supabase
-        .from("posts")
-        .select("*")
-        .eq("slug", params.slug)
-        .single();
+// Create server-side Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-        if(error || !data){
-          setBlog(null);
-          setLoading(false);
-          return;
-        }
-        setBlog(data);
-
-        const {data: file, error: fileError} = await supabase
-          .storage
-          .from("blog-md")
-          .download("free-resume-builder-tools.md");
-
-        if(fileError || !file){
-          setMarkdown("Could not load blog post");
-        }else{
-          const text = await file.text();
-          setMarkdown(text);
-        }
-
-        const {data: relatedBlogs, error: relatedBlogsError} = await supabase
-          .from("posts")
-          .select("*")
-          .eq("category",data.category)
-          .neq("slug", data.slug)
-          .limit(3);
-        
-        const relatedBlogsData = (relatedBlogs || []).map((b: any) => ({
-          id: b.slug,
-          title: b.title,
-          excerpt: b.excerpt,
-          author: {
-            name: b.author_name,
-            image: b.author_image,
-          },
-          publishDate: b.publish_date,
-          readTime: b.read_time,
-          image: b.image_url,
-          category: b.category,
-        }));
-
-        setRelatedBlogs(relatedBlogsData);
-        setLoading(false);
-    };
-    fetchBlog();
-  }, [params.slug]);
+// Generate static paths at build time
+export async function generateStaticParams() {
+  const { data: posts } = await supabase
+    .from("posts")
+    .select("slug");
   
-  // const blog = mockBlogData[params.slug as keyof typeof mockBlogData];
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
-      </div>
-    );
-  }
+  return posts?.map((post) => ({
+    slug: post.slug,
+  })) || [];
+}
+
+// 1. Use generateMetadata for meta tags
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  // Fetch your blog post from Supabase
+  const { data: blog } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("slug", params.slug)
+    .single();
+
+  if (!blog) return {};
+
+  return {
+    title: blog.title,
+    description: blog.excerpt,
+    openGraph: {
+      title: blog.title,
+      description: blog.excerpt,
+      images: [blog.image_url],
+      authors: [blog.author_name],
+    },
+  };
+}
+
+// Make the page component async for static generation
+export default async function BlogPost({ params }: { params: { slug: string } }) {
+  // Fetch blog data at request time (SSR)
+  const { data: blog } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("slug", params.slug)
+    .single();
+
   if (!blog) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -101,24 +80,40 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
     );
   }
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: blog.title,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard!");
-    }
-  };
+  // Fetch markdown content
+  const { data: file } = await supabase
+    .storage
+    .from("blog-md")
+    .download(blog.slug + ".md");
 
-  const articleSchema = blog.schema ;
+  const markdown = file ? await file.text() : "Could not load blog post";
+
+  // Fetch related blogs
+  const { data: relatedBlogsData } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("category", blog.category)
+    .neq("slug", blog.slug)
+    .limit(3);
+
+  const relatedBlogs = (relatedBlogsData || []).map((b: { slug: string; title: string; excerpt: string; author_name: string; author_image: string; publish_date: string; read_time: string; image_url: string; category: string; }) => ({
+    id: b.slug,
+    title: b.title,
+    excerpt: b.excerpt,
+    author: {
+      name: b.author_name,
+      image: b.author_image,
+    },
+    publishDate: b.publish_date,
+    readTime: b.read_time,
+    image: b.image_url,
+    category: b.category,
+  }));
 
 
   return (
     <div className="min-h-screen bg-white">
-      <SchemaMarkup articleSchema={articleSchema} />
+      {/* <SchemaMarkup articleSchema={articleSchema} /> */}
       <Navbar />
       <br />
       <br />
@@ -147,12 +142,8 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
           </nav>
         </div>
       </div>
-      {/* Hero section */}
       <article className="container mx-auto mt-10 px-4 pb-12">
         <div className="max-w-4xl mx-auto">
-          {/* Category and metadata */}
-          
-          {/* Title */}
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-8 leading-tight text-prepzo-900">
             {blog.title}
           </h1>
@@ -171,7 +162,6 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
               </div>
             </div>
           </div>
-          {/* Featured image */}
           <div className="aspect-video mb-12 rounded-lg overflow-hidden">
             <Image 
               src={blog.image_url} 
@@ -182,22 +172,18 @@ export default function BlogPost({ params }: { params: { slug: string } }) {
             />
           </div>
 
-          {/* Author card */}
           <div className="mb-12">
-            <AuthorCard author={blog} onShare={handleShare} />
+            <ShareWrapper author={blog} />
           </div>
 
-          {/* Content */}
           <div className="mb-16">
             <MarkdownRenderer content={markdown} />
           </div>
 
-          {/* Author card again */}
           <div className="mb-16">
-            <AuthorCard author={blog} onShare={handleShare} />
+            <ShareWrapper author={blog} />
           </div>
 
-          {/* Related blogs */}
           <RelatedBlogs blogs={relatedBlogs} />
         </div>
       </article>
