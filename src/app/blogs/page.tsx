@@ -10,7 +10,7 @@ import Navbar from "@/components/navbar/Navbar";
 import { ArrowLeft } from 'lucide-react';
 
 
-const categories = ["All", "Career Tools", "Interview Prep", "Personal Branding", "Job Search"];
+const categories = ["All", "Career Tools", "Interview Prep","Cover Letter", "Resume Builder", "Personal Branding", "Job Search"];
 
 const Blog = () => {
   const [blogs, setBlogs] = useState<any[]>([]);
