@@ -1,7 +1,7 @@
 'use client';
 
 import CoverLetterContent from '@/components/dashboard/tools/coverLetter/coverLetterContent';
-import DashboardLayout from '@/components/dashboard/DashboardLayout'; // Assuming you have a common dashboard layout
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
 
 const CoverLetterGeneratorPage = () => {
   return (

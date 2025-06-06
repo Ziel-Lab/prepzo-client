@@ -105,6 +105,7 @@ const LinkedInOptimizerContent: React.FC = () => {
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
+          'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },

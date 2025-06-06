@@ -18,6 +18,7 @@ import {
   LogOut as LogOutIcon,
   LogIn as LogInIcon,
 } from "lucide-react";
+import SubscriptionContent from "./subscription/SubscriptionContent";
 
 interface SettingsContentProps {
   email?: string;
@@ -120,24 +121,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
       </Card>
 
       {/* Subscription Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-            <CreditCardIcon className="h-5 w-5" />
-            Subscription Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-4">
-            Current Plan: <span className="font-medium">Pro Monthly</span>
-          </p>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-3 sm:space-y-0">
-            <Button>Upgrade to Pro Annual</Button>
-            <Button variant="outline">Change Billing Info</Button>
-            <Button variant="destructive">Cancel Subscription</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SubscriptionContent />
     </div>
   );
 };
