@@ -84,7 +84,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   const { data: file } = await supabase
     .storage
     .from("blog-md")
-    .download("free-resume-builder-tools.md");
+    .download(blog.slug + ".md");
 
   const markdown = file ? await file.text() : "Could not load blog post";
 
@@ -96,7 +96,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     .neq("slug", blog.slug)
     .limit(3);
 
-  const relatedBlogs = (relatedBlogsData || []).map((b: any) => ({
+  const relatedBlogs = (relatedBlogsData || []).map((b: { slug: string; title: string; excerpt: string; author_name: string; author_image: string; publish_date: string; read_time: string; image_url: string; category: string; }) => ({
     id: b.slug,
     title: b.title,
     excerpt: b.excerpt,
