@@ -46,13 +46,52 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: blog.title,
     description: blog.excerpt,
+    metadataBase: new URL("https://www.prepzo.ai"),
+    alternates: {
+      canonical: "/blog/" + blog.slug,
+    },
     openGraph: {
       title: blog.title,
       description: blog.excerpt,
       images: [blog.image_url],
+      type: 'article',
+      publishedTime: blog.publish_date,
       authors: [blog.author_name],
+      section: blog.category,
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: blog.title,
+      description: blog.excerpt,
+    },
+    keywords: blog.category,
+    viewport: {
+      width: 'device-width',
+      initialScale: 1,
+    }
   };
+}
+
+// Add interface for blog type
+interface BlogPost {
+  publish_date: string;
+  author_name: string;
+  category: string;
+  title: string;
+  excerpt: string;
+  image_url: string;
+  slug: string;
+}
+
+// Add custom meta tags component with proper typing
+function CustomMetaTags({ blog }: { blog: BlogPost }) {
+  return (
+    <>
+      <meta property="article:published_time" content={blog.publish_date} />
+      <meta property="article:author" content={blog.author_name} />
+      <meta property="article:section" content={blog.category} />
+    </>
+  );
 }
 
 // Make the page component async for static generation
@@ -113,6 +152,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
 
   return (
     <div className="min-h-screen bg-white">
+      <CustomMetaTags blog={blog} />
       {/* <SchemaMarkup articleSchema={articleSchema} /> */}
       <Navbar />
       <br />
