@@ -29,13 +29,13 @@ export const SchemaMarkup = ({ articleSchema }: SchemaMarkupProps) => {
 
   if (!articleSchema) return null;
   return (
-    <Head>
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c'),
         }}
       />
-    </Head>
+    </>
   );
 };

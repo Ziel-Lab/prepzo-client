@@ -100,31 +100,31 @@ export const mockBlogData = {
   };
   
 
-  export const relatedBlogs = [
-    {
-      id: "interview-tips-2025",
-      title: "Master Your Next Interview: 15 Expert Tips for 2025",
-      excerpt: "Learn the latest interview strategies that will help you stand out.",
-      author: {
-        name: "Michael Chen",
-        image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
-      },
-      publishDate: "May 28, 2025",
-      readTime: "12 min read",
-      image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=400&fit=crop",
-      category: "Interview Prep"
-    },
-    {
-      id: "linkedin-optimization",
-      title: "LinkedIn Profile Optimization: Complete Guide for 2025",
-      excerpt: "Transform your LinkedIn profile into a powerful career tool.",
-      author: {
-        name: "Emma Davis",
-        image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face"
-      },
-      publishDate: "May 25, 2025",
-      readTime: "10 min read",
-      image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=800&h=400&fit=crop",
-      category: "Personal Branding"
-    }
-  ];
+  // export const relatedBlogs = [
+  //   {
+  //     id: "interview-tips-2025",
+  //     title: "Master Your Next Interview: 15 Expert Tips for 2025",
+  //     excerpt: "Learn the latest interview strategies that will help you stand out.",
+  //     author: {
+  //       name: "Michael Chen",
+  //       image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
+  //     },
+  //     publishDate: "May 28, 2025",
+  //     readTime: "12 min read",
+  //     image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=400&fit=crop",
+  //     category: "Interview Prep"
+  //   },
+  //   {
+  //     id: "linkedin-optimization",
+  //     title: "LinkedIn Profile Optimization: Complete Guide for 2025",
+  //     excerpt: "Transform your LinkedIn profile into a powerful career tool.",
+  //     author: {
+  //       name: "Emma Davis",
+  //       image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face"
+  //     },
+  //     publishDate: "May 25, 2025",
+  //     readTime: "10 min read",
+  //     image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=800&h=400&fit=crop",
+  //     category: "Personal Branding"
+  //   }
+  // ];

@@ -32,9 +32,10 @@ export async function generateStaticParams() {
   })) || [];
 }
 
+
+
 // 1. Use generateMetadata for meta tags
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  // Fetch your blog post from Supabase
   const { data: blog } = await supabase
     .from("posts")
     .select("*")
@@ -53,24 +54,27 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     openGraph: {
       title: blog.title,
       description: blog.excerpt,
-      images: [blog.image_url],
+      images: blog.image_url,
       type: 'article',
       publishedTime: blog.publish_date,
-      authors: [blog.author_name],
+      authors: blog.author_name,
       section: blog.category,
+      locale: "en_US",
+      url: `https://www.prepzo.ai/blog/${blog.slug}`,
     },
     twitter: {
       card: 'summary_large_image',
       title: blog.title,
       description: blog.excerpt,
+      site: "@prepzo",
+      creator: "@prepzo",
     },
-    keywords: blog.category,
-    viewport: {
-      width: 'device-width',
-      initialScale: 1,
-    }
+    keywords: `${blog.keywords}`,
+    robots: "index, follow",
+    applicationName: "Prepzo",
   };
 }
+
 
 // Add interface for blog type
 interface BlogPost {
@@ -149,11 +153,36 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     category: b.category,
   }));
 
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://www.prepzo.ai/blog/${blog.slug}`
+    },
+    "headline": blog.title,
+    "image": blog.image_url,
+    "datePublished": blog.publish_date,
+    "dateModified": blog.publish_date,
+    "author": {
+      "@type": "Person",
+      "name": blog.author_name
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Prepzo",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.prepzo.ai/logo.png"
+      }
+    },
+    "description": blog.excerpt
+  };
 
   return (
     <div className="min-h-screen bg-white">
-      <CustomMetaTags blog={blog} />
-      {/* <SchemaMarkup articleSchema={articleSchema} /> */}
+      {/* <CustomMetaTags blog={blog} /> */}
+      <SchemaMarkup articleSchema={articleSchema} />
       <Navbar />
       <br />
       <br />
