@@ -7,11 +7,8 @@ import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({ subsets: ["latin"] }); 
-
-export const metadata: Metadata = {
-  title: "Prepzo", 
-  description: "Your AI voice assistant for personalized career guidance.", // Adjust description
-};
+import {Sitemetadata} from "./page.metadata";
+export const metadata: Metadata = Sitemetadata;
 
 export default function RootLayout({
   children,

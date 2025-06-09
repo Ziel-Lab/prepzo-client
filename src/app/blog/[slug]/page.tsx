@@ -11,6 +11,8 @@ import type { Metadata } from 'next'
 import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
 import { ShareWrapper } from "@/components/blog/ShareWrapper";
+import Script from "next/script";
+import Head from "next/head";
 
 // Enable SSR for this page
 export const dynamic = "force-dynamic";
@@ -180,9 +182,16 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* <CustomMetaTags blog={blog} /> */}
-      <SchemaMarkup articleSchema={articleSchema} />
+    <>
+    
+      <script 
+         type="application/ld+json" 
+         suppressHydrationWarning
+         dangerouslySetInnerHTML={{
+        __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c'),
+      }} /> 
+    
+    <div className="min-h-screen bg-white">  
       <Navbar />
       <br />
       <br />
@@ -238,6 +247,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
               className="w-full h-full object-cover"
               width={1000}
               height={1000}
+              priority
             />
           </div>
 
@@ -258,5 +268,6 @@ export default async function BlogPost({ params }: { params: { slug: string } })
       </article>
       <Footer />
     </div>
+    </>
   );
 }
