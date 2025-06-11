@@ -13,15 +13,17 @@ interface OptimizationRecord {
   linkedin_url: string;
   comments: string;
   api_response: {
-    changes_required: string;
-    explanation: string;
+    changes?: string;
+    changes_required?: string;
+    explanation?: string;
   };
 }
 
 // For the direct response from Xano/Flask, which then populates the state
 interface DirectApiResponse {
-    changes_required: string;
-    explanation: string;
+    changes?: string;
+    changes_required?: string;
+    explanation?: string;
 }
 
 const LinkedInOptimizerContent: React.FC = () => {
@@ -126,9 +128,10 @@ const LinkedInOptimizerContent: React.FC = () => {
 
       const data: DirectApiResponse = await response.json();
 
-      const newChangesRequired = data.changes_required?.trim() ? data.changes_required : null;
+      const primaryChanges = (data.changes ?? data.changes_required) || "";
+      const newChangesRequired = primaryChanges.trim() !== "" ? primaryChanges : null;
       const newExplanation = data.explanation?.trim() ? data.explanation : null;
-     
+      
       setChangesRequired(newChangesRequired);
       setExplanation(newExplanation);
       
@@ -195,20 +198,10 @@ const LinkedInOptimizerContent: React.FC = () => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[LinkedInOptimizerContent] Auth event: ${event}, session:`, session ? 'exists' : 'null');
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (session) {
-          console.log("[LinkedInOptimizerContent] Session available. Attempting to fetch history.");
-          fetchHistory();
-        } else {
-          console.log("[LinkedInOptimizerContent] No session on INITIAL_SESSION or SIGNED_IN. User might be logged out.");
-          setHistory([]); // Clear history if no session
-          // If getAuthToken is called (e.g. by a manual fetch action later), it will set the appropriate error.
-          // For initial load, if no session, we simply don't fetch.
-        }
-      } else if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT') {
         console.log("[LinkedInOptimizerContent] User signed out. Clearing history and error.");
         setHistory([]);
-        setError(null); 
+        setError(null);
       }
     });
 
@@ -240,6 +233,20 @@ const LinkedInOptimizerContent: React.FC = () => {
   // Derived booleans for rendering logic in Optimizer tab
   const hasContentForOptimizer = (changesRequired && changesRequired.trim() !== '') || (explanation && explanation.trim() !== '');
   const showOptimizerResultsContainer = !isLoading && hasSubmittedOnce;
+
+  /*
+   * Fetch history lazily: only when the History tab is first opened (or when
+   * a previous attempt resulted in an error and history is still empty).
+   * This avoids multiple automatic network requests that previously happened
+   * via the auth listener and keeps the UI responsive.
+   */
+  useEffect(() => {
+    if (activeTab === 'history' && (history.length === 0 || error)) {
+      fetchHistory();
+    }
+    // We intentionally exclude fetchHistory from deps to avoid recreating the effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
@@ -273,7 +280,7 @@ const LinkedInOptimizerContent: React.FC = () => {
             Optimizer
           </button>
           <button
-            onClick={() => { setActiveTab('history'); if (history.length === 0 || error) fetchHistory(); }} // Fetch history if empty or error exists
+            onClick={() => setActiveTab('history')}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'history'
                 ? 'border-indigo-500 text-indigo-600'
@@ -397,8 +404,22 @@ const LinkedInOptimizerContent: React.FC = () => {
               {history.map((item, index) => {
                 console.log(`[DEBUG History Item ${index}] ID: ${item.id}, Raw API Response:`, JSON.stringify(item.api_response)); // Log raw string for inspection
 
-                const changesFromHistory = item.api_response?.changes_required;
-                const explanationFromHistory = item.api_response?.explanation;
+                let apiResponseObj = item.api_response;
+                if (apiResponseObj && typeof apiResponseObj === "object" && "result1" in apiResponseObj) {
+                  try {
+                    apiResponseObj = JSON.parse(apiResponseObj.result1 as string);
+                  } catch (e) {
+                    apiResponseObj = {} as { changes_required?: string; explanation?: string };
+                  }
+                } else if (typeof apiResponseObj === "string") {
+                  try {
+                    apiResponseObj = JSON.parse(apiResponseObj);
+                  } catch (e) {
+                    apiResponseObj = {} as { changes_required?: string; explanation?: string };
+                  }
+                }
+                const changesFromHistory = apiResponseObj?.changes || apiResponseObj?.changes_required;
+                const explanationFromHistory = apiResponseObj?.explanation;
 
                 const hasApiChanges = typeof changesFromHistory === 'string' && changesFromHistory.trim() !== '';
                 const hasApiExplanation = typeof explanationFromHistory === 'string' && explanationFromHistory.trim() !== '';
