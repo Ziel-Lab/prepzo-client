@@ -155,24 +155,31 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   }));
 
   const articleSchema = {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      "headline": blog.title,
-      "image": blog.image_url,  
-      "author": {
-        "@type": "Person",
-        "name": blog.author_name
-      },  
-      "publisher": {
-        "@type": "Organization",
-        "name": "Prepzo",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://www.prepzo.ai/logo.png"
-        }
-      },
-      "datePublished": blog.publish_date
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://www.prepzo.ai/blog/${blog.slug}`
+    },
+    "headline": blog.title,
+    "description": blog.excerpt,
+    "image": blog.image_url,
+    "url": `https://www.prepzo.ai/blog/${blog.slug}`,
+    "datePublished": blog.publish_date,
+    "author": {
+      "@type": "Person",
+      "name": blog.author_name
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Prepzo",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.prepzo.ai/og.jpeg"
+      }
+    }
   };
+  
 
   return (
   <>
