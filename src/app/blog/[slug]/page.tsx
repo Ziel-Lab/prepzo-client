@@ -12,7 +12,6 @@ import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
 import { ShareWrapper } from "@/components/blog/ShareWrapper";
 import Script from "next/script";
-import Head from "next/head";
 
 // Enable SSR for this page
 export const dynamic = "force-dynamic";
@@ -156,41 +155,35 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   }));
 
   const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": `https://www.prepzo.ai/blog/${blog.slug}`
-    },
-    "headline": blog.title,
-    "image": blog.image_url,
-    "datePublished": blog.publish_date,
-    "dateModified": blog.publish_date,
-    "author": {
-      "@type": "Person",
-      "name": blog.author_name
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Prepzo",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://www.prepzo.ai/logo.png"
-      }
-    },
-    "description": blog.excerpt
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": blog.title,
+      "image": blog.image_url,  
+      "author": {
+        "@type": "Person",
+        "name": blog.author_name
+      },  
+      "publisher": {
+        "@type": "Organization",
+        "name": "Prepzo",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://www.prepzo.ai/logo.png"
+        }
+      },
+      "datePublished": blog.publish_date
   };
 
   return (
-    <>
-    
-      <script 
-         type="application/ld+json" 
-         suppressHydrationWarning
-         dangerouslySetInnerHTML={{
-        __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c'),
-      }} /> 
-    
+  <>
+   <Script
+        id="article-schema"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c'),
+        }}
+      />
     <div className="min-h-screen bg-white">  
       <Navbar />
       <br />
@@ -267,6 +260,13 @@ export default async function BlogPost({ params }: { params: { slug: string } })
         </div>
       </article>
       <Footer />
+      {/* JSON-LD structured data (rendered server-side) */}
+      {/* <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleSchema).replace(/</g, "\\u003c"),
+        }}
+      /> */}
     </div>
     </>
   );
