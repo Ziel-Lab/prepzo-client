@@ -11,6 +11,7 @@ import type { Metadata } from 'next'
 import Footer from "@/components/footer/Footer";
 import Navbar from "@/components/navbar/Navbar";
 import { ShareWrapper } from "@/components/blog/ShareWrapper";
+import Script from "next/script";
 
 // Enable SSR for this page
 export const dynamic = "force-dynamic";
@@ -32,9 +33,10 @@ export async function generateStaticParams() {
   })) || [];
 }
 
+
+
 // 1. Use generateMetadata for meta tags
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  // Fetch your blog post from Supabase
   const { data: blog } = await supabase
     .from("posts")
     .select("*")
@@ -46,13 +48,55 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return {
     title: blog.title,
     description: blog.excerpt,
+    metadataBase: new URL("https://www.prepzo.ai"),
+    alternates: {
+      canonical: "/blog/" + blog.slug,
+    },
     openGraph: {
       title: blog.title,
       description: blog.excerpt,
-      images: [blog.image_url],
-      authors: [blog.author_name],
+      images: blog.image_url,
+      type: 'article',
+      publishedTime: blog.publish_date,
+      authors: blog.author_name,
+      section: blog.category,
+      locale: "en_US",
+      url: `https://www.prepzo.ai/blog/${blog.slug}`,
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: blog.title,
+      description: blog.excerpt,
+      site: "@prepzo",
+      creator: "@prepzo",
+    },
+    keywords: `${blog.keywords}`,
+    robots: "index, follow",
+    applicationName: "Prepzo",
   };
+}
+
+
+// Add interface for blog type
+interface BlogPost {
+  publish_date: string;
+  author_name: string;
+  category: string;
+  title: string;
+  excerpt: string;
+  image_url: string;
+  slug: string;
+}
+
+// Add custom meta tags component with proper typing
+function CustomMetaTags({ blog }: { blog: BlogPost }) {
+  return (
+    <>
+      <meta property="article:published_time" content={blog.publish_date} />
+      <meta property="article:author" content={blog.author_name} />
+      <meta property="article:section" content={blog.category} />
+    </>
+  );
 }
 
 // Make the page component async for static generation
@@ -110,10 +154,44 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     category: b.category,
   }));
 
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://www.prepzo.ai/blog/${blog.slug}`
+    },
+    "headline": blog.title,
+    "description": blog.excerpt,
+    "image": blog.image_url,
+    "url": `https://www.prepzo.ai/blog/${blog.slug}`,
+    "datePublished": blog.publish_date,
+    "author": {
+      "@type": "Person",
+      "name": blog.author_name
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Prepzo",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.prepzo.ai/og.jpeg"
+      }
+    }
+  };
+  
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* <SchemaMarkup articleSchema={articleSchema} /> */}
+  <>
+   <Script
+        id="article-schema"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c'),
+        }}
+      />
+    <div className="min-h-screen bg-white">  
       <Navbar />
       <br />
       <br />
@@ -169,6 +247,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
               className="w-full h-full object-cover"
               width={1000}
               height={1000}
+              priority
             />
           </div>
 
@@ -188,6 +267,14 @@ export default async function BlogPost({ params }: { params: { slug: string } })
         </div>
       </article>
       <Footer />
+      {/* JSON-LD structured data (rendered server-side) */}
+      {/* <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleSchema).replace(/</g, "\\u003c"),
+        }}
+      /> */}
     </div>
+    </>
   );
 }
