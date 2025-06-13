@@ -13,14 +13,15 @@ interface OptimizationRecord {
   linkedin_url: string;
   comments: string;
   api_response: {
-    changes_required: string;
+    changes?: string; // For new format
+    changes_required?: string; // For old format
     explanation: string;
   };
 }
 
 // For the direct response from Xano/Flask, which then populates the state
 interface DirectApiResponse {
-    changes_required: string;
+    changes: string;
     explanation: string;
 }
 
@@ -127,7 +128,7 @@ const LinkedInOptimizerContent: React.FC = () => {
 
       const data: DirectApiResponse = await response.json();
 
-      const newChangesRequired = data.changes_required?.trim() ? data.changes_required : null;
+      const newChangesRequired = data.changes?.trim() ? data.changes : null;
       const newExplanation = data.explanation?.trim() ? data.explanation : null;
      
       setChangesRequired(newChangesRequired);
@@ -398,7 +399,7 @@ const LinkedInOptimizerContent: React.FC = () => {
               {history.map((item, index) => {
                 console.log(`[DEBUG History Item ${index}] ID: ${item.id}, Raw API Response:`, JSON.stringify(item.api_response)); // Log raw string for inspection
 
-                const changesFromHistory = item.api_response?.changes_required;
+                const changesFromHistory = item.api_response?.changes || item.api_response?.changes_required;
                 const explanationFromHistory = item.api_response?.explanation;
 
                 const hasApiChanges = typeof changesFromHistory === 'string' && changesFromHistory.trim() !== '';
