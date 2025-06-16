@@ -25,11 +25,11 @@ const loadingMessages = [
 
 interface FeedbackDetails {
   score: number;
-  feedback: string;
+  feedback: string; 
 }
 
 interface NewResumeDetails {
-  changes: string;
+  changes: string; 
   new_resume: string;
   new_score: number;
 }
@@ -45,7 +45,7 @@ interface ParsedAnalysisResult {
 }
 
 interface RawApiResponse {
-  feedback: string; 
+  feedback: string;
   new_resume: string;
   roast_feedback?: string;
   analysis_id?: string | number;
@@ -120,36 +120,871 @@ const AnalyzerToolContent = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // ... (existing fetchData logic from user's file)
+      setIsFetchingUserDocs(true);
+      setIsFetchingHistory(true);
+      setError(null);
+      setHistoryError(null);
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        const errMsg = "Could not retrieve user session.";
+        setError(errMsg);
+        setHistoryError(errMsg + " Cannot fetch analysis history.");
+        setIsFetchingUserDocs(false);
+        setIsFetchingHistory(false);
+        setResumeInputMethod('upload');
+        return;
+      }
+      const jwtToken = sessionData.session.access_token;
+
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) throw new Error("Backend URL for user portal is not configured.");
+        const docsUrl = `${backendUrl.replace(/\/$/, '')}/get-documents`;
+        const docsResponse = await fetch(docsUrl, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${jwtToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!docsResponse.ok) {
+          const errorData = await docsResponse.json().catch(() => ({ error: "Failed to parse error JSON for documents" }));
+          throw new Error(errorData.error || `HTTP error fetching documents: ${docsResponse.status}`);
+        }
+        const fetchedDocsRaw = await docsResponse.json();
+        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc: any) => ({
+          id: doc.id,
+          title: doc.document_name || doc.display_name || "Untitled Document",
+          url: doc.document_url,
+        }));
+        setUserDocuments(fetchedDocs);
+        if (!(fetchedDocs.length > 0 && fetchedDocs[0].url)) {
+            setResumeInputMethod('upload');
+        }
+      } catch (err: any) {
+        console.error("Error fetching user documents:", err);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setResumeInputMethod('upload'); 
+      } finally {
+        setIsFetchingUserDocs(false);
+      }
+
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) throw new Error("Backend URL is not configured for history.");
+        const historyUrl = `${backendUrl.replace(/\/$/, '')}/get-analyze-resume`;
+        const historyResponse = await fetch(historyUrl, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${jwtToken}`, "Content-Type": "application/json" },
+        });
+        if (!historyResponse.ok) {
+          const errorData = await historyResponse.json().catch(() => ({error: "Failed to parse history error"}));
+          throw new Error(errorData.error || `HTTP error fetching history: ${historyResponse.status}`);
+        }
+        const historyDataFromApi: any[] = await historyResponse.json();
+
+        const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item: any) => {
+          let parsedScore: number | undefined = undefined;
+          const isRoastItem = !item.job_description && item.additional_comment === "Resume Roast Feedback";
+          let roastFeedbackTextFromApi: string | undefined = undefined;
+
+          if (isRoastItem) {
+            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
+              try {
+                const parsedInnerJson: ParsedRoastPayload = JSON.parse(item.feedback_analysis.feedback);
+                if (parsedInnerJson && typeof parsedInnerJson.roast === 'string') {
+                  roastFeedbackTextFromApi = parsedInnerJson.roast;
+                }
+              } catch (e) {
+                console.error("Error parsing nested roast string from item.feedback_analysis.feedback:", item.id, e);
+              }
+            } else if (item.feedback_analysis && typeof item.feedback_analysis.roast === 'string') {
+                roastFeedbackTextFromApi = item.feedback_analysis.roast;
+            }
+          } else {
+            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
+              try {
+                const feedbackDetails: FeedbackDetails = JSON.parse(item.feedback_analysis.feedback);
+                parsedScore = feedbackDetails.score;
+              } catch (e) {
+                console.error("Error parsing score from item.feedback_analysis.feedback JSON string for item ID:", item.id, e);
+              }
+            }
+          }
+          
+          const resumeUrlFromAPI = item.current_resume;
+          let derivedResumeTitle = 'N/A';
+          if (resumeUrlFromAPI && typeof resumeUrlFromAPI === 'string') {
+            try {
+              const urlParts = resumeUrlFromAPI.split('/');
+              const fileNameWithPotentialQuery = urlParts[urlParts.length - 1];
+              const fileName = fileNameWithPotentialQuery.split('?')[0];
+              derivedResumeTitle = decodeURIComponent(fileName);
+            } catch (e) {
+                console.error("Error deriving resume title from URL:", resumeUrlFromAPI, e);
+            }
+          }
+          
+          const jobDescTitle = isRoastItem 
+            ? "Resume Roast" 
+            : (item.job_description ? (item.job_description as string).substring(0, 70) + '...' : 'N/A');
+
+          return {
+            id: item.id,
+            resume_url: resumeUrlFromAPI,
+            resume_title: derivedResumeTitle,
+            company_website: item.company_website,
+            job_description: item.job_description,
+            created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
+            score: parsedScore,
+            new_score: !isRoastItem && item.feedback_analysis && typeof item.feedback_analysis.new_resume === 'string' ? (() => {
+                try {
+                    const newResumeDetails: NewResumeDetails = JSON.parse(item.feedback_analysis.new_resume);
+                    return newResumeDetails.new_score;
+                } catch { return undefined; }
+            })() : undefined,
+            feedback: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.feedback : undefined, 
+            new_resume: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.new_resume : undefined, 
+            job_description_title: jobDescTitle,
+            is_roast: isRoastItem,
+            roast_feedback_text: roastFeedbackTextFromApi,
+            additional_comment: item.additional_comment,
+          };
+        });
+        setAnalysisHistory(formattedHistory);
+      } catch (err: any) {
+        console.error("Error fetching analysis history:", err);
+        setHistoryError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      } finally {
+        setIsFetchingHistory(false);
+      }
     };
     if (supabase) {
-        // fetchData(); // Temporarily disabled for brevity, assuming this logic is correct from user file
+        fetchData();
     }
   }, [supabase]);
 
-    // ... (rest of the functions: handleNewResumeFileChange, uploadNewResumeAndGetUrl, handleSubmit, handleRevealImprovedResume)
-    // The content of these functions will be from the user's detailed file.
-    // I am omitting them here to avoid an extremely long request, but they will be in the final file.
+  const handleNewResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setNewResumeFile(event.target.files[0]);
+      setSelectedDocumentUrl("");
+      setError(null); 
+    } else {
+      setNewResumeFile(null);
+    }
+  };
+  
+  const uploadNewResumeAndGetUrl = async (file: File): Promise<string | null> => {
+    setIsUploadingNewResume(true);
+    setError(null);
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData?.session?.access_token) {
+      setError("Session error. Cannot upload new resume.");
+      setIsUploadingNewResume(false);
+      return null;
+    }
+    const jwtToken = sessionData.session.access_token;
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) throw new Error("Backend URL (user portal) not configured for upload.");
+      const uploadUrl = `${backendUrl.replace(/\/$/, '')}/upload-document`;
+      
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${jwtToken}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Upload failed, could not parse error."}) );
+        throw new Error(errorData.error || `Upload failed: ${response.status}`);
+      }
+      const result = await response.json();
+      if (!result.file_url) {
+        throw new Error("Upload successful, but no file URL was returned.");
+      }
+      return result.file_url;
+    } catch (err:any) {
+      console.error("New resume upload error:", err);
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      return null;
+    } finally {
+      setIsUploadingNewResume(false);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoadingAnalysis(true);
+    setError(null);
+    setAnalysisResult(null);
+    setRawResponseForDebug(null);
+    setFieldErrors({});
+    setShowImprovedResume(false);
+    setCurrentAnalysisId(null);
+    setIsLoadingRoast(false);
+    setRoastResult(null);
+    setRoastError(null);
+
+    let finalResumeUrl = selectedDocumentUrl;
+    let currentFieldErrors: { jobDescription?: string; companyWebsite?: string } = {};
+
+    if (resumeInputMethod === 'upload' && newResumeFile) {
+      const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
+      if (uploadedUrl) {
+        finalResumeUrl = uploadedUrl;
+        setSelectedDocumentUrl(uploadedUrl);
+      } else {
+        setIsLoadingAnalysis(false);
+        return;
+      }
+    }
+
+    if (!finalResumeUrl) {
+      setError("Please select an existing resume or upload a new one.");
+      setIsLoadingAnalysis(false);
+      return;
+    }
+    if (toolMode === 'analyze') {
+        if (!jobDescription.trim()) {
+        currentFieldErrors.jobDescription = "Job Description is a required field.";
+        }
+        if (!companyWebsite.trim()) {
+        currentFieldErrors.companyWebsite = "Company Website is a required field.";
+        }
+    }
+
+    if (Object.keys(currentFieldErrors).length > 0) {
+      setFieldErrors(currentFieldErrors);
+      setError("Please fill in all highlighted required fields.");
+      setIsLoadingAnalysis(false);
+      setIsLoadingRoast(false);
+      return;
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData?.session?.access_token) {
+      setError("Could not retrieve user session. Please ensure you are logged in.");
+      setIsLoadingAnalysis(false);
+      console.error("AnalyzeResume: Session error or no access token.", sessionError);
+      return;
+    }
+    const jwtToken = sessionData.session.access_token;
+
+    let resumeTitleForBackend = "Uploaded Resume"; 
+    if (resumeInputMethod === 'select' && selectedDocumentUrl) {
+        const selectedDoc = userDocuments.find(doc => doc.url === selectedDocumentUrl);
+        if (selectedDoc) resumeTitleForBackend = selectedDoc.title;
+    } else if (newResumeFile) {
+        resumeTitleForBackend = newResumeFile.name;
+    }
+
+    if (toolMode === 'roast') {
+      setIsLoadingRoast(true);
+      setIsLoadingAnalysis(false);
+      const roastPayload = new FormData();
+      if (newResumeFile) {
+        roastPayload.append("file", newResumeFile);
+      } else {
+        roastPayload.append("current_resume_url", finalResumeUrl);
+      }
+
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) throw new Error("Backend URL for user portal is not configured.");
+        const roastUrl = `${backendUrl.replace(/\/$/, '')}/roast-resume`;
+
+        const response = await fetch(roastUrl, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${jwtToken}` },
+          body: roastPayload,
+        });
+
+        const responseData = await response.json();
+        setRawResponseForDebug(JSON.stringify(responseData, null, 2));
+
+        if (!response.ok) {
+          let specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
+          setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          setIsLoadingRoast(false);
+          return;
+        }
+        
+        let actualRoastText: string | undefined;
+        if (responseData.feedback && typeof responseData.feedback === 'string') {
+            try {
+                const parsedFeedbackPayload: ParsedRoastPayload = JSON.parse(responseData.feedback);
+                if (parsedFeedbackPayload.roast && typeof parsedFeedbackPayload.roast === 'string') {
+                    actualRoastText = parsedFeedbackPayload.roast;
+                }
+            } catch (e) {
+                console.error("Error parsing nested roast feedback JSON from responseData.feedback:", e);
+            }
+        } else if (responseData.roast && typeof responseData.roast === 'string') {
+            actualRoastText = responseData.roast;
+        }
+
+        setRoastResult(actualRoastText || "Roast complete, but no specific feedback message found.");
+
+        const roastAnalysisId = responseData.analysis_id || Date.now();
+        const newHistoryRoastItem: AnalysisHistoryItem = {
+            id: roastAnalysisId,
+            resume_url: finalResumeUrl, 
+            resume_title: resumeTitleForBackend,
+            created_at: new Date().toLocaleDateString(),
+            job_description_title: "Resume Roast",
+            is_roast: true,
+            roast_feedback_text: actualRoastText,
+            additional_comment: "Resume Roast Feedback",
+        };
+        if (newResumeFile && responseData.document_url) {
+            const newDoc: UserDocument = {
+                id: responseData.document_id || Date.now(),
+                title: newResumeFile.name,
+                url: responseData.document_url,
+            };
+            setUserDocuments(prev => [newDoc, ...prev]);
+            setSelectedDocumentUrl(responseData.document_url);
+            finalResumeUrl = responseData.document_url;
+            newHistoryRoastItem.resume_url = responseData.document_url;
+        }
+
+        setAnalysisHistory(prevHistory => [newHistoryRoastItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ));
+        setNewResumeFile(null);
+
+      } catch (err: any) {
+        console.error("Roast Resume Submit Error:", err);
+        setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      } finally {
+        setIsLoadingRoast(false);
+      }
+      return;
+    }
+
+    setIsLoadingAnalysis(true);
+    setIsLoadingRoast(false);
+
+    const analysisPayload = new FormData();
+    analysisPayload.append("current_resume", finalResumeUrl);
+    analysisPayload.append("job_description", jobDescription);
+    analysisPayload.append("company_website", companyWebsite);
+    if (additionalComments.trim()) {
+      analysisPayload.append("additional_comments", additionalComments);
+    }
+    analysisPayload.append("resume_title", resumeTitleForBackend);
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL; 
+      if (!backendUrl) {
+        throw new Error("Backend URL for user portal is not configured.");
+      }
+      const analyzeUrl = `${backendUrl.replace(/\/$/, '')}/analyze-resume`; 
+      
+      const response = await fetch(analyzeUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${jwtToken}` },
+        body: analysisPayload,
+      });
+
+      const responseData: RawApiResponse = await response.json();
+      setRawResponseForDebug(JSON.stringify(responseData, null, 2));
+
+      if (!response.ok) {
+        console.error("AnalyzeResume Error Response:", responseData);
+        let specificError = "An unknown error occurred.";
+        if (responseData.error) {
+            specificError = responseData.error;
+        } else if (responseData.details) {
+            specificError = typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details);
+        } else {
+            specificError = `HTTP error! status: ${response.status}`;
+        }
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setIsLoadingAnalysis(false);
+        return;
+      }
+      
+      try {
+        const parsedFeedback: FeedbackDetails = JSON.parse(responseData.feedback);
+        const parsedNewResume: NewResumeDetails = JSON.parse(responseData.new_resume);
+        const analysisIdForCurrent = responseData.analysis_id || Date.now();
+
+        setAnalysisResult({
+          id: analysisIdForCurrent,
+          feedback: parsedFeedback,
+          new_resume: parsedNewResume,
+        });
+        setCurrentAnalysisId(analysisIdForCurrent);
+
+        const newHistoryItem: AnalysisHistoryItem = {
+          id: analysisIdForCurrent, 
+          resume_url: finalResumeUrl,
+          resume_title: resumeTitleForBackend, 
+          company_website: companyWebsite,
+          job_description: jobDescription,
+          created_at: new Date().toLocaleDateString(),
+          score: parsedFeedback.score,
+          feedback: responseData.feedback, 
+          new_resume: responseData.new_resume, 
+          job_description_title: jobDescription.substring(0,70) + '...',
+          is_roast: false,
+        };
+        setAnalysisHistory(prevHistory => [newHistoryItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ));
+        setNewResumeFile(null);
+
+      } catch (parseError: any) {
+        console.error("Error parsing nested JSON from API response:", parseError);
+        console.error("Raw response was:", responseData);
+        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      }
+
+    } catch (err: any) {
+      console.error("AnalyzeResume Submit Error:", err);
+      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  };
+
+  const handleRevealImprovedResume = async () => {
+    if (!analysisResult || !currentAnalysisId) return;
+
+    setShowImprovedResume(true);
+    const newScoreToSave = analysisResult.new_resume.new_score;
+
+    setAnalysisHistory(prevHistory =>
+      prevHistory.map(item =>
+        item.id === currentAnalysisId
+          ? { ...item, new_score: newScoreToSave }
+          : item
+      )
+    );
+    console.log(`TODO: Call backend to update analysis history ID ${currentAnalysisId} with new_score: ${newScoreToSave}`);
+  };
+
+  useEffect(() => {
+    if (resultsCardRef.current && ((toolMode === 'analyze' && analysisResult && !isLoadingAnalysis) || (toolMode === 'roast' && roastResult && !isLoadingRoast))) {
+      const timerId = setTimeout(() => {
+        resultsCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+  }, [analysisResult, roastResult, toolMode, isLoadingAnalysis, isLoadingRoast, resultsCardRef]);
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-8">
-      {/* History Card - Unchanged from user's file */}
-      
       <Card>
-          {/* Main Form Card - Unchanged from user's file */}
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-gray-900">Analysis History</CardTitle>
+          <CardDescription>Review your past resume analyses.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isFetchingHistory && (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading history...
+            </div>
+          )}
+          {historyError && !isFetchingHistory && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error Fetching History</AlertTitle>
+              <AlertDescription>{historyError}</AlertDescription>
+            </Alert>
+          )}
+          {!isFetchingHistory && !historyError && analysisHistory.length === 0 && (
+            <p className="text-sm text-gray-500 text-center p-4">No analysis history found.</p>
+          )}
+          {!isFetchingHistory && !historyError && analysisHistory.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[30%]">Job Info</TableHead>
+                  <TableHead className="w-[30%]">Resume Used</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Score / Type</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analysisHistory.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                        <div className="truncate font-semibold" title={item.job_description || item.job_description_title}>
+                            {item.job_description_title}
+                        </div>
+                        {item.company_website && !item.is_roast && <div className="text-xs text-gray-500 truncate" title={item.company_website}>{item.company_website}</div>}
+                    </TableCell>
+                    <TableCell className="text-xs truncate">
+                        {item.resume_url ? (
+                            <a href={item.resume_url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600" title={item.resume_url}>
+                                {item.resume_title || 'View Resume'}
+                            </a>
+                        ) : (
+                            <span>{item.resume_title || 'N/A'}</span>
+                        )}
+                    </TableCell>
+                    <TableCell>{item.created_at}</TableCell>
+                    <TableCell>
+                      {item.is_roast ? (
+                        <span className="text-purple-600 font-semibold">Roast</span>
+                      ) : typeof item.new_score === 'number' ? (
+                        <span className="text-green-600 font-semibold">{`${item.new_score}/10 (Improved)`}</span>
+                      ) : typeof item.score === 'number' ? (
+                        `${item.score}/10`
+                      ) : (
+                        'N/A'
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center">
+            {toolMode === 'analyze' ? <Smile className="mr-2 h-6 w-6 text-blue-500" /> : <Flame className="mr-2 h-6 w-6 text-red-500" />}
+            {toolMode === 'analyze' ? "Resume Analyzer 😊" : "Resume Roast 😈"}
+          </CardTitle>
+          <CardDescription>
+            {toolMode === 'analyze' 
+              ? "Analyze your resume against a job description to get tailored feedback and suggestions."
+              : "Get a lighthearted roast of your resume. Good for a laugh and maybe some unexpected insights!"}
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-6">
+            <div className="space-y-2 p-4 border rounded-md bg-gray-50">
+                <Label className="font-semibold text-lg">Choose Your Tool</Label>
+                <RadioGroup
+                    value={toolMode}
+                    onValueChange={(value: 'analyze' | 'roast') => {
+                        setToolMode(value);
+                        setError(null);
+                        setRoastError(null);
+                        setAnalysisResult(null);
+                        setRoastResult(null);
+                        setFieldErrors({});
+                    }}
+                    className="flex items-center gap-x-6 gap-y-2 flex-wrap"
+                >
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="analyze" id="analyzeMode" />
+                        <Label htmlFor="analyzeMode" className="font-medium flex items-center">
+                            <Smile size={18} className="mr-2 text-blue-500" /> Resume Analyzer
+                        </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="roast" id="roastMode" />
+                        <Label htmlFor="roastMode" className="font-medium flex items-center">
+                            <Flame size={18} className="mr-2 text-red-500"/> Resume Roast
+                        </Label>
+                    </div>
+                </RadioGroup>
+            </div>
+
+            <div className="space-y-3 p-4 border rounded-md bg-slate-50">
+              <Label className="font-semibold text-lg">Your Current Resume <span className="text-red-500">*</span></Label>
+              <RadioGroup 
+                defaultValue="select"
+                value={resumeInputMethod}
+                onValueChange={(value: 'select' | 'upload') => {
+                    setResumeInputMethod(value);
+                    setError(null);
+                    if (value === 'select') setNewResumeFile(null);
+                }}
+                className="flex items-center gap-4 mb-3"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="select" id="selectExistingResume" disabled={isFetchingUserDocs || userDocuments.length === 0} />
+                  <Label htmlFor="selectExistingResume">Select from My Documents</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="upload" id="uploadNewResume" />
+                  <Label htmlFor="uploadNewResume">Upload New Resume</Label>
+                </div>
+              </RadioGroup>
+
+              {isFetchingUserDocs && resumeInputMethod === 'select' && (
+                <div className="flex items-center text-sm text-gray-500">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading your documents...
+                </div>
+              )}
+
+              {resumeInputMethod === 'select' && !isFetchingUserDocs && (
+                 userDocuments.length > 0 ? (
+                    <Select 
+                        value={selectedDocumentUrl}
+                        onValueChange={(value) => {
+                            setSelectedDocumentUrl(value);
+                            setNewResumeFile(null);
+                            setError(null);
+                        }}
+                        disabled={isUploadingNewResume || isLoadingAnalysis}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a document..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {userDocuments.map(doc => (
+                            <SelectItem key={doc.id} value={doc.url || ""} disabled={!doc.url}>
+                                <div className="flex items-center">
+                                    <FileIcon size={16} className="mr-2 text-gray-600"/> 
+                                    {doc.title} {!doc.url && "(URL missing)"}
+                                </div>
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                 ) : (
+                    <p className="text-sm text-gray-500">You have no documents. Please upload a new resume.</p>
+                 )
+              )}
+
+              {resumeInputMethod === 'upload' && (
+                <div className="space-y-2">
+                  <Input 
+                    id="newResumeUpload"
+                    type="file" 
+                    accept=".pdf,.doc,.docx,.txt,.rtf"
+                    onChange={handleNewResumeFileChange} 
+                    className="w-full"
+                    disabled={isUploadingNewResume || isLoadingAnalysis}
+                  />
+                  {newResumeFile && (
+                    <p className="text-xs text-gray-600">Selected file: {newResumeFile.name}</p>
+                  )}
+                  {isUploadingNewResume && (
+                    <div className="flex items-center text-sm text-blue-600">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading {newResumeFile?.name}... 
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {toolMode === 'analyze' && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="companyWebsite" className="font-semibold">Company Website <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="companyWebsite"
+                      type="url"
+                      value={companyWebsite}
+                      onChange={(e) => {
+                        setCompanyWebsite(e.target.value);
+                        if (fieldErrors.companyWebsite) {
+                            setFieldErrors(prev => ({...prev, companyWebsite: undefined}));
+                        }
+                      }}
+                      placeholder="https://example.com"
+                      required
+                      className={`mt-1 ${fieldErrors.companyWebsite ? 'border-red-500 focus:border-red-500 ring-red-500' : ''}`}
+                    />
+                    {fieldErrors.companyWebsite && <p className="text-sm text-red-500 mt-1">{fieldErrors.companyWebsite}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="additionalComments" className="font-semibold">Additional Comments (Optional)</Label>
+                    <Textarea
+                      id="additionalComments"
+                      value={additionalComments}
+                      onChange={(e) => setAdditionalComments(e.target.value)}
+                      placeholder="Any specific aspects you want the AI to focus on?"
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="jobDescription" className="font-semibold">Job Description <span className="text-red-500">*</span></Label>
+                    <Textarea
+                      id="jobDescription"
+                      value={jobDescription}
+                      onChange={(e) => {
+                        setJobDescription(e.target.value);
+                        if (fieldErrors.jobDescription) {
+                          setFieldErrors(prev => ({...prev, jobDescription: undefined}));
+                        }
+                      }}
+                      placeholder="Paste the job description text here..."
+                      rows={10}
+                      required
+                      className={`mt-1 ${fieldErrors.jobDescription ? 'border-red-500 focus:border-red-500 ring-red-500' : ''}`}
+                    />
+                    {fieldErrors.jobDescription && <p className="text-sm text-red-500 mt-1">{fieldErrors.jobDescription}</p>}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-col items-center gap-4">
+             {error && (
+              <Alert variant="destructive" className="w-full">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {roastError && (
+                <Alert variant="destructive" className="w-full">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Roast Error</AlertTitle>
+                    <AlertDescription>{roastError}</AlertDescription>
+                </Alert>
+            )}
+            <Button 
+              type="submit" 
+              disabled={isLoadingAnalysis || isUploadingNewResume || isLoadingRoast} 
+              className="w-full md:w-auto"
+            >
+              {isUploadingNewResume ? 'Uploading Resume...' : 
+                (isLoadingAnalysis ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : isLoadingRoast ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Roasting... <Flame className="ml-1 h-4 w-4 text-orange-400" />
+                  </>
+                ) : (
+                  toolMode === 'analyze' ? <><Smile className="mr-2 h-5 w-5" /> Analyze Resume</> : <> <Flame className="mr-2 h-5 w-5" /> Roast My Resume</>
+                )
+              )}
+            </Button>
+            {rawResponseForDebug && !analysisResult && !roastResult && (error || roastError) && (
+                <details className="w-full mt-2 text-xs text-gray-500">
+                    <summary>Show raw API response (for debugging)</summary>
+                    <pre className="bg-gray-100 p-2 rounded-md overflow-x-auto mt-1">
+                        {rawResponseForDebug}
+                    </pre>
+                </details>
+            )}
+          </CardFooter>
+        </form>
       </Card>
       
       {(isLoadingAnalysis || isLoadingRoast) && (
         <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-6 text-center">
-                <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
-                <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
-            </CardContent>
+          <CardContent className="p-6 text-center">
+            <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+          </CardContent>
         </Card>
       )}
 
-      {/* Analysis Results Card - Unchanged from user's file */}
-      {/* Roast Results Card - Unchanged from user's file */}
+      {toolMode === 'analyze' && analysisResult && !isLoadingAnalysis && (
+        <Card className="mt-8" ref={resultsCardRef}>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold flex items-center">
+              <CheckCircle2 className="h-5 w-5 mr-2 text-green-600" />
+              Analysis Results
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-gray-800">Feedback Analysis</h3>
+              <Card className="p-4">
+                <div className="flex justify-between items-center mb-2">
+                    <p className="text-md font-medium">Overall Score: <span className="text-blue-600 font-bold">{analysisResult.feedback.score}/10</span></p>
+                </div>
+                <h4 className="text-sm font-semibold mb-1">Detailed Feedback:</h4>
+                <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {analysisResult.feedback.feedback}
+                  </ReactMarkdown>
+                </div>
+              </Card>
+            </div>
+
+            {!showImprovedResume && (
+              <div className="text-center py-4">
+                <Button onClick={handleRevealImprovedResume} variant="default" size="lg">
+                  <Sparkles className="mr-2 h-5 w-5" /> Unlock Your Resume's Potential: See Suggested Improvements!
+                </Button>
+              </div>
+            )}
+
+            {showImprovedResume && (
+              <>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-800">Improved Resume</h3>
+                  <Card className="p-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <p className="text-md font-medium">New Score: <span className="text-green-600 font-bold">{analysisResult.new_resume.new_score}/10</span></p>
+                    </div>
+                    
+                    <h4 className="text-sm font-semibold mb-1">Summary of Changes:</h4>
+                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72 mb-4">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {analysisResult.new_resume.changes}
+                      </ReactMarkdown>
+                    </div>
+
+                    <h4 className="text-sm font-semibold mb-1 flex justify-between items-center">
+                      Updated Resume Text:
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigator.clipboard.writeText(analysisResult.new_resume.new_resume)}
+                        className="text-xs"
+                      >
+                        <Copy size={12} className="mr-1" /> Copy Resume
+                      </Button>
+                    </h4>
+                    <Textarea
+                      value={analysisResult.new_resume.new_resume}
+                      readOnly
+                      rows={15}
+                      className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 overflow-y-auto max-h-[400px]"
+                    />
+                  </Card>
+                </div>
+              </>
+            )}
+            
+          </CardContent>
+        </Card>
+      )}
+
+      {toolMode === 'roast' && roastResult && !isLoadingRoast && (
+        <Card className="mt-8" ref={resultsCardRef}>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold flex items-center">
+              <Flame className="h-6 w-6 mr-2 text-red-600" />
+              Your Sizzling Resume Roast! 😈
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Card className="p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 shadow-lg border-orange-300">
+                <div className="prose prose-sm max-w-none p-3 rounded-md overflow-x-auto overflow-y-auto max-h-96 text-gray-800">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {roastResult}
+                  </ReactMarkdown>
+                </div>
+                <div className="mt-4 text-center text-xs text-gray-500">
+                    Disclaimer: This is for entertainment purposes. Don't take it too seriously!
+                </div>
+            </Card>
+             <div className="text-center py-2">
+                <Button onClick={() => {
+                    setRoastResult(null);
+                    setRoastError(null);
+                }} variant="outline" size="sm">
+                    Done Roasting? Clear
+                </Button>
+              </div>
+          </CardContent>
+        </Card>
+      )}
+
     </div>
   );
 };
