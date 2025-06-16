@@ -57,6 +57,10 @@ const Navbar = () => {
             <span>Use Cases</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
           </Link>
+          <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+            <span>Blogs</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Contact</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
@@ -95,6 +99,9 @@ const Navbar = () => {
             </Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
               Use Cases
+            </Link>
+            <Link href="/blogs" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              Blogs
             </Link>
             <Link href="/contact" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
               Contact

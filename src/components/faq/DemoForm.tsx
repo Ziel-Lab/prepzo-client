@@ -50,8 +50,9 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
     question: "Do you have a money-back guarantee?",
     answer: "Yes, we do. If you do not get a job or the goal that you established in the beginning with Prepzo, we offer a 3 month money-back guarantee. Please read our terms & conditions."
   }];
-  return <div className="container py-12 sm:py-20">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+  return (
+    <section className="bg-white w-full py-12 sm:py-20">
+      <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center px-4">
         <div>
           <div className="mb-6">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -107,6 +108,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </section>
+  );
 };
 export default DemoForm;

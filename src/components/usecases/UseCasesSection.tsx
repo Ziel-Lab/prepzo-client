@@ -177,13 +177,13 @@ const UseCasesSection = () => {
             </TabsContent>
           </Tabs>
         </div>
-        <Link 
+        {/* <Link 
             href="/use-cases"
             className="inline-flex items-center gap-1 md:gap-2 text-prepzo hover:text-prepzo/90 transition-colors text-sm md:text-base"
           >
             View All Use Cases
             <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
-          </Link>
+          </Link> */}
       </div>
     </section>
   );
