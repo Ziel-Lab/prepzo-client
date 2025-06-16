@@ -13,7 +13,7 @@ const Footer = () => {
               <span className="ml-2 text-xs py-0.5 px-2 bg-white text-prepzo rounded-full">Beta</span>
             </div>
             <p className="mb-4 text-white/80">
-              Your AI voice assistant for personalized career guidance and professional development.
+            Your All-in one AI Partner for Job search & Career Success
             </p>
             <div className="flex items-center space-x-4">
               <a href="https://www.linkedin.com/company/prepzo-ai/" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white">
