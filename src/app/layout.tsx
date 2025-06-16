@@ -10,11 +10,19 @@ import Script from "next/script";
 const inter = Inter({ subsets: ["latin"] }); 
 
 export const metadata: Metadata = {
-  title: "Prepzo.ai | AI Career Coach & Job Search Assistant",
+  title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
   description:
-    "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
+    "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
+  keywords: [
+    "job search",
+    "resume creator",
+    "resume optimization",
+    "cover letter tool",
+    "linkedin optimization",
+    "career guidance",
+  ],
   openGraph: {
-    title: "Prepzo.ai | AI Career Coach & Job Search Assistant",
+    title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
       "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
     url: "https://prepzo.ai/",
@@ -32,10 +40,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Prepzo.ai | AI Career Coach & Job Search Assistant",
+    title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
       "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
     images: ["https://prepzo.ai/og.jpeg"], 
+    site: "@prepzo_ai",
+  },
+  alternates: {
+    canonical: "https://prepzo.ai/",
   },
 }; 
 
