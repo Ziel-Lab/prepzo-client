@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     title: "Prepzo.ai | AI Career Coach & Job Search Assistant",
     description:
       "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
-    images: ["https://prepzo.ai/og-image.png"], 
+    images: ["https://prepzo.ai/og.jpeg"], 
   },
 }; 
 export default function RootLayout({
