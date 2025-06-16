@@ -20,6 +20,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect, useCallback, memo } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -105,69 +108,74 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
 InternalSidebarLayout.displayName = 'InternalSidebarLayout'; // For better debugging
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const supabase = createClient();
+    const pathname = usePathname();
+    const router = useRouter();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const supabase = createClient();
 
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  }, [supabase, router]);
+    const handleLogout = useCallback(async () => {
+      await supabase.auth.signOut();
+      router.push('/');
+    }, [supabase, router]);
 
-  const handleNavigateToDashboard = useCallback(() => {
-    router.push('/dashboard');
-  }, [router]);
+    const handleNavigateToDashboard = useCallback(() => {
+      router.push('/dashboard');
+    }, [router]);
 
-  // Close mobile menu when navigating to a new page
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
-  
-  return (
-    <SidebarProvider>
-      <div className="h-screen flex w-full overflow-hidden">
-        {/* Desktop sidebar - hidden on small screens */}
-        <Sidebar className="bg-[#12231B] border-r border-[#1e3529] fixed top-0 bottom-0 left-0 z-40 hidden md:block">
-          <InternalSidebarLayout 
-            pathname={pathname} 
-            onLogoutClick={handleLogout} 
-            onNavigateToDashboard={handleNavigateToDashboard}
-            items={staticSidebarItems}
-          />
-        </Sidebar>
+    // Close mobile menu when navigating to a new page
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [pathname]);
+    
+    return (
+      <TooltipProvider>
+        <SubscriptionProvider>
+          <SidebarProvider>
+            <div className="h-screen flex w-full overflow-hidden">
+              {/* Desktop sidebar - hidden on small screens */}
+              <Sidebar className="bg-[#12231B] border-r border-[#1e3529] fixed top-0 bottom-0 left-0 z-40 hidden md:block">
+                <InternalSidebarLayout 
+                  pathname={pathname} 
+                  onLogoutClick={handleLogout} 
+                  onNavigateToDashboard={handleNavigateToDashboard}
+                  items={staticSidebarItems}
+                />
+              </Sidebar>
 
-        {/* Mobile burger menu */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#12231B] p-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <span className="text-white text-xl font-bold">Prepzo</span>
-            <span className="ml-2 bg-white text-[#12231B] px-2 py-0.5 rounded-md text-xs font-semibold">Pro</span>
-          </div>
-          
-          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[80%] bg-[#12231B] border-r border-[#1e3529] p-0">
-              <InternalSidebarLayout 
-                pathname={pathname} 
-                onLogoutClick={handleLogout} 
-                onNavigateToDashboard={handleNavigateToDashboard}
-                items={staticSidebarItems}
-              />
-            </SheetContent>
-          </Sheet>
-        </div>
+              {/* Mobile burger menu */}
+              <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#12231B] p-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-white text-xl font-bold">Prepzo</span>
+                  <span className="ml-2 bg-white text-[#12231B] px-2 py-0.5 rounded-md text-xs font-semibold">Pro</span>
+                </div>
+                
+                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-white">
+                      <Menu className="h-6 w-6" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[80%] bg-[#12231B] border-r border-[#1e3529] p-0">
+                    <InternalSidebarLayout 
+                      pathname={pathname} 
+                      onLogoutClick={handleLogout} 
+                      onNavigateToDashboard={handleNavigateToDashboard}
+                      items={staticSidebarItems}
+                    />
+                  </SheetContent>
+                </Sheet>
+              </div>
 
-        {/* Main content area with padding for mobile header */}
-        <main className="md:ml-[16rem] flex-1 bg-[#f8faf8] overflow-y-auto h-screen w-full md:w-[calc(100%-16rem)] md:absolute md:right-0 pt-20 md:pt-6 px-4 md:px-8">
-          {children}
-        </main>
-      </div>
-    </SidebarProvider>
-  );
+              {/* Main content area with padding for mobile header */}
+              <main className="md:ml-[16rem] flex-1 bg-[#f8faf8] overflow-y-auto h-screen w-full md:w-[calc(100%-16rem)] md:absolute md:right-0 pt-20 md:pt-6 px-4 md:px-8">
+                {children}
+              </main>
+            </div>
+            <Toaster />
+          </SidebarProvider>
+        </SubscriptionProvider>
+      </TooltipProvider>
+    );
 };
 
 export default DashboardLayout;

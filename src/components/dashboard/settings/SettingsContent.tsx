@@ -17,8 +17,12 @@ import {
   CreditCard as CreditCardIcon,
   LogOut as LogOutIcon,
   LogIn as LogInIcon,
+  Loader2,
+  AlertCircle,
+  ArrowRight
 } from "lucide-react";
-import SubscriptionContent from "./subscription/SubscriptionContent";
+import Link from "next/link";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 interface SettingsContentProps {
   email?: string;
@@ -28,16 +32,6 @@ interface SettingsContentProps {
 }
 
 const handleOAuthSignIn = async (provider: 'google' | 'linkedin') => {
-  // Assuming you have a createClient function for Supabase
-  // import { createClient } from '@/utils/supabase/client';
-  // const supabase = createClient();
-  // const { error } = await supabase.auth.signInWithOAuth({
-  //   provider: provider,
-  //   options: {
-  //     redirectTo: window.location.origin + '/auth/callback' // Or your settings page to refresh
-  //   }
-  // });
-  // if (error) console.error(`Error signing in with ${provider}:`, error);
   alert(`Placeholder: Sign in with ${provider}`);
 };
 
@@ -48,6 +42,7 @@ const handleOAuthUnlink = async (provider: 'google' | 'linkedin') => {
 const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avatarUrl, linkedProviders = [] }) => {
   const isGoogleConnected = linkedProviders.includes('google');
   const isLinkedInConnected = linkedProviders.includes('linkedin');
+  const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-10">
@@ -121,7 +116,42 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
       </Card>
 
       {/* Subscription Section */}
-      <SubscriptionContent />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+            <CreditCardIcon className="h-5 w-5" />
+            Subscription
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+            {isSubscriptionLoading ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading subscription status...</span>
+                </div>
+            ) : subscriptionError ? (
+                <div className="text-red-600 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{subscriptionError}</span>
+                </div>
+            ) : (
+                <div className="flex justify-between items-center">
+                    <div>
+                        <p className="text-gray-600">Your current plan is</p>
+                        <p className="text-lg font-bold text-purple-600 capitalize">
+                            {subscription?.subscription_plans.name || '...'}
+                        </p>
+                    </div>
+                    <Link href="/dashboard/settings/subscription" passHref>
+                        <Button variant="outline">
+                            View My Subscription
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </Link>
+                </div>
+            )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

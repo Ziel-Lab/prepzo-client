@@ -1,16 +1,39 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Star, XCircle, CheckCircle } from "lucide-react";
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Loader2,
+  AlertCircle,
+  Star,
+  XCircle,
+  CheckCircle,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { createClient } from "@/utils/supabase/client";
+
+// --- Interfaces based on your backend schema ---
 
 interface SubscriptionPlan {
   id: string | number;
@@ -28,81 +51,35 @@ interface FeatureUsage {
 }
 
 interface SubscriptionStatus {
-  status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free' | 'canceling';
-  current_period_end: string;
+  status:
+    | "free"
+    | "free_trial"
+    | "past_due"
+    | "active"
+    | "processing"
+    | "canceling"
+    | "canceled";
+  current_period_start: string;
+  current_period_end: string;    // now your single source of truth
   subscription_plans: SubscriptionPlan;
   usage: FeatureUsage;
 }
 
-// --- Component ---
-
 const SubscriptionContent = () => {
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
-
+  const { subscription, isLoading, error: contextError, refetch } = useSubscription();
   const [isProcessingAction, setIsProcessingAction] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true);
-    setSubscriptionError(null);
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token || !backendUrl) {
-        throw new Error("User session or backend URL not found.");
-      }
-
-      const response = await fetch(`${backendUrl}/subscription/status`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
-      setSubscription(data);
-    } catch (err: any) {
-      setSubscriptionError(err.message || "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabase]);
-
   useEffect(() => {
-    refetch();
-  }, [refetch]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('user-subscriptions-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_subscriptions' },
-        (payload) => {
-          console.log('Subscription change received, refetching data.', payload);
-          refetch();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refetch, supabase]);
-
-  useEffect(() => {
-    // NOTE: For success redirect to work, you must configure your Stripe payment link
-    // to redirect to a URL like: /your-page?success=true
-    if (searchParams.get('success') === 'true') {
+    if (searchParams.get("success") === "true") {
       setShowSuccessMessage(true);
       const timer = setTimeout(() => {
-        router.push('/dashboard/settings');
+        router.push("/dashboard/settings/subscription");
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -112,31 +89,25 @@ const SubscriptionContent = () => {
     setIsProcessingAction(true);
     setActionError(null);
     try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
-            throw new Error("Could not retrieve user session for upgrade.");
-        }
-        const userId = session.user.id;
-
-        const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
-        if (!paymentLink) {
-            throw new Error("Stripe payment link is not configured.");
-        }
-        
-        // Dynamically construct the Stripe Payment Link URL with the user's ID.
-        const url = new URL(paymentLink);
-        url.searchParams.set('client_reference_id', userId);
-        
-        // Prefill the email on the Stripe checkout page for convenience.
-        if (session.user.email) {
-            url.searchParams.set('prefilled_email', session.user.email);
-        }
-        
-        // Redirect the user to the constructed Stripe URL.
-        window.location.href = url.toString();
+       const {
+         data: { session },
+         error: sessionError,
+       } = await supabase.auth.getSession();
+       if (sessionError || !session) {
+         throw new Error("Could not retrieve user session for upgrade.");
+       }
+ 
+       const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK!;
+       const url = new URL(paymentLink);
+       url.searchParams.set("client_reference_id", session.user.id);
+       if (session.user.email) {
+         url.searchParams.set("prefilled_email", session.user.email);
+       }
+ 
+       window.location.href = url.toString();
     } catch (err: any) {
-        setActionError(err.message);
-        setIsProcessingAction(false); // Set processing to false only if an error occurs.
+       setActionError(err.message);
+       setIsProcessingAction(false);
     }
   };
 
@@ -144,130 +115,224 @@ const SubscriptionContent = () => {
     setIsProcessingAction(true);
     setActionError(null);
     try {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !sessionData?.session?.access_token) throw new Error("Could not retrieve user session for cancellation.");
-        
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-        const response = await fetch(`${backendUrl}/subscription/stripe/cancel-subscription`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Could not cancel subscription.");
-        
-        await refetch(); // Refresh status
+       const { data: sessionData, error: sessionError } =
+         await supabase.auth.getSession();
+       if (sessionError || !sessionData?.session?.access_token) {
+         throw new Error("Could not retrieve user session for cancellation.");
+       }
+ 
+       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
+       const res = await fetch(
+         `${backendUrl}/subscription/stripe/cancel-subscription`,
+         {
+           method: "POST",
+           headers: {
+             Authorization: `Bearer ${sessionData.session.access_token}`,
+           },
+         }
+       );
+       const data = await res.json();
+       if (!res.ok) {
+         throw new Error(data.error || "Could not cancel subscription.");
+       }
+ 
+       await refetch();
     } catch (err: any) {
-        setActionError(err.message);
+       setActionError(err.message);
     } finally {
         setIsProcessingAction(false);
     }
   };
 
-  const planName = subscription?.subscription_plans.name || '...';
-  const planIsActive = subscription?.status === 'active';
-  const planIsCanceling = subscription?.status === 'canceling';
-  const planIsCanceled = subscription?.status === 'canceled';
-  const planIsFree = subscription?.status === 'free';
-
-  const usageMetrics = subscription ? [
-    { name: 'Resume Analyses', used: subscription.usage.resume_count || 0, limit: subscription.subscription_plans.resume_limit_per_month },
-    { name: 'Cover Letters', used: subscription.usage.cover_letter_count || 0, limit: subscription.subscription_plans.cover_letter_limit_per_month },
-    { name: 'LinkedIn Optimizations', used: subscription.usage.linkedin_optimize_count || 0, limit: subscription.subscription_plans.linkedin_optimize_limit_per_month },
-  ] : [];
-
+  // --- Loading / Error States ---
   if (isLoading) {
-    return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin text-gray-500" /></div>;
+    return (
+      <div className="flex justify-center items-center h-48">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      </div>
+    );
   }
-
-  const error = subscriptionError || actionError;
+  const error = contextError || actionError;
   if (error) {
-    return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+  if (!subscription) {
+    return <p>No subscription details found.</p>;
   }
 
-  if (!subscription) {
-     return <p>No subscription details found.</p>;
-  }
+  // --- parse the date strings one time ---
+  const periodEnd = new Date(subscription.current_period_end);
+  const formattedEnd = periodEnd.toLocaleDateString();
+
+  // --- Status flags ---
+  const isFreeUser =
+    subscription.status === "free" ||
+    subscription.status === "free_trial" ||
+    subscription.status === "past_due";
+  const isPaidUser =
+    subscription.status === "active" || subscription.status === "processing";
+  const isCanceling = subscription.status === "canceling";
+  const isExpired = subscription.status === "canceled";
+
+  // --- Usage metrics ---
+  const usageMetrics = [
+    {
+      name: "Resume Analyses",
+      used: subscription.usage.resume_count,
+      limit: subscription.subscription_plans.resume_limit_per_month,
+    },
+    {
+      name: "Cover Letters",
+      used: subscription.usage.cover_letter_count,
+      limit: subscription.subscription_plans.cover_letter_limit_per_month,
+    },
+    {
+      name: "LinkedIn Optimizations",
+      used: subscription.usage.linkedin_optimize_count,
+      limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
+    },
+  ];
 
   return (
     <>
       {showSuccessMessage && (
-        <Alert variant="default" className="mb-4 bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-700" />
-            <AlertTitle>Upgrade Successful!</AlertTitle>
-            <AlertDescription>
-              Your plan has been upgraded to Pro. You will be redirected to the settings page in 5 seconds.
-            </AlertDescription>
+        <Alert
+          variant="default"
+          className="mb-4 bg-green-50 border-green-200"
+        >
+          <CheckCircle className="h-4 w-4 text-green-700" />
+          <AlertTitle>Upgrade Successful!</AlertTitle>
+          <AlertDescription>
+            Your plan has been upgraded to Pro. You will be redirected in 5
+            seconds.
+          </AlertDescription>
         </Alert>
       )}
-      {planIsCanceled && (
-         <Alert variant="default" className="bg-yellow-50 border-yellow-200">
-            <XCircle className="h-4 w-4 text-yellow-700" />
-            <AlertTitle>Subscription Canceled</AlertTitle>
-            <AlertDescription>
-              Your Pro plan is canceled. You can still use Pro features until your current period ends on {new Date(subscription.current_period_end).toLocaleDateString()}.
-            </AlertDescription>
-         </Alert>
+
+      {isExpired && (
+        <Alert
+          variant="default"
+          className="mb-4 bg-yellow-50 border-yellow-200"
+        >
+          <XCircle className="h-4 w-4 text-yellow-700" />
+          <AlertTitle>Subscription Ended</AlertTitle>
+          <AlertDescription>
+            Your Pro plan expired on {formattedEnd}. You can upgrade again
+            anytime.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isCanceling && (
+        <Alert
+          variant="default"
+          className="mb-4 bg-yellow-50 border-yellow-200"
+        >
+          <AlertCircle className="h-4 w-4 text-yellow-700" />
+          <AlertTitle>Cancellation Scheduled</AlertTitle>
+          <AlertDescription>
+            You'll keep Pro until {formattedEnd}, then you'll revert to Free.
+          </AlertDescription>
+        </Alert>
       )}
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {planIsActive || planIsCanceling ? <Star className="text-yellow-500"/> : null} Your Plan: <span className="text-purple-600 capitalize">{planName}</span>
+            {isPaidUser && <Star className="text-yellow-500" />} Your Plan:{" "}
+            <span className="text-purple-600 capitalize">
+              {subscription.subscription_plans.name}
+            </span>
           </CardTitle>
-          <CardDescription>
-            Your current billing period ends on {new Date(subscription.current_period_end).toLocaleDateString()}.
-          </CardDescription>
+          <CardDescription>Ends on {formattedEnd}.</CardDescription>
+          {isCanceling && (
+            <p className="text-sm text-gray-500 mt-1">
+              (You'll revert to Free on {formattedEnd})
+            </p>
+          )}
         </CardHeader>
+
         <CardContent>
-            <h3 className="text-md font-semibold mb-4">Monthly Usage</h3>
-            <div className="space-y-6">
-                {usageMetrics.map(metric => (
-                    <div key={metric.name}>
-                        <div className="flex justify-between items-center mb-1">
-                            <p className="text-sm font-medium">{metric.name}</p>
-                            <p className="text-sm text-gray-500">{metric.used ?? 0} / {metric.limit}</p>
-                        </div>
-                        <Progress value={metric.limit > 0 ? ((metric.used ?? 0) / metric.limit) * 100 : 0} />
-                    </div>
-                ))}
-            </div>
+          <h3 className="text-md font-semibold mb-4">Monthly Usage</h3>
+          <div className="space-y-6">
+            {usageMetrics.map((m) => (
+              <div key={m.name}>
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-sm font-medium">{m.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {m.used} / {m.limit}
+                  </p>
+                </div>
+                <Progress
+                  value={m.limit > 0 ? (m.used / m.limit) * 100 : 0}
+                />
+              </div>
+            ))}
+          </div>
         </CardContent>
+
         <CardFooter className="flex justify-end gap-4">
-            {planIsFree && (
-                <Button onClick={handleUpgrade} disabled={isProcessingAction}>
-                    {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Star className="mr-2 h-4 w-4" />}
-                     Upgrade to Pro
+          {/* Free users see Upgrade */}
+          {isFreeUser && (
+            <Button onClick={handleUpgrade} disabled={isProcessingAction}>
+              {isProcessingAction ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Star className="mr-2 h-4 w-4" />
+              )}
+              Upgrade to Pro
+            </Button>
+          )}
+
+          {/* Paid/processing users see Cancel */}
+          {isPaidUser && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="destructive" disabled={isProcessingAction}>
+                  {isProcessingAction ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-2 h-4 w-4" />
+                  )}
+                  Cancel Subscription
                 </Button>
-            )}
-            {planIsActive && (
-                 <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="destructive" disabled={isProcessingAction}>
-                            {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <XCircle className="mr-2 h-4 w-4" />}
-                            Cancel Subscription
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Are you sure you want to cancel?</DialogTitle>
-                            <DialogDescription>
-                                You can continue using Pro features until the end of your current billing period. This action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="ghost">Nevermind</Button></DialogClose>
-                            <Button variant="destructive" onClick={handleCancel} disabled={isProcessingAction}>
-                                {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : 'Yes, Cancel Now'}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirm Cancellation</DialogTitle>
+                  <DialogDescription>
+                    You'll keep Pro until your period end; this cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="ghost">Nevermind</Button>
+                  </DialogClose>
+                  <Button
+                    variant="destructive"
+                    onClick={handleCancel}
+                    disabled={isProcessingAction}
+                  >
+                    {isProcessingAction ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      "Yes, Cancel Now"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardFooter>
       </Card>
     </>
   );
 };
 
-export default SubscriptionContent; 
+export default SubscriptionContent;
