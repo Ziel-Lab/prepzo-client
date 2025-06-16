@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -13,37 +12,71 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 
-// The SubscriptionPlan and FeatureUsage interfaces will be inferred from the context
-// This avoids maintaining duplicate interfaces and prevents type mismatch errors.
+interface SubscriptionPlan {
+  id: string | number;
+  name: string;
+  price: number;
+  resume_limit_per_month: number;
+  cover_letter_limit_per_month: number;
+  linkedin_optimize_limit_per_month: number;
+}
+
+interface FeatureUsage {
+  resume_count: number;
+  cover_letter_count: number;
+  linkedin_optimize_count: number;
+}
 
 interface SubscriptionStatus {
-  status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free';
+  status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free' | 'canceling';
   current_period_end: string;
-  subscription_plans: { // Use inline or inferred type
-    id: string | number;
-    name: string;
-    price: number;
-    resume_limit_per_month: number;
-    cover_letter_limit_per_month: number;
-    linkedin_optimize_limit_per_month: number;
-  };
-  usage: {
-    resume_count: number;
-    cover_letter_count: number;
-    linkedin_optimize_count: number;
-  };
+  subscription_plans: SubscriptionPlan;
+  usage: FeatureUsage;
 }
 
 // --- Component ---
 
 const SubscriptionContent = () => {
-  const { subscription, isLoading, error: subscriptionError, refetch } = useSubscription();
+  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setSubscriptionError(null);
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token || !backendUrl) {
+        throw new Error("User session or backend URL not found.");
+      }
+
+      const response = await fetch(`${backendUrl}/subscription/status`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
+      setSubscription(data);
+    } catch (err: any) {
+      setSubscriptionError(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   useEffect(() => {
     const channel = supabase

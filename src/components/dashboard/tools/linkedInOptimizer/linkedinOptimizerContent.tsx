@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useSubscription } from '@/contexts/SubscriptionContext';
 // Import the centralized Supabase client creator
 import { createClient } from "@/utils/supabase/client";
 import { AlertTriangle, CheckCircle, Info, Edit3, HelpCircle, FileText, MessageSquare, Star, Loader2 } from 'lucide-react';
@@ -30,7 +29,9 @@ interface DirectApiResponse {
 }
 
 const LinkedInOptimizerContent: React.FC = () => {
-  const { isPro, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
+  const [subscription, setSubscription] = useState<any>(null);
+  const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const supabase = createClient();
 
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -45,6 +46,46 @@ const LinkedInOptimizerContent: React.FC = () => {
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  const getAuthToken = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setError('Authentication session not found. Please ensure you are logged in.');
+      return null;
+    }
+    return session.access_token;
+  }, [supabase]);
+
+  const fetchSubscriptionStatus = useCallback(async () => {
+    setIsSubscriptionLoading(true);
+    setSubscriptionError(null);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setIsSubscriptionLoading(false);
+        return; 
+      }
+      
+      if (!backendUrl) {
+        throw new Error("Backend URL not found.");
+      }
+
+      const response = await fetch(`${backendUrl}/subscription/status`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
+      setSubscription(data);
+    } catch (err: any) {
+      setSubscriptionError(err.message || "An unexpected error occurred.");
+    } finally {
+      setIsSubscriptionLoading(false);
+    }
+  }, [backendUrl, getAuthToken]);
+
+  useEffect(() => {
+    fetchSubscriptionStatus();
+  }, [fetchSubscriptionStatus]);
 
   // Clear results when inputs change after a successful submission
   useEffect(() => {
@@ -64,26 +105,6 @@ const LinkedInOptimizerContent: React.FC = () => {
         // setHasSubmittedOnce(false); 
     }
   };
-
-  // Get the backend URL from environment variables
-  const getAuthToken = useCallback(async () => {
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData || !sessionData.session) {
-        console.error('[LinkedInOptimizerContent] Error getting session or session not found:', sessionError);
-        setError('Authentication session not found. Please ensure you are logged in.');
-        return null;
-      }
-      
-      return sessionData.session.access_token;
-
-    } catch (e) {
-      console.error("[LinkedInOptimizerContent] Exception during supabase.auth.getSession():", e);
-      setError('Authentication token not found due to an exception. Please log in.');
-      return null;
-    }
-  }, [supabase]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -190,7 +211,7 @@ const LinkedInOptimizerContent: React.FC = () => {
       console.log("[DEBUG] fetchHistory: Setting isLoading to false");
       setIsLoading(false);
     }
-  }, [backendUrl, getAuthToken, setIsLoading, setError, setHistory]);
+  }, [backendUrl, getAuthToken]);
 
   useEffect(() => {
     if (!supabase || !backendUrl) {
@@ -237,6 +258,12 @@ const LinkedInOptimizerContent: React.FC = () => {
   // Derived booleans for rendering logic in Optimizer tab
   const hasContentForOptimizer = (changesRequired && changesRequired.trim() !== '') || (explanation && explanation.trim() !== '');
   const showOptimizerResultsContainer = !isLoading && hasSubmittedOnce;
+
+  const isPro = useMemo(() => {
+    if (!subscription) return false;
+    const status = subscription.status;
+    return status === 'active' || status === 'canceling' || status === 'canceled';
+  }, [subscription]);
 
   /*
    * Fetch history lazily: only when the History tab is first opened (or when

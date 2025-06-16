@@ -20,7 +20,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect, useCallback, memo } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
-import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -164,9 +163,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
         {/* Main content area with padding for mobile header */}
         <main className="md:ml-[16rem] flex-1 bg-[#f8faf8] overflow-y-auto h-screen w-full md:w-[calc(100%-16rem)] md:absolute md:right-0 pt-20 md:pt-6 px-4 md:px-8">
-          <SubscriptionProvider>
-            {children}
-          </SubscriptionProvider>
+          {children}
         </main>
       </div>
     </SidebarProvider>
