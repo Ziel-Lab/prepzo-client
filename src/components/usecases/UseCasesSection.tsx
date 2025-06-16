@@ -57,19 +57,19 @@ const UseCasesSection = () => {
                   <ul className="space-y-2 md:space-y-3 text-sm md:text-base">
                     <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
-                      <span>Tailor your resume to specific job requirements</span>
+                      <span>Navigate 16+ global job portals of job openings with intelligent search filters</span>
                     </li>
                     <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
-                      <span>Create personalized cover letters that stand out</span>
+                      <span>Generate ATS friendly resumes & cover letters within minutes.</span>
                     </li>
                     <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
-                      <span>Prepare for interviews with industry-specific questions</span>
+                      <span>Prepare for interviews & industry specific questions.</span>
                     </li>
                     <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
-                      <span>Track applications and follow-ups through the dashboard</span>
+                      <span>Optimize your linkedin to stand out from other applicants.</span>
                     </li>
                   </ul>
                 </div>

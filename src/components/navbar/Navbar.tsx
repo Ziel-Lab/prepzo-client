@@ -61,14 +61,14 @@ const Navbar = () => {
             <span>Contact</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
           </Link>
-          <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+          {/* <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Legacy Prepzo</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
-          </Link>
+          </Link> */}
           
           <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-              Join Waitlist
+              Sign Up
             </Button>
           </Link>
           {/* <Link href={loginTargetHref} passHref>
@@ -102,7 +102,7 @@ const Navbar = () => {
             
             <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
               <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-                Join Waitlist
+                Sign Up
               </Button>
             </Link>
             {/* <Link href={loginTargetHref} className="w-full" onClick={toggleMenu}>

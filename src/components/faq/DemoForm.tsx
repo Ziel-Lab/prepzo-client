@@ -38,17 +38,17 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
   }, [supabase]);
 
   const faqs = [{
-    question: "How long is the demo session?",
-    answer: "Each demo session is 15 minutes long, designed to give you a quick but comprehensive overview of Prepzo's AI voice guidance capabilities."
+    question: "Do I need a credit card to sign up for Prepzo?",
+    answer: "No, you don't need a credit card to Sign up for Prepzo. The free account gives you limited access to our career tools, so you can experience Prepzo first hand before making a paid commitment."
   }, {
-    question: "What will I learn in the demo?",
-    answer: "You'll experience firsthand how Prepzo's AI provides personalized career guidance, interview preparation tips, and professional development strategies."
+    question: "What features are available in the free account?",
+    answer: "You can access our Resume Optimization tool, Cover Letter Generation Tool, and Prepzo Voice Career Guide in the free plan."
   }, {
-    question: "Is the demo really free?",
-    answer: "Yes, the demo is completely free with no obligations. It's our way of showing you the value Prepzo can bring to your career journey."
+    question: "What do I get in the paid plans?",
+    answer: "With a paid plan, you can also search for jobs on the biggest job database from around the world. Check your Job Match Score for the shortlisted jobs and get many credits to use Prepzo Career Tools."
   }, {
-    question: "How soon can I start after the demo?",
-    answer: "You can start using Prepzo immediately after the demo if you choose to sign up. We'll help you get set up right away."
+    question: "Do you have a money-back guarantee?",
+    answer: "Yes, we do. If you do not get a job or the goal that you established in the beginning with Prepzo, we offer a 3 month money-back guarantee. Please read our terms & conditions."
   }];
   return <div className="container py-12 sm:py-20">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -57,26 +57,26 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to <span className="text-gradient">Transform</span> Your Career?
             </h2>
-            <p className="text-lg text-foreground/70 mb-6">Get your free 15-minute demo call with Prepzo and experience how AI voice guidance can help you overcome your professional challenges.</p>
+            <p className="text-lg text-foreground/70 mb-6">Sign up for a free account on Prepzo and experience how our career tools can accelerate your job search, career growth and development. </p>
             
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-prepzo text-white flex items-center justify-center font-bold">1</div>
-                <p>Register for a free 15-minute demo call</p>
+                <p>Register for a free account</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-prepzo text-white flex items-center justify-center font-bold">2</div>
-                <p>Experience Prepzo's AI voice guidance firsthand</p>
+                <p>Answer simple questions</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-prepzo text-white flex items-center justify-center font-bold">3</div>
-                <p>Get a taste of personalized career advice</p>
+                <p>Utilize one and many Prepzo career tools crafted for you.</p>
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
                 <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
-                  <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-                    Join Waitlist
+                  <Button size="lg" className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto">
+                    Get Started
                   </Button>
                 </Link>
                 <Button 

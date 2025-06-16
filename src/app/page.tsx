@@ -9,6 +9,7 @@ import UseCasesSection from "@/components/usecases/UseCasesSection";
 import DemoForm from "@/components/faq/DemoForm";
 import Footer from "@/components/footer/Footer";
 import AgentModal from "@/components/modal/agentmodal";
+import BeyondToolsSection from "@/components/beyondSection/BeyondToolsSection";
 
 const HomePage = () => {
   const router = useRouter();
@@ -28,6 +29,7 @@ const HomePage = () => {
       <main className="flex-grow">
         <HeroSection onOpenAgentModal={handleOpenAgentModal} />
         <FeaturesSection />
+        <BeyondToolsSection />
         <UseCasesSection />
         <DemoForm onOpenAgentModal={handleOpenAgentModal} />
       </main>

@@ -67,16 +67,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
              </div>
              
              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white">
-               Get personalized <span className="bg-gradient-to-r from-prepzo-100 via-prepzo-300 to-prepzo-500 bg-clip-text text-transparent font-extrabold">career guidance</span> through conversations
+               Your All-in one <span className="bg-gradient-to-r from-prepzo-100 via-prepzo-300 to-prepzo-500 bg-clip-text text-transparent font-extrabold"><br/>AI Partner</span> for Job search & Career Success
              </h1>
              <p className="text-lg md:text-xl text-white/80">
-               Talk to Prepzo, an AI voice agent that provides tailored strategies for your professional challenges, job search, and career growth.
+             From powerful job search tools to AI-optimized resumes, cover letters, and
+             LinkedIn profiles – Prepzo.ai empowers your career journey.
              </p>
 
             <div className="flex gap-3">
               <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
                 <Button className="bg-white text-prepzo border border-prepzo hover:bg-gray-100 w-full px-8 py-3">
-                  Join Waitlist
+                  Get Started
                 </Button>
               </Link>
               {/* Button uses the passed-in handler */}
