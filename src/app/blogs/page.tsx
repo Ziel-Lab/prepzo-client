@@ -10,10 +10,22 @@ import Navbar from "@/components/navbar/Navbar";
 import { ArrowLeft } from 'lucide-react';
 
 
-const categories = ["All", "Career Tools", "Interview Prep","Cover Letter", "Resume Builder", "Personal Branding", "Job Search"];
+const categories = ["All", "Career Tools", "Interview Prep","Cover Letter", "Resume Builder", "Personal Branding", "Job Search","Company Updates"];
 
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  author_name: string;
+  author_image: string;
+  slug: string;
+  publish_date: string;
+  read_time: string;
+  image_url: string;
+  category: string;
+}
 const Blog = () => {
-  const [blogs, setBlogs] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -121,7 +133,7 @@ const Blog = () => {
           ): blogs.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {blogs.map((blog) => (
-                  <BlogCard key={blog.id} {...blog} />
+                    <BlogCard key={blog.id} {...blog}/>
                 ))}
               </div>
             ) : (
