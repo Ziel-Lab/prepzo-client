@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
-      "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
+      "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
     url: "https://prepzo.ai/",
     siteName: "Prepzo.ai",
     images: [
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
-      "Prepzo is an AI voice assistant that helps you overcome career challenges with personalized strategies for job search, skill development, and career growth. Try a free demo—no credit card required.",
+      "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
     images: ["https://prepzo.ai/og.jpeg"], 
     site: "@prepzo_ai",
   },
@@ -95,7 +95,7 @@ const softwareApplicationSchema = {
   operatingSystem: "Web", 
   applicationCategory: "BusinessApplication",
   description:
-    "Prepzo.ai is an AI voice assistant for job seekers and professionals, offering career coaching, resume help and interview preparation.",
+    "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
   offers: {
     "@type": "Offer",
     price: "0",
