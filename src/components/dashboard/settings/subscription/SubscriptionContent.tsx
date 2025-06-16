@@ -135,6 +135,7 @@ const SubscriptionContent = () => {
   const planIsActive = subscription?.status === 'active';
   const planIsCanceling = subscription?.status === 'canceling';
   const planIsCanceled = subscription?.status === 'canceled';
+  const planIsFree = subscription?.status === 'free';
 
   const usageMetrics = subscription ? [
     { name: 'Resume Analyses', used: subscription.usage.resume_count || 0, limit: subscription.subscription_plans.resume_limit_per_month },
@@ -166,7 +167,7 @@ const SubscriptionContent = () => {
             </AlertDescription>
         </Alert>
       )}
-      {(planIsCanceling || planIsCanceled) && (
+      {planIsCanceled && (
          <Alert variant="default" className="bg-yellow-50 border-yellow-200">
             <XCircle className="h-4 w-4 text-yellow-700" />
             <AlertTitle>Subscription Canceled</AlertTitle>
@@ -179,7 +180,7 @@ const SubscriptionContent = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {planIsActive || planIsCanceling || planIsCanceled ? <Star className="text-yellow-500"/> : null} Your Plan: <span className="text-purple-600 capitalize">{planName}</span>
+            {planIsActive || planIsCanceling ? <Star className="text-yellow-500"/> : null} Your Plan: <span className="text-purple-600 capitalize">{planName}</span>
           </CardTitle>
           <CardDescription>
             Your current billing period ends on {new Date(subscription.current_period_end).toLocaleDateString()}.
@@ -200,7 +201,7 @@ const SubscriptionContent = () => {
             </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-4">
-            {subscription?.status === 'free' && (
+            {planIsFree && (
                 <Button onClick={handleUpgrade} disabled={isProcessingAction}>
                     {isProcessingAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Star className="mr-2 h-4 w-4" />}
                      Upgrade to Pro
