@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2 } from "lucide-react";
+
+const loadingMessages = [
+  "Our AI is reading your resume closely...",
+  "Comparing your skills to the job description...",
+  "Crafting personalized feedback just for you...",
+  "Checking for keywords and best practices...",
+  "Almost there! Just polishing your results."
+];
 
 // Simplified interfaces for the result
 interface FeedbackDetails {
@@ -37,72 +45,25 @@ const AnalyzerToolContent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ParsedAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pollingTaskId, setPollingTaskId] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
   const supabase = createClient();
   const resultsCardRef = useRef<HTMLDivElement>(null);
 
-  // This effect polls the backend for the task status
+  // This effect cycles through the nice loading messages
   useEffect(() => {
-    if (!pollingTaskId) return;
-
-    const intervalId = setInterval(async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-            throw new Error("User session not found. Please log in again.");
-        }
-
-        // NOTE: This assumes you have a Next.js proxy setup for `/api/userPortal`
-        const statusResponse = await fetch(`/api/userPortal/careerTools/resumeAnalyze/task-status/${pollingTaskId}`, {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+    let intervalId: NodeJS.Timeout;
+    if (isLoading) {
+      intervalId = setInterval(() => {
+        setLoadingMessage(prev => {
+          const currentIndex = loadingMessages.indexOf(prev);
+          return loadingMessages[(currentIndex + 1) % loadingMessages.length];
         });
+      }, 3500);
+    }
+    return () => clearInterval(intervalId);
+  }, [isLoading]);
 
-        if (statusResponse.status === 404) {
-            // Task not found on the server, maybe due to a server restart.
-            // Stop polling to prevent infinite loops.
-            throw new Error("Analysis task not found. It may have expired. Please try again.");
-        }
-        
-        if (!statusResponse.ok) {
-          throw new Error('Failed to fetch task status from the server.');
-        }
-
-        const data = await statusResponse.json();
-
-        if (data.status === 'SUCCESS') {
-          clearInterval(intervalId);
-          setPollingTaskId(null);
-
-          // The backend sends feedback and new_resume as JSON strings.
-          // We need to parse them before setting the state.
-          const parsedResult: ParsedAnalysisResult = {
-              feedback: JSON.parse(data.result.feedback),
-              new_resume: JSON.parse(data.result.new_resume)
-          };
-          setAnalysisResult(parsedResult);
-          setIsLoading(false);
-        } else if (data.status === 'FAILURE') {
-          clearInterval(intervalId);
-          setPollingTaskId(null);
-          setError(data.result?.error || 'Analysis failed on the server. Please try again.');
-          setIsLoading(false);
-        }
-        // If status is 'PENDING', we do nothing and the interval continues.
-
-      } catch (err: any) {
-        clearInterval(intervalId);
-        setPollingTaskId(null);
-        setError(err.message || 'An error occurred while checking the analysis status.');
-        setIsLoading(false);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    return () => clearInterval(intervalId); // Cleanup on component unmount or when pollingTaskId changes
-  }, [pollingTaskId, supabase.auth]);
-  
   // Scroll to results when they appear
   useEffect(() => {
       if(analysisResult && resultsCardRef.current) {
@@ -121,7 +82,8 @@ const AnalyzerToolContent = () => {
     setIsLoading(true);
     setAnalysisResult(null);
     setError(null);
-    setPollingTaskId(null);
+    // Reset to the first loading message for each new submission
+    setLoadingMessage(loadingMessages[0]);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -134,7 +96,7 @@ const AnalyzerToolContent = () => {
         job_description: jobDescription,
         company_website: companyWebsite,
         additional_comments: additionalComments,
-        resume_title: 'User Resume', // You can derive this from the URL if you wish
+        resume_title: 'User Resume',
       };
 
       const analyzeResponse = await fetch('/api/userPortal/careerTools/resumeAnalyze/start-analysis', {
@@ -146,18 +108,25 @@ const AnalyzerToolContent = () => {
         body: JSON.stringify(analysisPayload),
       });
 
-      if (analyzeResponse.status !== 202) {
+      if (!analyzeResponse.ok) {
         const errorData = await analyzeResponse.json();
-        throw new Error(errorData.error || 'The server failed to start the analysis task.');
+        throw new Error(errorData.error || `Request failed with status ${analyzeResponse.status}`);
       }
 
-      const { task_id } = await analyzeResponse.json();
-      setPollingTaskId(task_id);
-      // The isLoading state remains true while we poll.
+      const result = await analyzeResponse.json();
+      
+      // The backend sends feedback and new_resume as JSON strings.
+      // We need to parse them before setting the state.
+      const parsedResult: ParsedAnalysisResult = {
+          feedback: JSON.parse(result.feedback),
+          new_resume: JSON.parse(result.new_resume)
+      };
+      setAnalysisResult(parsedResult);
 
     } catch (err: any) {
-      setIsLoading(false);
       setError(err.message);
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -218,11 +187,11 @@ const AnalyzerToolContent = () => {
         </CardContent>
       </Card>
 
-      {isLoading && pollingTaskId && (
-        <Card>
+      {isLoading && (
+        <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-6 text-center">
-            <p className="font-semibold text-lg">Analysis in Progress...</p>
-            <p className="text-sm text-gray-600 mt-2">This may take a moment. The results will appear here automatically when complete.</p>
+            <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
           </CardContent>
         </Card>
       )}
