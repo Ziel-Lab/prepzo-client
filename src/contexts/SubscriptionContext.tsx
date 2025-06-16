@@ -14,7 +14,7 @@ interface SubscriptionPlan {
 }
 
 interface SubscriptionStatus {
-  status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free';
+  status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free' | 'canceling';
   subscription_plans: SubscriptionPlan;
   [key: string]: any; // Allow other properties
 }
@@ -73,9 +73,10 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   
   const isPro = useMemo(() => {
     if (!subscription) return false;
-    const planIsActivePaid = subscription.status === 'active' && subscription.subscription_plans?.price > 0;
-    const planIsCanceledButActive = subscription.status === 'canceled'; // Still has pro features until period end
-    return planIsActivePaid || planIsCanceledButActive;
+    const status = subscription.status;
+    // A user has access to pro features if their status is active,
+    // or if they have a pending or completed cancellation.
+    return status === 'active' || status === 'canceling' || status === 'canceled';
   }, [subscription]);
 
   const value = {
