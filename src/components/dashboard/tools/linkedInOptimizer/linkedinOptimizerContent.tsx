@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 // Import the centralized Supabase client creator
 import { createClient } from "@/utils/supabase/client";
 import { AlertTriangle, CheckCircle, Info, Edit3, HelpCircle, FileText, MessageSquare, Star, Loader2 } from 'lucide-react';
@@ -29,7 +30,7 @@ interface DirectApiResponse {
 }
 
 const LinkedInOptimizerContent: React.FC = () => {
-  // Initialize Supabase client using the project's utility function
+  const { isPro, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
   const supabase = createClient();
 
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -41,8 +42,6 @@ const LinkedInOptimizerContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'optimizer' | 'history'>('optimizer');
   const [hasSubmittedOnce, setHasSubmittedOnce] = useState(false); // To track if form was submitted
-  const [isPro, setIsPro] = useState(false);
-  const [isSubscriptionLoading, setSubscriptionLoading] = useState(true);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -85,46 +84,6 @@ const LinkedInOptimizerContent: React.FC = () => {
       return null;
     }
   }, [supabase]);
-
-  useEffect(() => {
-    const checkSubscription = async () => {
-      setSubscriptionLoading(true);
-      const token = await getAuthToken();
-      if (!token || !backendUrl) {
-          setSubscriptionLoading(false);
-          setError(prev => prev || "Could not verify user session.");
-          return;
-      }
-
-      try {
-          const response = await fetch(`${backendUrl}/subscription/status`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-
-          if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Failed to fetch subscription status.');
-          }
-          const data = await response.json();
-          
-          const planIsActivePaid = data.status === 'active' && data.subscription_plans?.price > 0;
-          const planIsCanceled = data.status === 'canceled';
-
-          if (planIsActivePaid || planIsCanceled) {
-              setIsPro(true);
-          } else {
-              setIsPro(false);
-          }
-      } catch (err: any) {
-          console.error("Failed to check subscription:", err);
-          setError("Could not verify your subscription plan. Please try again later.");
-      } finally {
-          setSubscriptionLoading(false);
-      }
-    };
-
-    checkSubscription();
-  }, [getAuthToken, backendUrl]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -307,6 +266,17 @@ const LinkedInOptimizerContent: React.FC = () => {
             <div>
               <p className="font-bold">Error</p>
               <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {subscriptionError && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md mb-6" role="alert">
+          <div className="flex">
+            <div className="py-1"><AlertTriangle className="h-6 w-6 text-red-500 mr-3" /></div>
+            <div>
+              <p className="font-bold">Subscription Error</p>
+              <p className="text-sm">{subscriptionError}</p>
             </div>
           </div>
         </div>

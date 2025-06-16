@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -12,70 +13,39 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 
-// --- Interfaces based on backend schema ---
-
-interface SubscriptionPlan {
-  id: string | number;
-  name: string;
-  price: number;
-  resume_limit_per_month: number;
-  cover_letter_limit_per_month: number;
-  linkedin_optimize_limit_per_month: number;
-}
-
-interface FeatureUsage {
-  resume_count: number;
-  cover_letter_count: number;
-  linkedin_optimize_count: number;
-}
+// The SubscriptionPlan and FeatureUsage interfaces will be inferred from the context
+// This avoids maintaining duplicate interfaces and prevents type mismatch errors.
 
 interface SubscriptionStatus {
   status: 'active' | 'canceled' | 'past_due' | 'free_trial' | 'free';
   current_period_end: string;
-  subscription_plans: SubscriptionPlan;
-  usage: FeatureUsage;
+  subscription_plans: { // Use inline or inferred type
+    id: string | number;
+    name: string;
+    price: number;
+    resume_limit_per_month: number;
+    cover_letter_limit_per_month: number;
+    linkedin_optimize_limit_per_month: number;
+  };
+  usage: {
+    resume_count: number;
+    cover_letter_count: number;
+    linkedin_optimize_count: number;
+  };
 }
 
 // --- Component ---
 
 const SubscriptionContent = () => {
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { subscription, isLoading, error: subscriptionError, refetch } = useSubscription();
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const fetchSubscriptionStatus = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.access_token) throw new Error("Could not retrieve user session.");
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-      if (!backendUrl) throw new Error("Backend URL is not configured.");
-      
-      const response = await fetch(`${backendUrl}/subscription/status`, {
-        headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
-      });
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
-
-      setSubscription(data);
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabase]);
-
   useEffect(() => {
-    fetchSubscriptionStatus();
-    
     const channel = supabase
       .channel('user-subscriptions-changes')
       .on(
@@ -83,7 +53,7 @@ const SubscriptionContent = () => {
         { event: '*', schema: 'public', table: 'user_subscriptions' },
         (payload) => {
           console.log('Subscription change received, refetching data.', payload);
-          fetchSubscriptionStatus();
+          refetch();
         }
       )
       .subscribe();
@@ -91,7 +61,7 @@ const SubscriptionContent = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchSubscriptionStatus, supabase]);
+  }, [refetch, supabase]);
 
   useEffect(() => {
     // NOTE: For success redirect to work, you must configure your Stripe payment link
@@ -107,7 +77,7 @@ const SubscriptionContent = () => {
 
   const handleUpgrade = async () => {
     setIsProcessingAction(true);
-    setError(null);
+    setActionError(null);
     try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
@@ -132,14 +102,14 @@ const SubscriptionContent = () => {
         // Redirect the user to the constructed Stripe URL.
         window.location.href = url.toString();
     } catch (err: any) {
-        setError(err.message);
+        setActionError(err.message);
         setIsProcessingAction(false); // Set processing to false only if an error occurs.
     }
   };
 
   const handleCancel = async () => {
     setIsProcessingAction(true);
-    setError(null);
+    setActionError(null);
     try {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !sessionData?.session?.access_token) throw new Error("Could not retrieve user session for cancellation.");
@@ -153,9 +123,9 @@ const SubscriptionContent = () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Could not cancel subscription.");
         
-        await fetchSubscriptionStatus(); // Refresh status
+        await refetch(); // Refresh status
     } catch (err: any) {
-        setError(err.message);
+        setActionError(err.message);
     } finally {
         setIsProcessingAction(false);
     }
@@ -175,6 +145,7 @@ const SubscriptionContent = () => {
     return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin text-gray-500" /></div>;
   }
 
+  const error = subscriptionError || actionError;
   if (error) {
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
   }
