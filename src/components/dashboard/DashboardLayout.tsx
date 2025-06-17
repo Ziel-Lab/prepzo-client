@@ -12,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider 
 } from "@/components/ui/sidebar";
-import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle } from "lucide-react";
+import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle, CreditCard, Bot } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect, useCallback, memo } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,7 +34,7 @@ const staticSidebarItems = [
   { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
   { icon: FileText, label: "Documents", href: "/dashboard/documents" },
   { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+  { icon: CreditCard, label: "My Subscription", href: "/dashboard/settings/subscription" },
 ];
 
 interface InternalSidebarLayoutProps {
@@ -41,11 +42,13 @@ interface InternalSidebarLayoutProps {
   onLogoutClick: () => void;
   onNavigateToDashboard: () => void;
   items: typeof staticSidebarItems;
+  user: User | null;
+  router: ReturnType<typeof useRouter>;
 }
 
 // Memoized internal layout for the sidebar content
 const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
-  { pathname, onLogoutClick, onNavigateToDashboard, items }
+  { pathname, onLogoutClick, onNavigateToDashboard, items, user, router }
 ) => {
   return (
     <>
@@ -60,6 +63,9 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
         <Button 
           className="w-full bg-[#1e3529] text-white hover:bg-[#2a4a3a] transition-colors"
           size="lg"
+          onClick={() => {
+            router.push('/dashboard/My-Agent');
+          }}
         >
           Talk to Prepzo
         </Button>
@@ -91,16 +97,38 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
           </SidebarGroup>
         </ScrollArea>
       </SidebarContent>
-      <SidebarFooter className="absolute bottom-4 left-0 right-0 px-4 flex flex-col gap-2">
-        <Button 
-          onClick={onLogoutClick}
-          className="w-full bg-[#2a4a3a] text-white hover:bg-[#3c6a50] transition-colors"
-          size="lg"
-          variant="outline"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
+      <SidebarFooter className="absolute bottom-2 left-0 right-0 px-2">
+        {user && (
+            <Link href="/dashboard/settings" passHref>
+                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#1e3529] cursor-pointer transition-colors">
+                    <img
+                        src={user.user_metadata.avatar_url || "/static/images/profile-placeholder.png"}
+                        alt="User avatar"
+                        className="w-9 h-9 rounded-full object-cover"
+                    />
+                    <div className="flex-grow truncate">
+                        <span className="text-white text-sm font-semibold block">
+                            {user.user_metadata.full_name || 'User'}
+                        </span>
+                        <span className="text-white/60 text-xs block">
+                            View settings
+                        </span>
+                    </div>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-white/80 hover:text-white flex-shrink-0"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onLogoutClick();
+                        }}
+                        aria-label="Logout"
+                    >
+                        <LogOut className="h-5 w-5" />
+                    </Button>
+                </div>
+            </Link>
+        )}
       </SidebarFooter>
     </>
   );
@@ -111,7 +139,16 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     const pathname = usePathname();
     const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
     const supabase = createClient();
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+        };
+        fetchUser();
+    }, [supabase]);
 
     const handleLogout = useCallback(async () => {
       await supabase.auth.signOut();
@@ -139,6 +176,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                   onLogoutClick={handleLogout} 
                   onNavigateToDashboard={handleNavigateToDashboard}
                   items={staticSidebarItems}
+                  user={user}
+                  router={router}
                 />
               </Sidebar>
 
@@ -161,6 +200,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                       onLogoutClick={handleLogout} 
                       onNavigateToDashboard={handleNavigateToDashboard}
                       items={staticSidebarItems}
+                      user={user}
+                      router={router}
                     />
                   </SheetContent>
                 </Sheet>

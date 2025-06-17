@@ -14,6 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from "@/utils/supabase/client";
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table";
+import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
 
 const loadingMessages = [
   "Our AI is reading your resume closely...",
@@ -100,9 +101,11 @@ const AnalyzerToolContent = () => {
   const [showImprovedResume, setShowImprovedResume] = useState(false);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | number | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
+  const [limitReached, setLimitReached] = useState(false);
 
   const supabase = createClient();
   const resultsCardRef = useRef<HTMLDivElement>(null);
+  const loadingCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -321,6 +324,7 @@ const AnalyzerToolContent = () => {
     event.preventDefault();
     setIsLoadingAnalysis(true);
     setError(null);
+    setLimitReached(false);
     setAnalysisResult(null);
     setRawResponseForDebug(null);
     setFieldErrors({});
@@ -408,8 +412,12 @@ const AnalyzerToolContent = () => {
         setRawResponseForDebug(JSON.stringify(responseData, null, 2));
 
         if (!response.ok) {
-          let specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
-          setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          const specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
+          if (typeof specificError === 'string' && specificError.toLowerCase().includes("monthly limit")) {
+            setLimitReached(true);
+          } else {
+            setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          }
           setIsLoadingRoast(false);
           return;
         }
@@ -495,15 +503,13 @@ const AnalyzerToolContent = () => {
 
       if (!response.ok) {
         console.error("AnalyzeResume Error Response:", responseData);
-        let specificError = "An unknown error occurred.";
-        if (responseData.error) {
-            specificError = responseData.error;
-        } else if (responseData.details) {
-            specificError = typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details);
+        const specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
+        
+        if (typeof specificError === 'string' && specificError.toLowerCase().includes("monthly limit")) {
+            setLimitReached(true);
         } else {
-            specificError = `HTTP error! status: ${response.status}`;
+            setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
         }
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
         setIsLoadingAnalysis(false);
         return;
       }
@@ -567,13 +573,31 @@ const AnalyzerToolContent = () => {
   };
 
   useEffect(() => {
+    // Scroll to loading indicator when it appears
+    if ((isLoadingAnalysis || isLoadingRoast) && loadingCardRef.current) {
+      const timerId = setTimeout(() => {
+        loadingCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+    
+    // Scroll to results card when loading is finished and results are available
     if (resultsCardRef.current && ((toolMode === 'analyze' && analysisResult && !isLoadingAnalysis) || (toolMode === 'roast' && roastResult && !isLoadingRoast))) {
       const timerId = setTimeout(() => {
         resultsCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
       return () => clearTimeout(timerId);
     }
-  }, [analysisResult, roastResult, toolMode, isLoadingAnalysis, isLoadingRoast, resultsCardRef]);
+  }, [isLoadingAnalysis, isLoadingRoast, analysisResult, roastResult, toolMode]);
+
+  if (limitReached) {
+    return (
+      <LimitReached 
+        featureName="Resume Analysis"
+        featureNamePlural="Resume Analyses & Roasts"
+      />
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-8">
@@ -872,7 +896,7 @@ const AnalyzerToolContent = () => {
       </Card>
       
       {(isLoadingAnalysis || isLoadingRoast) && (
-        <Card className="bg-blue-50 border-blue-200">
+        <Card ref={loadingCardRef} className="bg-blue-50 border-blue-200">
           <CardContent className="p-6 text-center">
             <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
             <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>

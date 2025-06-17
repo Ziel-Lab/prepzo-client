@@ -6,6 +6,15 @@ import { AlertTriangle, CheckCircle, Info, Edit3, HelpCircle, FileText, MessageS
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+
+const loadingMessages = [
+    "Analyzing your LinkedIn profile...",
+    "Identifying areas for improvement based on your goals...",
+    "Crafting impactful suggestions for your headline and summary...",
+    "Reviewing your experience for keyword optimization...",
+    "Polishing the final recommendations..."
+];
 
 // Interface for API response data (already present)
 interface OptimizationRecord {
@@ -43,9 +52,12 @@ const LinkedInOptimizerContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'optimizer' | 'history'>('optimizer');
   const [hasSubmittedOnce, setHasSubmittedOnce] = useState(false); // To track if form was submitted
+  const [limitReached, setLimitReached] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
   const resultsRef = useRef<HTMLDivElement>(null);
+  const loadingCardRef = useRef<HTMLDivElement>(null);
 
   // Clear results when inputs change after a successful submission
   useEffect(() => {
@@ -55,6 +67,20 @@ const LinkedInOptimizerContent: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedinUrl, comments]);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (isLoading) {
+        setLoadingMessage(loadingMessages[0]);
+        intervalId = setInterval(() => {
+            setLoadingMessage(prev => {
+                const currentIndex = loadingMessages.indexOf(prev);
+                return loadingMessages[(currentIndex + 1) % loadingMessages.length];
+            });
+        }, 3500);
+    }
+    return () => clearInterval(intervalId);
+  }, [isLoading]);
 
   const handleInputChange = () => {
     // Clear results immediately when user types in input fields after a submission
@@ -90,23 +116,22 @@ const LinkedInOptimizerContent: React.FC = () => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
+    setLimitReached(false);
     setChangesRequired(null);
     setExplanation(null);
     setHasSubmittedOnce(true); // Mark that a submission attempt has been made
 
-    if (!backendUrl) {
-      setError("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL_USER_PORTAL.");
-      setIsLoading(false);
-      return;
-    }
-
-    const token = await getAuthToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      if (!backendUrl) {
+        setError("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL_USER_PORTAL.");
+        return;
+      }
+
+      const token = await getAuthToken();
+      if (!token) {
+        return;
+      }
+      
       const targetUrl = `${backendUrl.replace(/\/$/, '')}/linkedin-optimizer`;
       const response = await fetch(targetUrl, {
         method: 'POST',
@@ -125,8 +150,13 @@ const LinkedInOptimizerContent: React.FC = () => {
             console.error("[DEBUG] handleSubmit: Failed to parse error JSON", e);
         }
         console.error("[DEBUG] handleSubmit: Response not OK. Error data:", errorData);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
-        setIsLoading(false);
+        
+        const specificError = errorData.error || "";
+        if (typeof specificError === 'string' && specificError.toLowerCase().includes("limit")) {
+          setLimitReached(true);
+        } else {
+          setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        }
         return;
       }
 
@@ -225,15 +255,22 @@ const LinkedInOptimizerContent: React.FC = () => {
   }, [supabase, backendUrl, fetchHistory]);
 
   useEffect(() => {
-    // Scroll to results when they are populated, the tab is active, and not loading
-    if (activeTab === 'optimizer' && (changesRequired || explanation) && resultsRef.current && !isLoading) {
+    // Scroll to loading indicator when it appears
+    if (isLoading && activeTab === 'optimizer' && loadingCardRef.current) {
       const timerId = setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        console.log("[DEBUG] useEffect: Scrolling to resultsRef due to changesRequired/explanation and optimizer tab active");
-      }, 100); // setTimeout can help ensure rendering is complete
+        loadingCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
       return () => clearTimeout(timerId);
     }
-  }, [changesRequired, explanation, activeTab, isLoading, resultsRef]);
+    
+    // Scroll to results when they are populated, the tab is active, and not loading
+    if (!isLoading && activeTab === 'optimizer' && (changesRequired || explanation) && resultsRef.current) {
+      const timerId = setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+  }, [isLoading, activeTab, changesRequired, explanation]);
 
   // Determine if there are any results to show
   const hasResultsToDisplay = (changesRequired && changesRequired.trim() !== '') || (explanation && explanation.trim() !== '');
@@ -267,6 +304,15 @@ const LinkedInOptimizerContent: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (limitReached) {
+    return (
+      <LimitReached 
+        featureName="LinkedIn Optimization"
+        featureNamePlural="LinkedIn Optimizations"
+      />
     );
   }
 
@@ -380,6 +426,15 @@ const LinkedInOptimizerContent: React.FC = () => {
               ) : 'Optimize Profile'}
             </button>
           </form>
+
+          {isLoading && (
+            <div className="mt-10" ref={loadingCardRef}>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                    <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
+                    <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+                </div>
+            </div>
+          )}
 
           <div ref={resultsRef} className="mt-10 pt-8 border-t-2 border-indigo-100">
             {showOptimizerResultsContainer && (

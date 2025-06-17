@@ -44,6 +44,15 @@ import {
   TableHead,
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+
+const loadingMessages = [
+    "Understanding the job role...",
+    "Aligning your skills with the company's needs...",
+    "Drafting a compelling opening paragraph...",
+    "Weaving your experience into a narrative...",
+    "Adding the finishing touches to your letter..."
+];
 
 // Interface for user documents (resumes)
 interface UserDocument {
@@ -103,9 +112,12 @@ const CoverLetterContent = () => {
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<CoverLetterHistoryItem | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
   const supabase = createClient();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const loadingCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -192,6 +204,20 @@ const CoverLetterContent = () => {
     if (supabase) fetchData();
   }, [supabase]);
 
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (isLoading) {
+        setLoadingMessage(loadingMessages[0]); // Reset to first message
+        intervalId = setInterval(() => {
+            setLoadingMessage(prev => {
+                const currentIndex = loadingMessages.indexOf(prev);
+                return loadingMessages[(currentIndex + 1) % loadingMessages.length];
+            });
+        }, 3500);
+    }
+    return () => clearInterval(intervalId);
+  }, [isLoading]);
+
   const handleResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setNewResumeFile(event.target.files[0]);
@@ -262,47 +288,45 @@ const CoverLetterContent = () => {
 
     setIsLoading(true);
     setError(null);
+    setLimitReached(false);
     setGeneratedResult(null);
 
-    let finalResumeUrl = selectedResumeUrl;
-    if (resumeInputMethod === "upload" && newResumeFile) {
-      const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
-      if (uploadedUrl) {
-        finalResumeUrl = uploadedUrl;
-        setSelectedResumeUrl(uploadedUrl); // So it's selected if user re-submits without changing file
-      } else {
-        setIsLoading(false);
-        return; // Error is set by uploadNewResumeAndGetUrl
-      }
-    }
-
-    if (!finalResumeUrl) {
-        setError("Resume URL could not be determined. Please select or upload a resume.");
-        setIsLoading(false);
-        return;
-    }
-
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData?.session?.access_token) {
-      setError("Could not retrieve user session.");
-      setIsLoading(false);
-      return;
-    }
-    const jwtToken = sessionData.session.access_token;
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-    if (!backendUrl) {
-        setError("Backend URL is not configured.");
-        setIsLoading(false);
-        return;
-    }
-
-    const payload = new FormData();
-    payload.append("current_resume", finalResumeUrl);
-    payload.append("job_description", jobDescription);
-    if (companyWebsite.trim()) payload.append("company_website", companyWebsite);
-    if (userComments.trim()) payload.append("additional_comments", userComments);
-
     try {
+      let finalResumeUrl = selectedResumeUrl;
+      if (resumeInputMethod === "upload" && newResumeFile) {
+        const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
+        if (uploadedUrl) {
+          finalResumeUrl = uploadedUrl;
+          setSelectedResumeUrl(uploadedUrl); // So it's selected if user re-submits without changing file
+        } else {
+          // Error is set by uploadNewResumeAndGetUrl, just exit.
+          return; 
+        }
+      }
+
+      if (!finalResumeUrl) {
+          setError("Resume URL could not be determined. Please select or upload a resume.");
+          return;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        setError("Could not retrieve user session.");
+        return;
+      }
+      const jwtToken = sessionData.session.access_token;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+          setError("Backend URL is not configured.");
+          return;
+      }
+
+      const payload = new FormData();
+      payload.append("current_resume", finalResumeUrl);
+      payload.append("job_description", jobDescription);
+      if (companyWebsite.trim()) payload.append("company_website", companyWebsite);
+      if (userComments.trim()) payload.append("additional_comments", userComments);
+
       const response = await fetch(`${backendUrl.replace(/\/$/, '')}/create-cover-letter`, {
         method: "POST",
         headers: { Authorization: `Bearer ${jwtToken}` },
@@ -317,8 +341,12 @@ const CoverLetterContent = () => {
         if (responseData && (responseData.error || responseData.details)) {
             errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
         }
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
-        setIsLoading(false);
+        
+        if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
+          setLimitReached(true);
+        } else {
+          setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        }
         return;
       }
       
@@ -346,7 +374,6 @@ const CoverLetterContent = () => {
         } else {
             console.error("Parsed feedback from backend is missing cover_letter or additional_comments:", parsedFeedback);
             setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
-            setIsLoading(false);
         }
       } else if (responseData.cover_letter && responseData.additional_comments !== undefined) {
         // Fallback: if backend ALREADY parsed it and sent it as top-level (less likely based on new info)
@@ -397,13 +424,31 @@ const CoverLetterContent = () => {
   };
 
   useEffect(() => {
-    if (generatedResult && resultsRef.current && !isLoading) {
+    // Scroll to loading indicator when it appears
+    if (isLoading && loadingCardRef.current) {
+      const timerId = setTimeout(() => {
+        loadingCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timerId);
+    }
+    
+    // Scroll to results card when loading is finished and results are available
+    if (generatedResult && !isLoading && resultsRef.current) {
       const timerId = setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
       return () => clearTimeout(timerId);
     }
-  }, [generatedResult, isLoading, resultsRef]);
+  }, [isLoading, generatedResult]);
+
+  if (limitReached) {
+    return (
+      <LimitReached 
+        featureName="Cover Letter Generation"
+        featureNamePlural="Cover Letters"
+      />
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto py-8 px-4">
@@ -565,6 +610,16 @@ const CoverLetterContent = () => {
           </CardFooter>
         </form>
       </Card>
+
+      {/* Loading Indicator Card */}
+      {isLoading && (
+        <Card className="mt-8 bg-blue-50 border-blue-200" ref={loadingCardRef}>
+          <CardContent className="p-6 text-center">
+            <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results Section */}
       {generatedResult && !isLoading && (
