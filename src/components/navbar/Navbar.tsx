@@ -49,7 +49,7 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
-          <Link href="#features" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+          <Link href="/#features" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Features</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
           </Link>
@@ -94,7 +94,7 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden absolute w-full bg-background border-b border-border animate-fade-in">
           <div className="container flex flex-col py-4 space-y-4">
-            <Link href="#features" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+            <Link href="/#features" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
               Features
             </Link>
             <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
