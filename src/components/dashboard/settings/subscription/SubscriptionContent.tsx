@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { createClient } from "@/utils/supabase/client";
+import SubscriptionHistory from "./subscriptionHistory";
 
 // --- Interfaces based on your backend schema ---
 
@@ -141,6 +142,39 @@ const SubscriptionContent = () => {
        setActionError(err.message);
     } finally {
         setIsProcessingAction(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    setIsProcessingAction(true);
+    setActionError(null);
+    try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        throw new Error("Could not retrieve user session for reactivation.");
+      }
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
+      const res = await fetch(
+        `${backendUrl}/subscription/stripe/reactivate-subscription`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not reactivate subscription.");
+      }
+
+      await refetch(); // Refetch subscription status to update the UI
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setIsProcessingAction(false);
     }
   };
 
@@ -290,6 +324,18 @@ const SubscriptionContent = () => {
             </Button>
           )}
 
+          {/* Users with a canceling sub see a Reactivate button */}
+          {isCanceling && (
+            <Button onClick={handleReactivate} disabled={isProcessingAction}>
+              {isProcessingAction ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              Reactivate Subscription
+            </Button>
+          )}
+
           {/* Paid/processing users see Cancel */}
           {isPaidUser && (
             <Dialog>
@@ -331,6 +377,10 @@ const SubscriptionContent = () => {
           )}
         </CardFooter>
       </Card>
+
+      <div className="mt-8">
+        <SubscriptionHistory />
+      </div>
     </>
   );
 };

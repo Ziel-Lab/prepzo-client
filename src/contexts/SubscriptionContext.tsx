@@ -21,6 +21,7 @@ export interface FeatureUsage {
 
 export interface SubscriptionStatus {
   status: 'free' | 'free_trial' | 'past_due' | 'active' | 'processing' | 'canceling' | 'canceled';
+  current_period_start: string;
   current_period_end: string;
   subscription_plans: SubscriptionPlan;
   usage: FeatureUsage;
