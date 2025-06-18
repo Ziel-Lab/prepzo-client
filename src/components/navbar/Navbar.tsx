@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { createClient } from '@/utils/supabase/client';
+import Image from "next/image";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,8 +43,9 @@ const Navbar = () => {
       <div className="container flex items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-prepzo">Prepzo</span>
-            <span className="ml-2 text-xs py-0.5 px-2 bg-prepzo text-white rounded-full">Beta</span>
+            <Image src="/static/images/logo.png" alt="Prepzo" width={125} height={125} />
+            {/* <span className="text-2xl font-bold text-prepzo">Prepzo</span> */}
+            {/* <span className="ml-2 text-xs py-0.5 px-2 bg-prepzo text-white rounded-full">Beta</span> */}
           </Link>
         </div>
 

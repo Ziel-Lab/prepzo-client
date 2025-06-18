@@ -21,6 +21,31 @@ export const metadata: Metadata = {
     "linkedin optimization",
     "career guidance",
   ],
+  manifest: "/static/favicons/site.webmanifest",
+  icons: {
+    icon: [
+      { rel: "icon", url: "/static/favicons/favicon.ico" },
+      {
+        rel: "icon",
+        type: "image/png",
+        sizes: "16x16",
+        url: "/static/favicons/favicon-16x16.png",
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        sizes: "32x32",
+        url: "/static/favicons/favicon-32x32.png",
+      },
+    ],
+    apple: [
+      {
+        rel: "apple-touch-icon",
+        sizes: "180x180",
+        url: "/static/favicons/apple-touch-icon.png",
+      },
+    ],
+  },
   openGraph: {
     title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:

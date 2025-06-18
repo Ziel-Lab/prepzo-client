@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import Link from "next/link";
 
 const Footer = () => {
@@ -9,10 +10,11 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center mb-4">
-              <Link href="/" className="text-2xl font-bold">Prepzo</Link>
-              <span className="ml-2 text-xs py-0.5 px-2 bg-white text-prepzo rounded-full">Beta</span>
+              <Image src="/static/images/footer-logo.png" alt="Prepzo" width={140} height={140} />
+              {/* <Link href="/" className="text-2xl font-bold">Prepzo</Link> */}
+              {/* <span className="ml-2 text-xs py-0.5 px-2 bg-white text-prepzo rounded-full">Beta</span> */}
             </div>
-            <p className="mb-4 text-white/80">
+            <p className="mb-4 text-sm text-white/80">
             Your All-in one AI Partner for Job search & Career Success
             </p>
             <div className="flex items-center space-x-4">
