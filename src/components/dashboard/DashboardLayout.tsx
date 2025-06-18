@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
+import Image from "next/image";
 
 const sidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -56,8 +57,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         className="flex items-center mb-4 cursor-pointer"
         onClick={() => router.push('/dashboard')}
       >
-        <span className="text-white text-2xl font-bold">Prepzo</span>
-        <span className="ml-2 bg-white text-[#12231B] px-2 py-1 rounded-md text-sm font-semibold">Pro</span>
+        {/* <span className="text-white text-2xl font-bold">Prepzo</span> */}
+        <Image src="/static/images/footer-logo.png" alt="Prepzo" width={125} height={125} />
+        {/* <span className="ml-2 bg-white text-[#12231B] px-2 py-1 rounded-md text-sm font-semibold">Pro</span> */}
       </div>
         <Button 
           className="w-full bg-[#1e3529] text-white hover:bg-[#2a4a3a] transition-colors"
