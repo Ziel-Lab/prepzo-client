@@ -43,7 +43,7 @@ const Navbar = () => {
       <div className="container flex items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
-            <Image src="/static/images/logo.png" alt="Prepzo" width={125} height={125} />
+            <Image src="/static/images/logo.svg" alt="Prepzo" width={140} height={140} />
             {/* <span className="text-2xl font-bold text-prepzo">Prepzo</span> */}
             {/* <span className="ml-2 text-xs py-0.5 px-2 bg-prepzo text-white rounded-full">Beta</span> */}
           </Link>

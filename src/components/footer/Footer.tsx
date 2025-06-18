@@ -10,7 +10,9 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center mb-4">
-              <Image src="/static/images/footer-logo.png" alt="Prepzo" width={140} height={140} />
+              <Link href="/">
+                <Image src="/static/images/footer-logo.svg" alt="Prepzo" width={140} height={140} />
+              </Link>
               {/* <Link href="/" className="text-2xl font-bold">Prepzo</Link> */}
               {/* <span className="ml-2 text-xs py-0.5 px-2 bg-white text-prepzo rounded-full">Beta</span> */}
             </div>
