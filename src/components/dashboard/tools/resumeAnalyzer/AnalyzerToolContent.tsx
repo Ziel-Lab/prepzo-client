@@ -963,12 +963,11 @@ const AnalyzerToolContent = () => {
                         <Copy size={12} className="mr-1" /> Copy Resume
                       </Button>
                     </h4>
-                    <Textarea
-                      value={analysisResult.new_resume.new_resume}
-                      readOnly
-                      rows={15}
-                      className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 overflow-y-auto max-h-[400px]"
-                    />
+                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md border overflow-y-auto max-h-[400px]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {analysisResult.new_resume.new_resume}
+                      </ReactMarkdown>
+                    </div>
                   </Card>
                 </div>
               </>
