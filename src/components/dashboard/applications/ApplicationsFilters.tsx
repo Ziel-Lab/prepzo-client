@@ -63,7 +63,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -75,7 +75,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
                   <SelectItem value="rejected">Rejected</SelectItem>
                   <SelectItem value="offer">Offer</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger className="w-full sm:w-[140px]">

@@ -123,17 +123,15 @@ type Job = {
 };
 
 export type SearchFilters = {
-  job_title?: string;
-  location?: string;
-  country_code?: string;
-  seniority?: string;
+  job_description_contains_or?: string[];
+  job_country_code_or?: string[];
+  job_seniority_or?: string[];
   remote?: boolean;
-  hybrid?: boolean;
   posted_at_max_age_days?: number;
-  salary_min?: number;
-  salary_max?: number;
-  easy_apply?: boolean;
-  company_name?: string;
+  min_salary_usd?: number;
+  max_salary_usd?: number;
+  company_name_or?: string[];
+  hiring_managers_exists?: boolean;
 };
 
 export type Filters = {
@@ -156,7 +154,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [hasSearched, setHasSearched] = useState<boolean>(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     posted_at_max_age_days: 15,
-    country_code: "IN",
+    job_country_code_or: ["IN"],
   });
   const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set([540181867]));
   const [chargedJobs, setChargedJobs] = useState<Set<number>>(new Set());
@@ -199,15 +197,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         posted_at_max_age_days: searchFilters.posted_at_max_age_days || 15,
         blur_company_data: true,
         order_by: [{ desc: true, field: "date_posted" }],
-        job_country_code_or: searchFilters.country_code ? [searchFilters.country_code] : ["IN"],
+        job_country_code_or: searchFilters.job_country_code_or || ["IN"],
         include_total_results: false,
-        ...(searchFilters.job_title && { job_title_or: [searchFilters.job_title] }),
-        ...(searchFilters.location && { location_or: [searchFilters.location] }),
-        ...(searchFilters.seniority && { seniority_or: [searchFilters.seniority] }),
+        ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
+        ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
         ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
-        ...(searchFilters.hybrid !== undefined && { hybrid: searchFilters.hybrid }),
-        ...(searchFilters.easy_apply !== undefined && { easy_apply: searchFilters.easy_apply }),
-        ...(searchFilters.company_name && { company_name_or: [searchFilters.company_name] }),
+        ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
+        ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
+        ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
+        ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -551,12 +549,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="job_title">Job Title</Label>
+              <Label htmlFor="job_description">Job Keywords</Label>
               <Input
-                id="job_title"
-                placeholder="e.g. Software Engineer"
-                value={searchFilters.job_title || ""}
-                onChange={(e) => setSearchFilters(prev => ({ ...prev, job_title: e.target.value }))}
+                id="job_description"
+                placeholder="e.g. react, python, senior (comma separated)"
+                value={searchFilters.job_description_contains_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({ 
+                  ...prev, 
+                  job_description_contains_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
+                }))}
               />
             </div>
 
@@ -565,26 +566,19 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <Input
                 id="company_name"
                 placeholder="e.g. Google, Microsoft"
-                value={searchFilters.company_name || ""}
-                onChange={(e) => setSearchFilters(prev => ({ ...prev, company_name: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="e.g. Bangalore, Mumbai"
-                value={searchFilters.location || ""}
-                onChange={(e) => setSearchFilters(prev => ({ ...prev, location: e.target.value }))}
+                value={searchFilters.company_name_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({ 
+                  ...prev, 
+                  company_name_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
+                }))}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
               <Select
-                value={searchFilters.country_code || "IN"}
-                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, country_code: value }))}
+                value={searchFilters.job_country_code_or?.[0] || "IN"}
+                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_country_code_or: [value] }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select country" />
@@ -604,18 +598,19 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             <div className="space-y-2">
               <Label htmlFor="seniority">Seniority Level</Label>
               <Select
-                value={searchFilters.seniority || "any"}
-                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, seniority: value === "any" ? undefined : value }))}
+                value={searchFilters.job_seniority_or?.[0] || "any"}
+                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Any level" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any level</SelectItem>
-                  <SelectItem value="entry_level">Entry Level</SelectItem>
+                  <SelectItem value="junior">Junior</SelectItem>
                   <SelectItem value="mid_level">Mid Level</SelectItem>
-                  <SelectItem value="senior_level">Senior Level</SelectItem>
-                  <SelectItem value="executive">Executive</SelectItem>
+                  <SelectItem value="senior">Senior</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="c_level">C-Level</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -638,12 +633,34 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="min_salary">Min Salary (USD)</Label>
+              <Input
+                id="min_salary"
+                type="number"
+                placeholder="e.g. 100000"
+                value={searchFilters.min_salary_usd || ""}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, min_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max_salary">Max Salary (USD)</Label>
+              <Input
+                id="max_salary"
+                type="number"
+                placeholder="e.g. 200000"
+                value={searchFilters.max_salary_usd || ""}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, max_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </div>
           </div>
 
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Work Type</h3>
+            <h3 className="text-sm font-medium">Filters</h3>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -655,19 +672,11 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="hybrid"
-                  checked={searchFilters.hybrid || false}
-                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, hybrid: checked === true }))}
+                  id="hiring_managers"
+                  checked={searchFilters.hiring_managers_exists || false}
+                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, hiring_managers_exists: checked === true }))}
                 />
-                <Label htmlFor="hybrid">Hybrid</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="easy_apply"
-                  checked={searchFilters.easy_apply || false}
-                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, easy_apply: checked === true }))}
-                />
-                <Label htmlFor="easy_apply">Easy Apply</Label>
+                <Label htmlFor="hiring_managers">Has Hiring Manager</Label>
               </div>
             </div>
           </div>
