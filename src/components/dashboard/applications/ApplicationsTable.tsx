@@ -136,9 +136,9 @@ export type SearchFilters = {
 
 export type Filters = {
   search?: string;
-  status?: string;
-  seniority?: string;
-  remote?: boolean;
+  // status?: string;
+  // seniority?: string;
+  // remote?: boolean;
 };
 
 // Extend FeatureUsage to include job_search_results_count until context is updated
@@ -200,8 +200,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         job_country_code_or: searchFilters.job_country_code_or || ["IN"],
         include_total_results: false,
         ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
-        ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
-        ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
+        // ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
+        // ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
         ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
         ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
@@ -271,9 +271,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     if (filters.status && (app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
       return false;
     }
-    if (filters.seniority && app.seniority !== filters.seniority) {
-      return false;
-    }
+    // if (filters.seniority && app.seniority !== filters.seniority) {
+    //   return false;
+    // }
     if (filters.remote !== undefined && app.remote !== filters.remote) {
       return false;
     }
@@ -425,9 +425,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <div className="font-medium">
                   {isRevealed ? application.company : "Hidden Company"}
                 </div>
-                <div className="text-sm text-gray-500">
+                {/* <div className="text-sm text-gray-500">
                   {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
-                </div>
+                </div> */}
               </div>
             </div>
             )}
@@ -596,7 +596,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="seniority">Seniority Level</Label>
+              {/* <Label htmlFor="seniority">Seniority Level</Label>
               <Select
                 value={searchFilters.job_seniority_or?.[0] || "any"}
                 onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
@@ -612,7 +612,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="c_level">C-Level</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
 
             <div className="space-y-2">
