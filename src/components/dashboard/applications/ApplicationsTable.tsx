@@ -254,7 +254,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   const fetchJobDetails = async (jobId: number) => {
     try {
-      const res = await fetch("http://localhost:5000/get-job-details", {
+      const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/get-job-details", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ job_id_or: [jobId], limit: 1, blur_company_data: false }),
