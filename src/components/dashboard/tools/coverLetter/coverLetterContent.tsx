@@ -504,7 +504,11 @@ const CoverLetterContent = () => {
                                         Generated Cover Letter
                                         <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
                                     </h4>
-                                    <Textarea value={selectedHistoryItemForDialog.generated_outputs?.cover_letter || "(Cover letter content not available for this item.)"} readOnly rows={10} className="bg-gray-50 text-sm"/>
+                                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md border h-64 overflow-y-auto">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
+                                      </ReactMarkdown>
+                                    </div>
                                 </div>
                                 {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
                                     <div>
@@ -634,7 +638,11 @@ const CoverLetterContent = () => {
                 Cover Letter Text
                 <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(generatedResult.cover_letter)}><Copy size={14} className="mr-1"/>Copy All</Button>
               </h3>
-              <Textarea value={generatedResult.cover_letter} readOnly rows={20} className="bg-gray-50 p-3 rounded-md text-sm whitespace-pre-wrap break-words w-full focus:ring-0 focus:border-gray-300 border-gray-300 h-full min-h-[300px] md:min-h-[400px] overflow-y-auto" />
+              <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border border-gray-300 overflow-y-auto h-full min-h-[300px] md:min-h-[400px]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {generatedResult.cover_letter}
+                </ReactMarkdown>
+              </div>
             </div>
             
             {/* Column 2: AI Suggestions */}
