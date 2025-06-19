@@ -190,7 +190,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
           include_total_results: false,
         };
 
-        const res = await fetch( process.env.NEXT_PUBLIC_BACKEND_URL + "/search-jobs", {
+        const res = await fetch( process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/search-jobs", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
