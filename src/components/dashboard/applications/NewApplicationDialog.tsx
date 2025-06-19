@@ -1,4 +1,4 @@
-"use client";
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { 
@@ -77,6 +77,8 @@ const NewApplicationDialog = ({ trigger }: NewApplicationDialogProps) => {
   };
 
   const handleSubmit = (data: JobData) => {
+    console.log("Submitting application:", data);
+    // Here you would save the application
     setOpen(false);
     setStep(1);
   };
