@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
 import { toast } from "@/hooks/use-toast";
+import { createClient } from "@/utils/supabase/client";
 
 // Temporary seed data; replaced once live data is fetched
 // const INITIAL_APPLICATIONS: Job[] = [
@@ -190,11 +191,20 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
           include_total_results: false,
         };
 
-        const res = await fetch( process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/search-jobs", {
+        // Retrieve JWT token from Supabase session for Authorization header
+        const supabase = createClient();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (!sessionError && session?.access_token) {
+          headers["Authorization"] = `Bearer ${session.access_token}`;
+        }
+
+        const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/search-jobs", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify(requestBody),
         });
 
