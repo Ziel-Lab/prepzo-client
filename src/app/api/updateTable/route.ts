@@ -1,0 +1,93 @@
+import { createClient as createServerSupabaseClient } from '@/utils/supabase/server';
+import { createClient as createAdminSupabaseClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+
+function getMonthDateRange(date: Date): { start: Date, end: Date } {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { start, end };
+}
+
+export async function POST() {
+    // 1. Get the current user using the server client from utils
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Create an admin client to interact with the database
+    const supabaseAdmin = createAdminSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    try {
+        // 3. Check if a subscription already exists
+        const { count, error: checkError } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+
+        if (checkError) {
+            console.error('Error checking for subscription:', checkError.message);
+            throw new Error('Failed to check user subscription.');
+        }
+
+        // 4. If subscription exists, we're done.
+        if (count !== null && count > 0) {
+            return NextResponse.json({ message: 'User subscription and usage already initialized.' });
+        }
+
+        // 5. If not, create subscription and usage records
+        console.log(`No subscription found for user ${user.id}. Backfilling with free plan.`);
+
+        // a. Prepare record data
+        const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'N/A';
+        const today = new Date();
+        const { start: period_start, end: period_end } = getMonthDateRange(today);
+        const freePlanId = 1; // Default Free Plan ID
+
+        // b. Insert into user_subscriptions
+        const { error: subInsertError } = await supabaseAdmin.from('user_subscriptions').insert({
+            user_id: user.id,
+            plan_id: freePlanId,
+            status: 'free',
+            display_name: displayName,
+            started_at: today.toISOString(),
+            current_period_start: period_start.toISOString().split('T')[0],
+            current_period_end: period_end.toISOString().split('T')[0],
+        });
+
+        if (subInsertError) {
+            console.error(`Failed to insert subscription for user ${user.id}:`, subInsertError.message);
+            throw new Error('Could not create user subscription record.');
+        }
+
+        // c. Insert into feature_usage
+        const { error: usageInsertError } = await supabaseAdmin.from('feature_usage').insert({
+            user_id: user.id,
+            plan_id: freePlanId,
+            display_name: displayName,
+            period_start: period_start.toISOString().split('T')[0],
+            period_end: period_end.toISOString().split('T')[0],
+            resume_count: 0,
+            cover_letter_count: 0,
+            linkedin_optimize_count: 0,
+            job_search_results_count: 0
+        });
+
+        if (usageInsertError) {
+            console.error(`Failed to insert feature usage for user ${user.id}:`, usageInsertError.message);
+            throw new Error('Could not create feature usage record.');
+        }
+
+        console.log(`Successfully backfilled subscription for user ${user.id}.`);
+        return NextResponse.json({ message: 'Successfully initialized user subscription and usage.' });
+
+    } catch (e: any) {
+        console.error(`An error occurred during subscription backfill for user ${user.id}:`, e.message);
+        return NextResponse.json({ error: e.message || 'An unexpected error occurred during backfill.' }, { status: 500 });
+    }
+}
