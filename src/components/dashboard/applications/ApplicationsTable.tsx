@@ -10,6 +10,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
 import { toast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import type { FeatureUsage, SubscriptionPlan } from "@/contexts/SubscriptionContext";
 
 
 
@@ -122,14 +124,17 @@ export type Filters = {
   remote?: boolean;
 };
 
+// Extend FeatureUsage to include job_search_results_count until context is updated
+type ExtendedFeatureUsage = FeatureUsage & { job_search_results_count?: number };
+
+type ExtendedSubscriptionPlan = SubscriptionPlan & { job_search_results_limit_per_month?: number };
+
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set([540181867]));
   const [chargedJobs, setChargedJobs] = useState<Set<number>>(new Set());
-  const INITIAL_CREDITS = 100;
-  const [creditsLeft, setCreditsLeft] = useState<number>(INITIAL_CREDITS);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -137,6 +142,24 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
+
+  // ---------------------------------------------------------------------------
+  // Credit tracking via feature_usage.job_search_results_count
+  // ---------------------------------------------------------------------------
+  const { subscription } = useSubscription();
+
+  const JOB_SEARCH_LIMIT = (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ?? 100;
+  const initialUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
+
+  const [creditsLeft, setCreditsLeft] = useState<number>(JOB_SEARCH_LIMIT - initialUsed);
+
+  // Re-initialise credits when subscription data changes (e.g. realtime update)
+  useEffect(() => {
+    if (subscription) {
+      const used = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
+      setCreditsLeft(JOB_SEARCH_LIMIT - used);
+    }
+  }, [subscription, JOB_SEARCH_LIMIT]);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -279,8 +302,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
-    // Deduct one credit and reveal
-    setCreditsLeft(cl => cl - 1);
+    // Deduct one credit locally; backend should update usage separately
+    setCreditsLeft(cl => Math.max(cl - 1, 0));
     setChargedJobs(prev => new Set(prev).add(jobId));
     setRevealedJobs(prev => new Set(prev).add(jobId));
 
@@ -476,7 +499,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-              <span>Credits Left: {creditsLeft}/{INITIAL_CREDITS}</span>
+              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
               <span>•</span>
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
