@@ -173,6 +173,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
 
+  // Initialize Supabase client once for this component
+  const supabase = createClient();
+
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
@@ -192,7 +195,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         };
 
         // Retrieve JWT token from Supabase session for Authorization header
-        const supabase = createClient();
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         const headers: Record<string, string> = {
@@ -254,9 +256,19 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   const fetchJobDetails = async (jobId: number) => {
     try {
+      // Retrieve JWT token for Authorization header
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (!sessionError && session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/get-job-details", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ job_id_or: [jobId], limit: 1, blur_company_data: false }),
       });
       if (!res.ok) throw new Error(`Failed to fetch job ${jobId}`);
