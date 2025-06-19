@@ -5,6 +5,8 @@ import { Hammer, Sparkles, Timer, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";
 import OverviewContent from "@/components/dashboard/overview/overviewContent";
+import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
+import { User } from "@supabase/supabase-js";
 
 const quotes = [
   { quote: "The future depends on what you do today.", author: "Mahatma Gandhi" },
@@ -28,6 +30,7 @@ interface Quote {
 }
 
 const DashboardPage = () => {
+  const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
@@ -44,6 +47,10 @@ const DashboardPage = () => {
           window.location.href = '/auth/sign-up'; // Redirect to your login page
           return; 
         }
+        setUser(user);
+
+        // Ensure user subscription and usage tables are populated
+        await fetch('/api/updateTable', { method: 'POST' });
 
         let fetchedFullName = user.user_metadata?.full_name;
         const { data: profileData, error: profileError } = await supabase
@@ -72,6 +79,7 @@ const DashboardPage = () => {
 
   return (
     <DashboardLayout>
+      <OnBoardingQues user={user} />
       {loading ? (
         <div className="flex justify-center items-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
