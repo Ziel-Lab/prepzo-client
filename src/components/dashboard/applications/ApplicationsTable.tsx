@@ -117,6 +117,29 @@ const getSeniorityLevel = (seniority: string) => {
 };
 
 // ---------------------------------------------------------------------------
+// Helpers for country display
+// ---------------------------------------------------------------------------
+
+const getFlagEmoji = (countryCode?: string) => {
+  if (!countryCode || countryCode.length !== 2) return "";
+  const codePoints = countryCode.toUpperCase().split("").map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+};
+
+const getCountryName = (countryCode?: string) => {
+  if (!countryCode) return "";
+  try {
+    // Intl.DisplayNames is supported in modern browsers
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - Some TS versions may not have DisplayNames definition
+    const dn = new Intl.DisplayNames(["en"], { type: "region" });
+    return dn.of(countryCode) || countryCode;
+  } catch {
+    return countryCode;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -151,6 +174,7 @@ type Job = {
   revealed?: boolean;
   employment_statuses?: string[];
   has_blurred_data?: boolean;
+  job_country_code?: string;
 };
 
 export type Filters = {
@@ -521,6 +545,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <TableHead className="w-[350px]">Job Details</TableHead>
                     <TableHead className="w-[140px]">Company</TableHead>
                     <TableHead className="w-[100px]">Status</TableHead>
+                    <TableHead className="w-[100px]">Country</TableHead>
                     <TableHead className="w-[120px]">Location</TableHead>
                     <TableHead className="w-[100px]">Posted</TableHead>
                     <TableHead className="w-[120px]">Salary</TableHead>
@@ -538,9 +563,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         <TableCell>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">
+                              <button
+                                onClick={() => openJobDetails(application)}
+                                className="font-medium text-blue-600 hover:underline text-left"
+                              >
                                 {application.job_title}
-                              </span>
+                              </button>
                               {isBlurred && (
                                 <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                                   Hidden
@@ -571,9 +599,17 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             <span className="text-sm text-gray-500">Hidden</span>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                                {application.company?.charAt(0) ?? "?"}
-                              </div>
+                              {application.company_object?.logo ? (
+                                <img
+                                  src={application.company_object.logo}
+                                  alt={application.company}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                                  {application.company?.charAt(0) ?? "?"}
+                                </div>
+                              )}
                               <div className="flex flex-col">
                                 <span className="font-medium text-sm">
                                   {application.company}
@@ -601,7 +637,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           )}
                         </TableCell>
                         <TableCell>
-                          {isBlurred ? "Hidden" : (
+                          {isBlurred ? "—" : (
+                            <span className="text-sm flex items-center gap-1">
+                              {getFlagEmoji(application.job_country_code)}
+                              {getCountryName(application.job_country_code)}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isBlurred ? "—" : (
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1 text-sm">
                                 <MapPin className="h-3 w-3 text-gray-400" />
