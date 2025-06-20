@@ -97,12 +97,12 @@ const NewApplicationDialog = ({ trigger }: NewApplicationDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger || (
+        {/* {trigger || (
           <Button className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white">
             <FilePlus className="mr-2 h-4 w-4" />
             New Application
           </Button>
-        )}
+        )} */}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>

@@ -35,7 +35,7 @@ const Applications = () => {
           <NewApplicationDialog />
         </div>
         
-        <ApplicationsStats />
+        {/* <ApplicationsStats /> */}
         
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
