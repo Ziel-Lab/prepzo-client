@@ -5,7 +5,7 @@ import ApplicationsTable, { Filters } from "@/components/dashboard/applications/
 import ApplicationsFilters from "@/components/dashboard/applications/ApplicationsFilters";
 import ApplicationsStats from "@/components/dashboard/applications/ApplicationsStats";
 import NewApplicationDialog from "@/components/dashboard/applications/NewApplicationDialog";
-import AdvancedFilters from "@/components/dashboard/applications/AdvancedFilters";
+
 
 // Re-use the primitive/loose filter map used by AdvancedFilters
 type Primitive = string | number | boolean;
@@ -13,18 +13,16 @@ type FlexibleFilters = Partial<Record<string, Primitive>>;
 
 const Applications = () => {
   const [filters, setFilters] = useState<Filters>({} as Filters);
-  const [advancedFilters, setAdvancedFilters] = useState<FlexibleFilters>({});
+  
 
   const handleFiltersChange = (newFilters: Filters) => {
     setFilters(newFilters);
   };
 
-  const handleAdvancedFiltersChange = (newFilters: FlexibleFilters) => {
-    setAdvancedFilters(newFilters);
-  };
+  
 
   // Combine basic and advanced filters
-  const combinedFilters: FlexibleFilters = { ...filters, ...advancedFilters };
+  const combinedFilters: FlexibleFilters = { ...filters };
 
   return (
     <DashboardLayout>
@@ -44,10 +42,10 @@ const Applications = () => {
             <ApplicationsFilters onFiltersChange={handleFiltersChange} />
           </div>
           <div className="lg:w-auto">
-            <AdvancedFilters 
+            {/* <AdvancedFilters 
               onFiltersChange={handleAdvancedFiltersChange}
               activeFilters={advancedFilters}
-            />
+            /> */}
           </div>
         </div>
         

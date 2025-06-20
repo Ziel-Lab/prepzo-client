@@ -9,7 +9,7 @@ interface FilterOptions {
   search?: string;
   status?: string;
   location?: string;
-  seniority?: string;
+  // seniority?: string;
 }
 
 interface ApplicationsFiltersProps {
@@ -19,32 +19,32 @@ interface ApplicationsFiltersProps {
 const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [seniorityFilter, setSeniorityFilter] = useState("");
+  // const [locationFilter, setLocationFilter] = useState("");
+  // const [seniorityFilter, setSeniorityFilter] = useState("");
 
   const handleFilterChange = () => {
     onFiltersChange({
       search: searchTerm,
       status: statusFilter,
-      location: locationFilter,
-      seniority: seniorityFilter,
+      // location: locationFilter,
+      // seniority: seniorityFilter,
     });
   };
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
-    setLocationFilter("");
-    setSeniorityFilter("");
+    // setLocationFilter("");
+    // setSeniorityFilter("");
     onFiltersChange({});
   };
 
   // Trigger filter change whenever any filter value changes
   React.useEffect(() => {
     handleFilterChange();
-  }, [searchTerm, statusFilter, locationFilter, seniorityFilter]);
+  }, [searchTerm, statusFilter]);
 
-  const hasActiveFilters = searchTerm || statusFilter || locationFilter || seniorityFilter;
+  const hasActiveFilters = searchTerm || statusFilter  ;
 
   return (
     <Card>
@@ -77,19 +77,9 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
                 </SelectContent>
               </Select> */}
 
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                  <SelectItem value="onsite">On-site</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                </SelectContent>
-              </Select>
+              
 
-              <Select value={seniorityFilter} onValueChange={setSeniorityFilter}>
+              {/* <Select value={seniorityFilter} onValueChange={setSeniorityFilter}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Seniority" />
                 </SelectTrigger>
@@ -100,7 +90,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
                   <SelectItem value="senior_level">Senior Level</SelectItem>
                   <SelectItem value="executive">Executive</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
           </div>
 
