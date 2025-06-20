@@ -26,13 +26,13 @@ export const MarkdownRenderer = ({ content }: MarkdownRendererProps) => {
             <p className="mb-4 text-gray-700 leading-relaxed">{children}</p>
           ),
           ul: ({ children }) => (
-            <ul className="mb-4 space-y-2 text-gray-700">{children}</ul>
+            <ul className="mb-4 list-disc list-inside space-y-2 text-gray-700">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="mb-4 space-y-2 text-gray-700">{children}</ol>
+            <ol className="mb-4 list-decimal ml-6 space-y-2 text-gray-700">{children}</ol>
           ),
           li: ({ children }) => (
-            <li className="ml-4">{children}</li>
+            <li className="leading-relaxed">{children}</li>
           ),
           blockquote: ({ children }) => (
             <blockquote className="border-l-4 border-green-500 pl-4 my-6 italic text-gray-600">
