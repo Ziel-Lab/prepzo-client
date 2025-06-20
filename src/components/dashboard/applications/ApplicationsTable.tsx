@@ -136,9 +136,9 @@ export type SearchFilters = {
 
 export type Filters = {
   search?: string;
-  // status?: string;
-  // seniority?: string;
-  // remote?: boolean;
+  status?: string;
+  remote?: boolean;
+  // seniority?: string; // Uncomment if needed in the future
 };
 
 // Extend FeatureUsage to include job_search_results_count until context is updated
