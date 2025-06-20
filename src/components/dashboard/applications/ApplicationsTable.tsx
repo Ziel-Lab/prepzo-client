@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2 } from "lucide-react";
+import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
@@ -117,11 +122,23 @@ type Job = {
   country_code?: string;
 };
 
+export type SearchFilters = {
+  job_description_contains_or?: string[];
+  job_country_code_or?: string[];
+  job_seniority_or?: string[];
+  remote?: boolean;
+  posted_at_max_age_days?: number;
+  min_salary_usd?: number;
+  max_salary_usd?: number;
+  company_name_or?: string[];
+  hiring_managers_exists?: boolean;
+};
+
 export type Filters = {
   search?: string;
   status?: string;
-  seniority?: string;
   remote?: boolean;
+  // seniority?: string; // Uncomment if needed in the future
 };
 
 // Extend FeatureUsage to include job_search_results_count until context is updated
@@ -133,6 +150,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [currentPage, setCurrentPage] = useState(1);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    posted_at_max_age_days: 15,
+    job_country_code_or: ["IN"],
+  });
   const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set([540181867]));
   const [chargedJobs, setChargedJobs] = useState<Set<number>>(new Set());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -164,59 +187,80 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
 
-        const requestBody = {
-          page: currentPage - 1, // API is 0-indexed
-          limit: itemsPerPage,
-          posted_at_max_age_days: 15,
-          blur_company_data: true,
-          order_by: [{ desc: true, field: "date_posted" }],
-          job_country_code_or: ["IN"],
-          include_total_results: false,
-        };
+      const requestBody = {
+        page: currentPage - 1, // API is 0-indexed
+        limit: 100,
+        posted_at_max_age_days: searchFilters.posted_at_max_age_days || 15,
+        blur_company_data: true,
+        order_by: [{ desc: true, field: "date_posted" }],
+        job_country_code_or: searchFilters.job_country_code_or || ["IN"],
+        include_total_results: false,
+        ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
+        // ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
+        // ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
+        ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
+        ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
+        ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
+        ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
+      };
 
-        // Retrieve JWT token from Supabase session for Authorization header
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Retrieve JWT token from Supabase session for Authorization header
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-        if (!sessionError && session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
-        }
-
-        const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/search-jobs", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch jobs – status ${res.status}`);
-        }
-
-        const json = await res.json();
-        if (json?.data && Array.isArray(json.data)) {
-          setApplications(json.data as Job[]);
-        }
-      } catch (err: unknown) {
-        console.error(err);
-        const message = err instanceof Error ? err.message : "Unknown error";
-        toast({
-          title: "Unable to fetch applications",
-          description: message,
-        });
-      } finally {
-        setLoading(false);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (!sessionError && session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
       }
-    };
 
+      const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/search-jobs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch jobs – status ${res.status}`);
+      }
+
+      const json = await res.json();
+      if (json?.data && Array.isArray(json.data)) {
+        setApplications(json.data as Job[]);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast({
+        title: "Unable to fetch applications",
+        description: message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    setHasSearched(true);
+    setShowFilters(false);
+    setCurrentPage(1);
     fetchJobs();
-  }, [currentPage]);
+  };
+
+  const handleEditFilters = () => {
+    setShowFilters(true);
+  };
+
+  // Fetch jobs when page changes (but only after initial search)
+  useEffect(() => {
+    if (hasSearched && !showFilters) {
+      fetchJobs();
+    }
+  }, [currentPage, hasSearched, showFilters]);
 
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
@@ -227,9 +271,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     if (filters.status && (app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
       return false;
     }
-    if (filters.seniority && app.seniority !== filters.seniority) {
-      return false;
-    }
+    // if (filters.seniority && app.seniority !== filters.seniority) {
+    //   return false;
+    // }
     if (filters.remote !== undefined && app.remote !== filters.remote) {
       return false;
     }
@@ -381,9 +425,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <div className="font-medium">
                   {isRevealed ? application.company : "Hidden Company"}
                 </div>
-                <div className="text-sm text-gray-500">
+                {/* <div className="text-sm text-gray-500">
                   {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
-                </div>
+                </div> */}
               </div>
             </div>
             )}
@@ -492,22 +536,187 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     );
   };
 
+  // Show filter form if filters haven't been applied yet or user wants to edit
+  if (showFilters || !hasSearched) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold flex items-center">
+            <Filter className="mr-2 h-5 w-5" />
+            Job Search Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="job_description">Job Keywords</Label>
+              <Input
+                id="job_description"
+                placeholder="e.g. react, python, senior (comma separated)"
+                value={searchFilters.job_description_contains_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({ 
+                  ...prev, 
+                  job_description_contains_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="company_name">Company Name</Label>
+              <Input
+                id="company_name"
+                placeholder="e.g. Google, Microsoft"
+                value={searchFilters.company_name_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({ 
+                  ...prev, 
+                  company_name_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Select
+                value={searchFilters.job_country_code_or?.[0] || "IN"}
+                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_country_code_or: [value] }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IN">🇮🇳 India</SelectItem>
+                  <SelectItem value="US">🇺🇸 United States</SelectItem>
+                  <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                  <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                  <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                  <SelectItem value="DE">🇩🇪 Germany</SelectItem>
+                  <SelectItem value="SG">🇸🇬 Singapore</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              {/* <Label htmlFor="seniority">Seniority Level</Label>
+              <Select
+                value={searchFilters.job_seniority_or?.[0] || "any"}
+                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any level</SelectItem>
+                  <SelectItem value="junior">Junior</SelectItem>
+                  <SelectItem value="mid_level">Mid Level</SelectItem>
+                  <SelectItem value="senior">Senior</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="c_level">C-Level</SelectItem>
+                </SelectContent>
+              </Select> */}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="posted_days">Posted within</Label>
+              <Select
+                value={searchFilters.posted_at_max_age_days?.toString() || "15"}
+                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, posted_at_max_age_days: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Last 24 hours</SelectItem>
+                  <SelectItem value="3">Last 3 days</SelectItem>
+                  <SelectItem value="7">Last week</SelectItem>
+                  <SelectItem value="15">Last 2 weeks</SelectItem>
+                  <SelectItem value="30">Last month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="min_salary">Min Salary (USD)</Label>
+              <Input
+                id="min_salary"
+                type="number"
+                placeholder="e.g. 100000"
+                value={searchFilters.min_salary_usd || ""}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, min_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="max_salary">Max Salary (USD)</Label>
+              <Input
+                id="max_salary"
+                type="number"
+                placeholder="e.g. 200000"
+                value={searchFilters.max_salary_usd || ""}
+                onChange={(e) => setSearchFilters(prev => ({ ...prev, max_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium">Filters</h3>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remote"
+                  checked={searchFilters.remote || false}
+                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, remote: checked === true }))}
+                />
+                <Label htmlFor="remote">Remote</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hiring_managers"
+                  checked={searchFilters.hiring_managers_exists || false}
+                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, hiring_managers_exists: checked === true }))}
+                />
+                <Label htmlFor="hiring_managers">Has Hiring Manager</Label>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleSearch} className="flex-1" disabled={loading}>
+              <Search className="mr-2 h-4 w-4" />
+              {loading ? "Searching..." : "Search Jobs"}
+            </Button>
+            {hasSearched && (
+              <Button variant="outline" onClick={() => setShowFilters(false)}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
-            <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
-              <span>•</span>
-              <span>
-                Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
-              </span>
-              {loading && (
-                <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
-              )}
-            </div>
+            <Button variant="outline" size="sm" onClick={handleEditFilters}>
+              <Filter className="mr-2 h-4 w-4" />
+              Edit Filters
+            </Button>
+          </div>
+          <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+            <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
+            <span>•</span>
+            <span>
+              Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
+            </span>
+            {loading && (
+              <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -613,13 +822,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             </div>
                           )}
                         </TableCell>
-                        {/* <TableCell>
-                          {isBlurred ? "—" : (
-                            <Badge variant="secondary" className={getStatusColor(application.status || "Applied")}> 
-                              {application.status || "Applied"}
-                            </Badge>
-                          )}
-                        </TableCell> */}
                         <TableCell>
                           
                             <span className="text-sm flex items-center gap-1">
@@ -658,17 +860,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           ))}
                         </TableCell>
                         <TableCell>
-                          
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              
+                          {isBlurred ? "—" : (
+                            <div className="flex items-center gap-1 text-sm">
                               {formatDate(application.date_posted)}
                             </div>
-                          
+                          )}
                         </TableCell>
                         <TableCell>
                           {isBlurred ? "—" : (
                             <div className="flex items-center gap-1 text-sm">
-                              <DollarSign className="h-3 w-3 text-gray-400" />
                               {application.salary_string || "Not disclosed"}
                             </div>
                           )}

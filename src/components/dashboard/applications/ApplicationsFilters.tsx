@@ -9,7 +9,7 @@ interface FilterOptions {
   search?: string;
   status?: string;
   location?: string;
-  seniority?: string;
+  // seniority?: string;
 }
 
 interface ApplicationsFiltersProps {
@@ -19,32 +19,32 @@ interface ApplicationsFiltersProps {
 const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [seniorityFilter, setSeniorityFilter] = useState("");
+  // const [locationFilter, setLocationFilter] = useState("");
+  // const [seniorityFilter, setSeniorityFilter] = useState("");
 
   const handleFilterChange = () => {
     onFiltersChange({
       search: searchTerm,
       status: statusFilter,
-      location: locationFilter,
-      seniority: seniorityFilter,
+      // location: locationFilter,
+      // seniority: seniorityFilter,
     });
   };
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
-    setLocationFilter("");
-    setSeniorityFilter("");
+    // setLocationFilter("");
+    // setSeniorityFilter("");
     onFiltersChange({});
   };
 
   // Trigger filter change whenever any filter value changes
   React.useEffect(() => {
     handleFilterChange();
-  }, [searchTerm, statusFilter, locationFilter, seniorityFilter]);
+  }, [searchTerm, statusFilter]);
 
-  const hasActiveFilters = searchTerm || statusFilter || locationFilter || seniorityFilter;
+  const hasActiveFilters = searchTerm || statusFilter  ;
 
   return (
     <Card>
@@ -55,7 +55,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search companies, positions..."
+                placeholder="Search positions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -63,7 +63,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -75,21 +75,11 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
                   <SelectItem value="rejected">Rejected</SelectItem>
                   <SelectItem value="offer">Offer</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                  <SelectItem value="onsite">On-site</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                </SelectContent>
-              </Select>
+              
 
-              <Select value={seniorityFilter} onValueChange={setSeniorityFilter}>
+              {/* <Select value={seniorityFilter} onValueChange={setSeniorityFilter}>
                 <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Seniority" />
                 </SelectTrigger>
@@ -100,7 +90,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
                   <SelectItem value="senior_level">Senior Level</SelectItem>
                   <SelectItem value="executive">Executive</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
           </div>
 
