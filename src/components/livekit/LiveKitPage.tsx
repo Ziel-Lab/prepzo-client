@@ -659,16 +659,16 @@ const RoomContextManager: React.FC<{
     return () => {
       setSendDataFn(null);
     };
-  }, [room, setSendDataFn]); // Depend on room and setter
+  }, [room, setSendDataFn]);
 
   // useEffect for setting up dataReceived listener and exposing room
   useEffect(() => {
     if (!room) {
-      if (typeof window !== 'undefined') window.liveKitRoom = undefined; // Clear if room becomes null
+      if (typeof window !== 'undefined') window.liveKitRoom = undefined;
       return; 
     }
 
-    if (typeof window !== 'undefined') window.liveKitRoom = room; // Expose room instance
+    if (typeof window !== 'undefined') window.liveKitRoom = room; 
     
     const handleDataReceivedInternal = (
       payload: Uint8Array,
@@ -699,9 +699,9 @@ const RoomContextManager: React.FC<{
       room.off('dataReceived', handleDataReceivedInternal);
       if (typeof window !== 'undefined') window.liveKitRoom = undefined;
     };
-  }, [room]); // Depend ONLY on room
+  }, [room]);
 
-  return null; // This component doesn't render UI
+  return null;
 };
 
 export default LiveKitPage;

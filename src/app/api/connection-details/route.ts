@@ -5,7 +5,6 @@ import {
 } from "livekit-server-sdk";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from 'uuid';
-// NOTE: you are expected to define the following environment variables in `.env.local`:
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL =  process.env.LIVEKIT_URL;

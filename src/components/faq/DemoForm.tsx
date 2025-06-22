@@ -74,7 +74,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
                 <p>Utilize one and many Prepzo career tools crafted for you.</p>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-4 mt-[80px]">
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                 <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
                   <Button size="lg" className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto">
                     Get Started
@@ -83,7 +83,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
                 <Button 
                   size="lg" 
                   className="bg-prepzo hover:bg-prepzo-light text-white w-full sm:w-auto"
-                  onClick={onOpenAgentModal} // Use the prop here
+                  onClick={onOpenAgentModal}
                 >
                   Try Demo
                 </Button>

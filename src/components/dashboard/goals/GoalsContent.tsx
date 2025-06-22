@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Flag, Target } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import BlurOverlay from "@/components/dashboard/blurrEffect";
 
 const goalsData = [
   {
@@ -47,63 +48,74 @@ const goalsData = [
   }
 ];
 
-const GoalsContent = () => {
+interface GoalsContentProps {
+  isFeatureAvailable: boolean;
+  isLoading: boolean;
+}
+
+const GoalsContent: React.FC<GoalsContentProps> = ({ isFeatureAvailable, isLoading }) => {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 h-full flex flex-col">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Goals</h1>
         <p className="text-gray-600 mt-1">Track your career goals and milestones</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {goalsData.map((goal, index) => (
-          <Dialog key={index}>
-            <DialogTrigger asChild>
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    {goal.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Progress</span>
-                      <span>{goal.progress}%</span>
+      <div className="relative flex-grow min-h-0">
+        {!isFeatureAvailable && !isLoading && <BlurOverlay />}
+        
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ${isFeatureAvailable ? 'overflow-y-auto h-full' : 'h-full'}`}>
+          {goalsData.map((goal, index) => (
+            <Dialog key={index}>
+              <DialogTrigger asChild disabled={!isFeatureAvailable}>
+                <Card className={`cursor-pointer hover:shadow-lg transition-shadow ${!isFeatureAvailable ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <CardHeader>
+                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      {goal.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Progress</span>
+                        <span>{goal.progress}%</span>
+                      </div>
+                      <Progress value={goal.progress} className="h-2" />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Due: {goal.dueDate}</span>
+                        <span className="text-purple-600 font-medium">{goal.status}</span>
+                      </div>
                     </div>
-                    <Progress value={goal.progress} className="h-2" />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Due: {goal.dueDate}</span>
-                      <span className="text-purple-600 font-medium">{goal.status}</span>
-                    </div>
+                  </CardContent>
+                </Card>
+              </DialogTrigger>
+              {isFeatureAvailable && (
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      {goal.title}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-3">Steps to achieve this goal:</h4>
+                    <ul className="space-y-3">
+                      {goal.steps.map((step, stepIndex) => (
+                        <li key={stepIndex} className="flex items-start gap-2">
+                          <span className="bg-secondary text-secondary-foreground w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                            {stepIndex + 1}
+                          </span>
+                          <span className="text-gray-600">{step}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </CardContent>
-              </Card>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  {goal.title}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="mt-4">
-                <h4 className="font-medium mb-3">Steps to achieve this goal:</h4>
-                <ul className="space-y-3">
-                  {goal.steps.map((step, stepIndex) => (
-                    <li key={stepIndex} className="flex items-start gap-2">
-                      <span className="bg-secondary text-secondary-foreground w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                        {stepIndex + 1}
-                      </span>
-                      <span className="text-gray-600">{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </DialogContent>
-          </Dialog>
-        ))}
+                </DialogContent>
+              )}
+            </Dialog>
+          ))}
+        </div>
       </div>
     </div>
   );

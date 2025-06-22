@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Hammer, Sparkles, Timer } from "lucide-react";
+import { Hammer, Sparkles, Timer, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";
+import OverviewContent from "@/components/dashboard/overview/overviewContent";
+import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
+import { User } from "@supabase/supabase-js";
 
 const quotes = [
   { quote: "The future depends on what you do today.", author: "Mahatma Gandhi" },
@@ -27,6 +30,7 @@ interface Quote {
 }
 
 const DashboardPage = () => {
+  const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
@@ -34,73 +38,47 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      // setLoading(true); // setLoading is already true by default
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      setLoading(true); // Set loading true at the start of fetch
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      if (authError || !user) {
-        console.error("User not authenticated or error fetching user. Redirecting to login.", authError);
-        window.location.href = '/auth/sign-up'; // Redirect to your login page
-        return; // Stop further execution in this effect
+        if (authError || !user) {
+          console.error("User not authenticated or error fetching user. Redirecting to login.", authError);
+          window.location.href = '/auth/sign-up'; // Redirect to your login page
+          return; 
+        }
+        setUser(user);
+
+        // Ensure user subscription and usage tables are populated
+        await fetch('/api/updateTable', { method: 'POST' });
+
+        const fetchedFullName = user.user_metadata?.full_name;
+        
+        setUserName((fetchedFullName?.split(' ')[0]) || 'there');
+      } catch (error) {
+        console.error("An error occurred during user data fetch:", error);
+        // Set a default name or handle the error appropriately
+        setUserName('there');
+      } finally {
+        setLoading(false); // Set loading to false after all fetching is done
       }
-
-      let fetchedFullName = user.user_metadata?.full_name;
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.warn("Error fetching user's full_name:", profileError);
-      } else if (profileData?.full_name) {
-        fetchedFullName = profileData.full_name;
-      }
-      setUserName((fetchedFullName?.split(' ')[0]) || "there");
     };
 
     fetchUserData();
-    
-    // Set the random quote only on the client side after mount
     setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
-    setLoading(false); // Set loading to false after all initial data (user + quote) is ready
-
-  }, [supabase]); // supabase client instance is stable, so this effect runs once on mount
-
-  // const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]; // Moved to useEffect
+    
+  }, [supabase]);
 
   return (
     <DashboardLayout>
-      <div className="min-h-[70vh] flex flex-col justify-center items-center text-center space-y-6">
-        <div className="flex items-center space-x-2">
-          <Hammer className="w-6 h-6 text-[#183723]" />
-          <h1 className="text-3xl font-bold text-[#183723]">
-            {loading || !userName ? "Welcome!" : `Hi ${userName}, we're building something great`}
-          </h1>
-          <Sparkles className="w-6 h-6 text-[#183723]" />
+      <OnBoardingQues user={user} />
+      {loading ? (
+        <div className="flex justify-center items-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
         </div>
-
-        <p className="text-gray-600 max-w-xl">
-          Thanks for being an early user of <strong>Prepzo</strong>. We're working hard behind the scenes to bring powerful career tools your way.
-        </p>
-
-        {!loading && currentQuote && (
-          <div className="bg-[#f4f4f4] rounded-lg px-6 py-4 shadow-md max-w-md">
-            <p className="italic text-[#12231B] text-lg">"{currentQuote.quote}"</p>
-            <p className="mt-2 text-right text-sm text-gray-700">— {currentQuote.author}</p>
-          </div>
-        )}
-        {/* Show a placeholder or nothing if quote isn't ready yet during loading */}
-        {loading && (
-          <div className="bg-[#f4f4f4] rounded-lg px-6 py-4 shadow-md max-w-md opacity-50">
-            <p className="italic text-[#12231B] text-lg">Loading a bit of inspiration...</p>
-          </div>
-        )}
-
-        <p className="text-sm text-gray-500 mt-8 flex items-center space-x-2">
-          <Timer className="w-4 h-4 inline mr-1" />
-          Stay tuned. Features will roll out soon.
-        </p>
-      </div>
+      ) : (
+        <OverviewContent userName={userName} currentQuote={currentQuote} />
+      )}
     </DashboardLayout>
   );
 };
