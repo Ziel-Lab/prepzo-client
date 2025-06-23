@@ -97,7 +97,6 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                     ))}
                 </CardContent>
             </Card>
-
             {/* Quote of the Day */}
             {currentQuote && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 shadow-sm">
