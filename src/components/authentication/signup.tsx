@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Linkedin, Mail } from 'lucide-react';
 
 const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
@@ -106,7 +107,7 @@ const SignUpForm = () => {
                 </div>
               ) : (
                 <>
-                  <img src="/static/images/Google-Logo.wine.svg" alt="Google" className="w-5 h-5" />
+                   <Mail className="w-5 h-5" />
                   <span>Sign up with Google</span>
                 </>
               )}
@@ -124,7 +125,7 @@ const SignUpForm = () => {
                 </div>
               ) : (
                 <>
-                  <img src="/static/images/LinkedIn-Logo.wine.svg" alt="LinkedIn" className="w-5 h-5" />
+                  <Linkedin className="w-5 h-5" />
                   <span>Sign up with LinkedIn</span>
                 </>
               )}
