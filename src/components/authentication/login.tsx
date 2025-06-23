@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/client";
+import { ArrowLeft } from 'lucide-react';
+import Image from "next/image";
 
 const MinimalLoginPage = () => {
   const [loading, setLoading] = useState(false);
@@ -45,9 +47,10 @@ const MinimalLoginPage = () => {
         }
       });
       if (oauthError) throw oauthError;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       console.error(`Error signing in with ${supabaseProvider}:`, error);
-      setError(`Failed to sign in with ${supabaseProvider}: ${error.message || 'Please try again.'}`);
+      setError(`Failed to sign in with ${supabaseProvider}: ${errorMessage}`);
       setIsOAuthLoading(null);
       setLoading(false);
     }
@@ -55,61 +58,96 @@ const MinimalLoginPage = () => {
 
   if (loading && !isOAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p>Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-xs sm:max-w-sm mx-auto">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+      <Link 
+        href="/" 
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 text-muted-foreground hover:text-foreground transition-colors z-10"
+      >
+        <ArrowLeft className="h-6 w-6" />
+        <span className="sr-only">Back to Home</span>
+      </Link>
+
+      <Card className="w-full max-w-md mx-auto border shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold">Login to Prepzo</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-primary">Login to Prepzo</CardTitle>
           <CardDescription className="pt-1">
             Sign in quickly with your preferred service.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           {error && (
-            <p className="text-sm text-destructive text-center pb-2">{error}</p>
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md text-center">
+              {error}
+            </div>
           )}
 
-          <div className="space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-background text-muted-foreground">
+                Continue with
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
             <Button
               variant="outline"
-              className="w-full h-14 flex items-center justify-center p-0 text-base sm:text-lg"
+              className="h-12 relative"
               onClick={() => handleOAuthSignIn('google')}
               disabled={!!isOAuthLoading}
             >
               {isOAuthLoading === 'google' ? (
-                <span className="animate-spin h-8 w-8 border-2 border-foreground border-t-transparent rounded-full"></span>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                </div>
               ) : (
-                <img src="/static/images/Google-Logo.wine.svg" alt="Google logo" className="h-10 object-contain" /> 
+                <>
+                  <Image src="/static/images/Google-Logo.wine.svg" alt="Google" className="w-20 h-20" width={20} height={20} />
+                </>
               )}
             </Button>
 
             <Button
               variant="outline"
-              className="w-full h-14 flex items-center justify-center p-0 text-base sm:text-lg"
+              className="h-12 relative"
               onClick={() => handleOAuthSignIn('linkedin')}
               disabled={!!isOAuthLoading}
             >
               {isOAuthLoading === 'linkedin' ? (
-                <span className="animate-spin h-8 w-8 border-2 border-foreground border-t-transparent rounded-full"></span>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                </div>
               ) : (
-                <img src="/static/images/LinkedIn-Logo.wine.svg" alt="LinkedIn logo" className="h-10 object-contain" /> 
+                <>
+                  <Image src="/static/images/LinkedIn-Logo.wine.svg" alt="LinkedIn" className="w-20 h-20" width={50} height={50} />
+                </>
               )}
             </Button>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2 text-sm pt-6">
-            <p className="text-gray-600 text-xs">
-              By signing in, you agree to our Terms of Service.
-            </p>
-            <p className="text-gray-500 text-xs">
-                Need an account? <Link href="/auth/sign-up"><span className="text-prepzo hover:underline font-semibold cursor-pointer">Sign Up</span></Link>
-            </p>
+        <CardFooter className="flex flex-col space-y-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            By signing in, you agree to our{' '}
+            <Link href="/terms-of-service" className="underline hover:text-primary">Terms of Service</Link>{' '}
+            and{' '}
+            <Link href="/privacy-policy" className="underline hover:text-primary">Privacy Policy</Link>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Need an account?{' '}
+            <Link href="/auth/sign-up" className="text-primary hover:underline font-medium">
+              Sign Up
+            </Link>
+          </p>
         </CardFooter>
       </Card>
     </div>

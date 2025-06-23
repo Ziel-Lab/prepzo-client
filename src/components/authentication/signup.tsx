@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Linkedin, Mail, ArrowLeft } from 'lucide-react';
+import { Linkedin, Mail } from 'lucide-react';
 
 const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
@@ -66,14 +66,6 @@ const SignUpForm = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
-      <Link 
-        href="/" 
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-6 w-6" />
-        <span className="sr-only">Back to Home</span>
-      </Link>
-
       <Card className="w-full max-w-md mx-auto border shadow-lg">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold text-primary">
@@ -148,9 +140,9 @@ const SignUpForm = () => {
               Terms of Service
             </a>{' '}
             and{' '}
-            <a href="/privacy-policy" className="underline hover:text-primary">
+            <Link href="/privacy-policy" className="underline hover:text-primary">
               Privacy Policy
-            </a>
+            </Link>
           </p>
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
