@@ -10,7 +10,7 @@ import Navbar from "@/components/navbar/Navbar";
 import { ArrowLeft } from 'lucide-react';
 
 
-const categories = ["All", "Career Tools", "Interview Prep","Cover Letter", "Resume Builder", "Personal Branding", "Job Search","Company Updates"];
+const categories = ["All", "Career Tools", "Interview Prep","Cover Letter", "Resume", "Personal Branding", "Job Search","Company Updates"];
 
 interface BlogPost {
   id: string;

@@ -5,7 +5,7 @@ import ApplicationsTable, { Filters } from "@/components/dashboard/applications/
 import ApplicationsFilters from "@/components/dashboard/applications/ApplicationsFilters";
 import ApplicationsStats from "@/components/dashboard/applications/ApplicationsStats";
 import NewApplicationDialog from "@/components/dashboard/applications/NewApplicationDialog";
-
+import BlurOverlay from "@/components/dashboard/blurrEffect";
 
 // Re-use the primitive/loose filter map used by AdvancedFilters
 type Primitive = string | number | boolean;
@@ -26,6 +26,7 @@ const Applications = () => {
 
   return (
     <DashboardLayout>
+      <BlurOverlay />
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>

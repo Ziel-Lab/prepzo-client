@@ -1,103 +1,158 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Linkedin, Mail } from 'lucide-react';
 
 const SignUpForm = () => {
+  const [loading, setLoading] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState<null | 'google' | 'linkedin'>(null);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
+  useEffect(() => {
+    const checkSession = async () => {
+      setLoading(true);
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Error checking session:', sessionError);
+      } else if (session) {
+        router.push('/dashboard');
+        return;
+      }
+      setLoading(false);
+    };
+
+    checkSession();
+  }, [supabase, router]);
+
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
     setIsOAuthLoading(provider);
     setError(null);
+    setLoading(true);
     const supabaseProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
 
     try {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: supabaseProvider,
         options: {
-          // Revert to using dynamic window.location.origin
-          redirectTo: `${window.location.origin}/auth/callback`, 
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (oauthError) throw oauthError;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       console.error(`Error signing in with ${supabaseProvider}:`, error);
-      setError(`Failed to sign in with ${supabaseProvider}: ${error.message || 'Please try again.'}`);
+      setError(`Failed to sign in with ${supabaseProvider}: ${errorMessage}`);
       setIsOAuthLoading(null);
+      setLoading(false);
     }
   };
 
+  if (loading && !isOAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <Card className="w-full max-w-md mx-auto border-none shadow-none bg-transparent px-4 sm:px-0">
-        <CardContent className="space-y-6 pt-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+      <Card className="w-full max-w-md mx-auto border shadow-lg">
+        <CardHeader className="space-y-2 text-center">
+          <CardTitle className="text-3xl font-bold text-primary">
+            Welcome to Prepzo!
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Join 400+ professionals accelerating their career growth
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
           {error && (
-              <p className="text-sm text-destructive text-center pt-2">{error}</p>
-            )}
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md text-center">
+              {error}
+            </div>
+          )}
 
-          <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-4">
-            Join the Waitlist Now!
-          </h2>
-
-          <div className="relative my-4">
+          <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300 dark:border-gray-600" />
+              <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-background px-2 text-muted-foreground">
-                with
+              <span className="px-2 bg-background text-muted-foreground">
+                Continue with
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 pt-2 items-center">
-             <Button
-               variant="outline"
-               className="w-full h-14 flex items-center justify-center p-0"
-               onClick={() => handleOAuthSignUp('google')}
-               disabled={!!isOAuthLoading}
-             >
-               {isOAuthLoading === 'google' ? (
-                 <span className="animate-spin h-10 w-10 border-2 border-foreground border-t-transparent rounded-full"></span>
-               ) : (
-                 <>
-                   <img src="/static/images/Google-Logo.wine.svg" alt="Google logo" className="w-full h-full object-contain" /> 
-                 </>
-               )}
-             </Button>
+          <div className="grid gap-4">
+            <Button
+              variant="outline"
+              className="h-12 relative"
+              onClick={() => handleOAuthSignUp('google')}
+              disabled={!!isOAuthLoading}
+            >
+              {isOAuthLoading === 'google' ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <Mail className="w-5 h-5" />
+                  <span>Sign up with Google</span>
+                </>
+              )}
+            </Button>
 
-            <div className="flex items-center justify-center h-14">
-              <span className="text-sm text-muted-foreground">or</span>
-            </div>
-
-             <Button
-               variant="outline"
-               className="w-full h-14 flex items-center justify-center p-0"
-               onClick={() => handleOAuthSignUp('linkedin')}
-               disabled={!!isOAuthLoading}
-             >
-               {isOAuthLoading === 'linkedin' ? (
-                 <span className="animate-spin h-10 w-10 border-2 border-foreground border-t-transparent rounded-full"></span>
-               ) : (
-                  <>
-                   <img src="/static/images/LinkedIn-Logo.wine.svg" alt="LinkedIn logo" className="w-full h-full object-contain" /> 
-                 </>
-               )}
-             </Button>
+            <Button
+              variant="outline"
+              className="h-12 relative"
+              onClick={() => handleOAuthSignUp('linkedin')}
+              disabled={!!isOAuthLoading}
+            >
+              {isOAuthLoading === 'linkedin' ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <Linkedin className="w-5 h-5" />
+                  <span>Sign up with LinkedIn</span>
+                </>
+              )}
+            </Button>
           </div>
-
         </CardContent>
+
+        <CardFooter className="flex flex-col space-y-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            By signing up, you agree to our{' '}
+            <a href="/terms-of-service" className="underline hover:text-primary">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <Link href="/privacy-policy" className="underline hover:text-primary">
+              Privacy Policy
+            </Link>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="text-primary hover:underline font-medium">
+              Sign in
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
-    </>
+    </div>
   );
 };
 
