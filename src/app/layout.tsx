@@ -50,11 +50,11 @@ export const metadata: Metadata = {
     title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
       "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
-    url: "https://prepzo.ai/",
+    url: "https://www.prepzo.ai/",
     siteName: "Prepzo.ai",
     images: [
       {
-        url: "https://prepzo.ai/og.jpeg", 
+        url: "https://www.prepzo.ai/og.jpeg", 
         width: 1200,
         height: 630,
         alt: "Prepzo.ai preview",
@@ -68,11 +68,11 @@ export const metadata: Metadata = {
     title: "Prepzo AI: Career Help, Resumes, LinkedIn, Job Search",
     description:
       "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
-    images: ["https://prepzo.ai/og.jpeg"], 
+    images: ["https://www.prepzo.ai/og.jpeg"], 
     site: "@prepzo_ai",
   },
   alternates: {
-    canonical: "https://prepzo.ai/",
+    canonical: "https://www.prepzo.ai/",
   },
 }; 
 
@@ -105,9 +105,9 @@ const faqSchema = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  url: "https://prepzo.ai/",
+  url: "https://www.prepzo.ai/",
   name: "Prepzo.ai",
-  logo: "https://prepzo.ai/og.jpeg",
+  logo: "https://www.prepzo.ai/og.jpeg",
   sameAs: [
     "https://www.linkedin.com/company/prepzo-ai/"
   ],
@@ -126,8 +126,8 @@ const softwareApplicationSchema = {
     price: "0",
     priceCurrency: "USD",
   },
-  url: "https://prepzo.ai/",
-  image: "https://prepzo.ai/og.jpeg",
+  url: "https://www.prepzo.ai/",
+  image: "https://www.prepzo.ai/og.jpeg",
 } as const;
 // --------------------------------------------------------------------------
 
