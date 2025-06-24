@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { RippleButton } from "@/components/ripple-button";
 import { CheckCircle2, Lightbulb, Rocket, AlertTriangle, Info, LockKeyhole, ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 
 interface AgentModalProps {
@@ -174,10 +175,12 @@ const AgentModal: React.FC<AgentModalProps> = ({
               </p>
             </div>
             <div className="flex-shrink-0">
-              <img
+              <Image
                 src="/media/prepzo-agent.png"
                 alt="Prepzo AI Agent Illustration"
                 className="w-20 h-20 md:w-32 md:h-32 object-contain"
+                width={1000}
+                height={1000}
               />
             </div>
           </div>
