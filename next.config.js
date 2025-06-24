@@ -10,7 +10,8 @@ const nextConfig = {
   images: {
     domains: [
       "thbiefglqtjxmrtrqmhq.supabase.co",
-      "images.unsplash.com"
+      "images.unsplash.com",
+      "xcemffhlylyipmuxlujn.supabase.co"
     ],
   },
 };
