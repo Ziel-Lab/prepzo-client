@@ -224,11 +224,38 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch jobs – status ${res.status}`);
+      // -------------------------------------------------------------------
+      // Handle API errors (e.g. usage limits) and HTTP errors gracefully
+      // -------------------------------------------------------------------
+      type ApiResponse = {
+        data?: unknown;
+        error?: string;
+        limit?: number;
+        usage?: number;
+      };
+
+      let json: ApiResponse | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        // If parsing fails we will handle via status check below
       }
 
-      const json = await res.json();
+      // If backend returned an explicit error payload, surface it to the user
+      if (json?.error) {
+        toast({
+          title: "Limit reached",
+          description: json.error as string,
+        });
+        return; // Stop further processing – nothing to render
+      }
+
+      // If HTTP status is not OK, use any parsed message or a fallback
+      if (!res.ok) {
+        const errMsg = (json && typeof json.error === "string") ? json.error : `Failed to fetch jobs – status ${res.status}`;
+        throw new Error(errMsg);
+      }
+
       if (json?.data && Array.isArray(json.data)) {
         setApplications(json.data as Job[]);
       }
