@@ -240,6 +240,7 @@ const CoverLetterContent = () => {
     const jwtToken = sessionData.session.access_token;
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("document_type", "Cover Letter");
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
@@ -412,8 +413,7 @@ const CoverLetterContent = () => {
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Maybe show a toast notification
-      console.log("Copied to clipboard");
+
     }).catch(err => {
       console.error("Failed to copy:", err);
     });

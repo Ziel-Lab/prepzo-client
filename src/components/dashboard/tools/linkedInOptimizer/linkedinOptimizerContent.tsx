@@ -216,7 +216,6 @@ const LinkedInOptimizerContent: React.FC = () => {
       console.error("[DEBUG] fetchHistory: Catch block error:", err);
       setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
     } finally {
-      console.log("[DEBUG] fetchHistory: Setting isLoading to false");
       setIsLoading(false);
     }
   }, [backendUrl, getAuthToken, setIsLoading, setError, setHistory]);
@@ -230,19 +229,15 @@ const LinkedInOptimizerContent: React.FC = () => {
     }
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[LinkedInOptimizerContent] Auth event: ${event}, session:`, session ? 'exists' : 'null');
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         if (session) {
-          console.log("[LinkedInOptimizerContent] Session available. Attempting to fetch history.");
           fetchHistory();
         } else {
-          console.log("[LinkedInOptimizerContent] No session on INITIAL_SESSION or SIGNED_IN. User might be logged out.");
           setHistory([]); // Clear history if no session
           // If getAuthToken is called (e.g. by a manual fetch action later), it will set the appropriate error.
           // For initial load, if no session, we simply don't fetch.
         }
       } else if (event === 'SIGNED_OUT') {
-        console.log("[LinkedInOptimizerContent] User signed out. Clearing history and error.");
         setHistory([]);
         setError(null); 
       }
@@ -277,7 +272,6 @@ const LinkedInOptimizerContent: React.FC = () => {
 
   // Add console log inside render for results section
   if (activeTab === 'optimizer') {
-    console.log("[DEBUG] Optimizer Render: isLoading:", isLoading, "hasSubmittedOnce:", hasSubmittedOnce, "changesRequired:", changesRequired, "explanation:", explanation);
   }
 
   // Derived booleans for rendering logic in Optimizer tab
@@ -498,17 +492,12 @@ const LinkedInOptimizerContent: React.FC = () => {
           {!isLoading && history.length > 0 && (
             <div className="space-y-6">
               {history.map((item, index) => {
-                console.log(`[DEBUG History Item ${index}] ID: ${item.id}, Raw API Response:`, JSON.stringify(item.api_response)); // Log raw string for inspection
-
                 const changesFromHistory = item.api_response?.changes || item.api_response?.changes_required;
                 const explanationFromHistory = item.api_response?.explanation;
 
                 const hasApiChanges = typeof changesFromHistory === 'string' && changesFromHistory.trim() !== '';
                 const hasApiExplanation = typeof explanationFromHistory === 'string' && explanationFromHistory.trim() !== '';
-                
-                // Log the evaluated boolean conditions
-                console.log(`[DEBUG History Item ${index}] ID: ${item.id}, hasApiChanges: ${hasApiChanges}, hasApiExplanation: ${hasApiExplanation}`);
-                
+                               
                 return (
                   <details key={item.id} className="bg-slate-50 p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                     <summary className="font-medium text-indigo-700 cursor-pointer hover:text-indigo-800 flex justify-between items-center">
