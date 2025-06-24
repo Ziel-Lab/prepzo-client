@@ -300,7 +300,7 @@ const SubscriptionContent = () => {
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-sm font-medium">{m.name}</p>
                   <p className="text-sm text-gray-500">
-                    {m.used} / {m.limit}
+                    {m.used} / {m.limit ?? "—"}
                   </p>
                 </div>
                 <Progress
