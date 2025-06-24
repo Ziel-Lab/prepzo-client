@@ -290,6 +290,7 @@ const AnalyzerToolContent = () => {
     const jwtToken = sessionData.session.access_token;
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("document_type", "Resume");
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
@@ -393,6 +394,7 @@ const AnalyzerToolContent = () => {
       const roastPayload = new FormData();
       if (newResumeFile) {
         roastPayload.append("file", newResumeFile);
+        roastPayload.append("document_type", "Resume");
       } else {
         roastPayload.append("current_resume_url", finalResumeUrl);
       }
@@ -569,7 +571,6 @@ const AnalyzerToolContent = () => {
           : item
       )
     );
-    console.log(`TODO: Call backend to update analysis history ID ${currentAnalysisId} with new_score: ${newScoreToSave}`);
   };
 
   useEffect(() => {

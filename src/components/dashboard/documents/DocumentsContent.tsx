@@ -14,18 +14,32 @@ import {
 import { FileText, UploadCloud, Loader2, Trash2, MessageSquare, ExternalLink, Pencil, X } from "lucide-react";
 import { useState, useRef, ChangeEvent, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 // Define a type for the document structure
 interface Document {
-  id: number | string; // From database primary key
-  title: string; // From database 'document_name' or 'display_name'
+  id: number | string; 
+  title: string; 
   type: string; // From database 'document_type'
-  createdAt: string; // From database 'created_at'
-  lastModified: string; // From database 'updated_at' (or same as createdAt if no updates)
-  status: string; // Can be client-side (e.g., "Uploaded", "Final") or from DB if available
-  url?: string; // From database 'document_url'
-  user_comment?: string; // New field for user comments
+  createdAt: string; 
+  lastModified: string; 
+  status: string;
+  url?: string; 
+  user_comment?: string; 
 }
+
+const DOCUMENT_TYPES = ["Resume", "CV", "Cover Letter", "Certificate", "Degree", "Offer Letter", "Other"];
 
 const DocumentsContent = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -35,6 +49,8 @@ const DocumentsContent = () => {
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null); // For delete errors
   const [deletingDocId, setDeletingDocId] = useState<string | number | null>(null); // To track which doc is being deleted
+  const [newDocType, setNewDocType] = useState<string>("Other");
+  const [customNewDocType, setCustomNewDocType] = useState<string>("");
   
   // State for comments
   const [commentInputs, setCommentInputs] = useState<{ [key: string]: string }>({});
@@ -51,7 +67,7 @@ const DocumentsContent = () => {
       setError(null);
       setDeleteError(null);
       setCommentError({});
-      console.log("Fetching documents...");
+
 
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -69,7 +85,6 @@ const DocumentsContent = () => {
           throw new Error("Backend URL is not configured (fetchDocuments).");
         }
         const fetchUrl = `${backendUrl.replace(/$/, '')}/get-documents`;
-        console.log(`fetchDocuments: Fetching from ${fetchUrl}`);
 
         const response = await fetch(fetchUrl, {
           method: "GET",
@@ -86,18 +101,17 @@ const DocumentsContent = () => {
         }
 
         const fetchedDocsRaw = await response.json();
-        console.log("fetchDocuments: Successfully fetched raw documents:", fetchedDocsRaw);
 
         // Map fetched documents to the frontend Document interface
         const fetchedDocs: Document[] = fetchedDocsRaw.map((doc: any) => ({
-          id: doc.id, // Assuming 'id' is the primary key from your table
+          id: doc.id,
           title: doc.document_name || doc.display_name || "Untitled Document",
           type: doc.document_type || "Unknown Type",
           createdAt: doc.created_at ? new Date(doc.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           lastModified: doc.updated_at ? new Date(doc.updated_at).toISOString().split('T')[0] : (doc.created_at ? new Date(doc.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-          status: "Final", // Or derive from backend if available, default to "Final"
+          status: "Final", 
           url: doc.document_url,
-          user_comment: doc.user_comment || "", // Initialize comment, assuming backend field is 'user_comment'
+          user_comment: doc.user_comment || "", 
         }));
         
         setDocuments(fetchedDocs);
@@ -122,19 +136,26 @@ const DocumentsContent = () => {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setSelectedFile(event.target.files[0]);
+      setNewDocType("Other");
+      setCustomNewDocType("");
       setError(null); // Clear previous errors
       setDeleteError(null); // Clear delete errors as well
     }
   };
 
   const handleUpload = async () => {
-    console.log("handleUpload called");
     if (!selectedFile) {
       setError("Please select a file first.");
       console.error("handleUpload: No file selected");
       return;
     }
-    console.log("handleUpload: Selected file:", selectedFile);
+
+    const typeToSend = newDocType === "Other" ? customNewDocType.trim() : newDocType;
+    if (!typeToSend) {
+      setError("Please specify a document type.");
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -151,10 +172,10 @@ const DocumentsContent = () => {
     }
 
     const jwtToken = sessionData.session.access_token;
-    console.log("handleUpload: JWT Token retrieved:", jwtToken ? `${jwtToken.substring(0, 20)}...` : null);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
+    formData.append("document_type", typeToSend);
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
@@ -162,7 +183,6 @@ const DocumentsContent = () => {
         throw new Error("Backend URL is not configured (handleUpload).");
       }
       const uploadUrl = `${backendUrl.replace(/$/, '')}/upload-document`;
-      console.log(`handleUpload: Fetching to: ${uploadUrl}`);
       
       const response = await fetch(uploadUrl, {
         method: "POST",
@@ -181,15 +201,13 @@ const DocumentsContent = () => {
       }
 
       const result = await response.json();
-      console.log("handleUpload: Fetch successful, result:", result);
       
-      // Add the new document to the state optimistically
-      const newDocumentDataFromServer = result.db_response?.[0]; // Data from the insert operation
+      const newDocumentDataFromServer = result.db_response?.[0]; 
 
       const newDocument: Document = {
         id: newDocumentDataFromServer?.id || Date.now().toString(), // Use ID from DB response
         title: selectedFile.name,
-        type: selectedFile.type || "Other",
+        type: typeToSend,
         createdAt: newDocumentDataFromServer?.created_at ? new Date(newDocumentDataFromServer.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         lastModified: newDocumentDataFromServer?.updated_at ? new Date(newDocumentDataFromServer.updated_at).toISOString().split('T')[0] : (newDocumentDataFromServer?.created_at ? new Date(newDocumentDataFromServer.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
         status: "Uploaded",
@@ -211,7 +229,6 @@ const DocumentsContent = () => {
   };
 
   const handleDeleteDocument = async (documentId: number | string) => {
-    console.log(`handleDeleteDocument called for ID: ${documentId}`);
     setDeletingDocId(documentId.toString());
     setError(null);
     setDeleteError(null);
@@ -226,15 +243,12 @@ const DocumentsContent = () => {
     }
 
     const jwtToken = sessionData.session.access_token;
-    console.log("handleDeleteDocument: JWT Token retrieved:", jwtToken ? `${jwtToken.substring(0, 20)}...` : null);
-
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
         throw new Error("Backend URL is not configured (handleDeleteDocument).");
       }
       const deleteUrl = `${backendUrl.replace(/$/, '')}/delete-document/${documentId}`;
-      console.log(`handleDeleteDocument: Fetching to: ${deleteUrl}`);
       
       const response = await fetch(deleteUrl, {
         method: "DELETE",
@@ -249,9 +263,7 @@ const DocumentsContent = () => {
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log("handleDeleteDocument: Fetch successful, result:", result);
-      
+      const result = await response.json();     
       setDocuments(prevDocuments => prevDocuments.filter(doc => doc.id.toString() !== documentId.toString()));
 
     } catch (err: any) {
@@ -289,10 +301,9 @@ const DocumentsContent = () => {
     const commentText = commentInputs[docIdStr];
     if (typeof commentText === 'undefined') {
         console.warn("handleUpdateComment: No comment text found for doc ID:", docIdStr);
-        return; // Should not happen if UI is correct
+        return; 
     }
 
-    console.log(`handleUpdateComment called for ID: ${docIdStr} with comment: "${commentText}"`);
     setUpdatingCommentDocId(docIdStr);
     setCommentError(prev => ({...prev, [docIdStr]: null})); // Clear previous error for this specific doc
     setError(null); // Clear general errors
@@ -330,8 +341,7 @@ const DocumentsContent = () => {
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json(); // Assuming backend returns the updated document or a success message
-      console.log("handleUpdateComment: Success, result:", result);
+      const result = await response.json(); 
       
       setDocuments(prevDocuments => 
         prevDocuments.map(doc => 
@@ -376,17 +386,39 @@ const DocumentsContent = () => {
       </div>
 
       {selectedFile && !isLoading && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md flex justify-between items-center">
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md space-y-3">
           <div>
             <p className="font-medium text-blue-700">Selected file: {selectedFile.name}</p>
-            <p className="text-sm text-blue-600">Type: {selectedFile.type}, Size: {(selectedFile.size / 1024).toFixed(2)} KB</p>
+            <p className="text-sm text-blue-600">Size: {(selectedFile.size / 1024).toFixed(2)} KB</p>
           </div>
-          <button
-            onClick={handleUpload}
-            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
-          >
-            Upload
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
+            <Select value={newDocType} onValueChange={setNewDocType}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-white">
+                    <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                    {DOCUMENT_TYPES.map((typeOption) => (
+                        <SelectItem key={typeOption} value={typeOption}>
+                            {typeOption}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            {newDocType === 'Other' && (
+                <Input 
+                    className="bg-white w-full sm:w-auto flex-grow"
+                    placeholder="Specify type (e.g., Portfolio)" 
+                    value={customNewDocType} 
+                    onChange={e => setCustomNewDocType(e.target.value)} 
+                />
+            )}
+            <button
+              onClick={handleUpload}
+              className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors w-full sm:w-auto"
+            >
+              Upload
+            </button>
+          </div>
         </div>
       )}
 
@@ -438,7 +470,9 @@ const DocumentsContent = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              const docOptions = doc.type && !DOCUMENT_TYPES.includes(doc.type) ? [doc.type, ...DOCUMENT_TYPES] : DOCUMENT_TYPES;
+              return (
               <TableRow key={doc.id}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
@@ -548,7 +582,7 @@ const DocumentsContent = () => {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
           {documents.length > 10 && (
             <TableFooter>
@@ -559,6 +593,7 @@ const DocumentsContent = () => {
           )}
         </Table>
       )}
+
     </div>
   );
 };

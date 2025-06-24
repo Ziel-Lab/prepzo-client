@@ -69,7 +69,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       });
       
       const data = await response.json();
-      console.log('Fetched subscription data:', data);
       if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
       
       setSubscription(data);
@@ -91,7 +90,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
          "postgres_changes",
          { event: "*", schema: "public", table: "user_subscriptions" },
          () => {
-            console.log("Subscription change detected from context, refetching...");
             fetchSubscriptionStatus()
          }
        )
