@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users } from "lucide-react";
 import { createClient } from '@/utils/supabase/client';
+import Image from "next/image";
 
 // Define props for HeroSection
 interface HeroSectionProps {
@@ -97,10 +98,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
           <div className="relative animate-slide-up" style={{
            '--delay': '2'
          } as React.CSSProperties}>
-             <img 
+             <Image 
                alt="Career assessment showing Strategic Thinking, Adaptability, and Negotiation skills" 
                className="" 
                src="/lovable-uploads/cdfc3f3c-da0c-41c4-b46f-f3d647cdcfa3.png" 
+               width={1000}
+               height={1000}
              />
            </div>
         </div>
