@@ -182,48 +182,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   const [creditsLeft, setCreditsLeft] = useState<number>(JOB_SEARCH_LIMIT - initialUsed);
 
-  // ---------------------------------------------------------------------------
-  // Helper to increment usage in `feature_usage` table
-  // ---------------------------------------------------------------------------
-  const incrementJobSearchUsage = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) return;
-
-      // Retrieve current count and update atomically
-      const { data: usageData, error: fetchError } = await supabase
-        .from('feature_usage')
-        .select('job_search_results_count')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Failed to fetch current usage', fetchError.message);
-        return;
-      }
-
-      const currentCount = (usageData?.job_search_results_count as number | null) ?? 0;
-
-      const { error: updateError } = await supabase
-        .from('feature_usage')
-        .update({ job_search_results_count: currentCount + 1 })
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        console.error('Failed to increment usage', updateError.message);
-      } else {
-        // Refresh subscription context so UI stays in sync
-        if (subscription && subscription.usage) {
-          const extendedUsage = subscription.usage as ExtendedFeatureUsage;
-          extendedUsage.job_search_results_count = currentCount + 1;
-        }
-      }
-    } catch (err) {
-      console.error('Error incrementing usage', err);
-    }
-  };
-
-  // Re-initialise credits when subscription data changes (e.g. realtime update)
+  // Recalculate remaining credits whenever subscription usage or limits change
   useEffect(() => {
     if (subscription) {
       const used = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
@@ -424,9 +383,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     setCreditsLeft(cl => Math.max(cl - 1, 0));
     setChargedJobs(prev => new Set(prev).add(jobId));
     setRevealedJobs(prev => new Set(prev).add(jobId));
-
-    // Persist usage update
-    incrementJobSearchUsage();
 
     // Fetch full job details
     await fetchJobDetails(jobId);
