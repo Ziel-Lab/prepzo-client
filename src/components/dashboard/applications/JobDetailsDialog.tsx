@@ -32,6 +32,7 @@ type Job = {
     employee_count_range?: string;
     country?: string;
     domain?: string;
+    logo?: string;
   };
   hiring_team?: HiringTeamMember[];
   employment_statuses?: string[];
@@ -170,7 +171,17 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
             <h3 className="text-lg font-semibold mb-4">Company</h3>
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center text-lg font-bold text-blue-600">
-                {isRevealed ? (application.company?.charAt(0) ?? "?") : "?"}
+                {isRevealed ? (
+                  application.company_object?.logo ? (
+                    <img
+                      src={application.company_object.logo}
+                      alt={application.company || "Company Logo"}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                  ) : (
+                    application.company?.charAt(0) ?? "?"
+                  )
+                ) : "?"}
               </div>
               <div className="flex-1">
                 <h4 className="font-medium text-lg">
