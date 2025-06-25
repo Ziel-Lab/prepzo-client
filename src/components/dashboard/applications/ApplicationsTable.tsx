@@ -132,7 +132,7 @@ export type SearchFilters = {
   max_salary_usd?: number;
   company_name_or?: string[];
   hiring_managers_exists?: boolean;
-  location_or?: string[];
+  job_location_pattern_or?: string[];
 };
 
 export type Filters = {
@@ -208,12 +208,11 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         include_total_results: false,
         ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
         ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
-        // ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
         ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
         ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
         ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
-        ...(searchFilters.location_or && searchFilters.location_or.length > 0 && { location_or: searchFilters.location_or }),
+        ...(searchFilters.job_location_pattern_or && searchFilters.job_location_pattern_or.length > 0 && { job_location_pattern_or: searchFilters.job_location_pattern_or }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -613,11 +612,11 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <Label htmlFor="location">Location</Label>
               <Input
                 id="location"
-                placeholder="e.g. Bangalore, Karnataka (comma separated)"
-                value={searchFilters.location_or?.join(", ") || ""}
+                placeholder="e.g. Bangalore, Karnataka (comma separated, regex supported)"
+                value={searchFilters.job_location_pattern_or?.join(", ") || ""}
                 onChange={(e) => setSearchFilters(prev => ({
                   ...prev,
-                  location_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined
+                  job_location_pattern_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined
                 }))}
               />
             </div>
