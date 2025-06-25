@@ -547,20 +547,20 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  {/* <DropdownMenuItem>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit Status
-                  </DropdownMenuItem>
-                  {isRevealed && (
+                  </DropdownMenuItem> */}
+                  {/* {isRevealed && (
                     <DropdownMenuItem>
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Open Job
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem className="text-red-600">
+                  )} */}
+                  {/* <DropdownMenuItem className="text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
