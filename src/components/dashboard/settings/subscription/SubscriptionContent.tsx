@@ -237,11 +237,6 @@ const SubscriptionContent = () => {
       limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
     },
     {
-      name: "Job Applications",
-      used: subscription.usage.job_application_count,
-      limit: subscription.subscription_plans.job_application_limit_per_month,
-    },
-    {
       name: "Job Reveals",
       used: subscription.usage.job_search_results_count ?? 0,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
