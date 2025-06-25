@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, DollarSign, Building, ExternalLink, Globe, Hash, User } from "lucide-react";
+import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
+import Link from "next/link";
 
 // Re-declare a lightweight Job type (should ideally be imported from a shared file)
 type HiringTeamMember = {
@@ -31,6 +33,7 @@ type Job = {
     employee_count_range?: string;
     country?: string;
     domain?: string;
+    logo?: string;
   };
   hiring_team?: HiringTeamMember[];
   employment_statuses?: string[];
@@ -133,27 +136,27 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Hash className="h-4 w-4 text-gray-500" />
                 <div>
                   <span className="text-sm font-medium">TheirStack Job ID</span>
                   <p className="text-sm text-gray-600">{application.id}</p>
                 </div>
-              </div>
+              </div> */}
 
               <div className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4 text-gray-500" />
                 <div>
-                  <span className="text-sm font-medium">URL</span>
+                  <span className="text-sm font-medium">URL </span>
                   {isRevealed ? (
-                    <a 
+                    <Link 
                       href={application.url ?? "#"} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:underline"
                     >
                       {application.url && application.url.length > 50 ? `${application.url.substring(0, 50)}...` : application.url ?? "N/A"}
-                    </a>
+                    </Link>
                   ) : (
                     <p className="text-sm text-gray-600">Hidden</p>
                   )}
@@ -169,7 +172,17 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
             <h3 className="text-lg font-semibold mb-4">Company</h3>
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center text-lg font-bold text-blue-600">
-                {isRevealed ? (application.company?.charAt(0) ?? "?") : "?"}
+                {isRevealed ? (
+                  application.company_object?.logo ? (
+                    <img
+                      src={application.company_object.logo}
+                      alt={application.company || "Company Logo"}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                  ) : (
+                    application.company?.charAt(0) ?? "?"
+                  )
+                ) : "?"}
               </div>
               <div className="flex-1">
                 <h4 className="font-medium text-lg">
@@ -218,9 +231,11 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
           <div>
             <h3 className="text-lg font-semibold mb-4">Description</h3>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">
-                {application.description}
-              </pre>
+              {application.description ? (
+                <MarkdownRenderer content={application.description} />
+              ) : (
+                <span className="text-gray-500">No description provided.</span>
+              )}
             </div>
           </div>
 
