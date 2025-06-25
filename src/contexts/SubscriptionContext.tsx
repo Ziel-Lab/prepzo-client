@@ -11,12 +11,15 @@ export interface SubscriptionPlan {
   resume_limit_per_month: number;
   cover_letter_limit_per_month: number;
   linkedin_optimize_limit_per_month: number;
+  job_search_results_limit_per_month?: number;
 }
 
 export interface FeatureUsage {
   resume_count: number;
   cover_letter_count: number;
   linkedin_optimize_count: number;
+  job_application_count: number;
+  job_search_results_count?: number;
 }
 
 export interface SubscriptionStatus {
@@ -69,7 +72,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       });
       
       const data = await response.json();
-      console.log('Fetched subscription data:', data);
       if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
       
       setSubscription(data);
@@ -91,7 +93,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
          "postgres_changes",
          { event: "*", schema: "public", table: "user_subscriptions" },
          () => {
-            console.log("Subscription change detected from context, refetching...");
             fetchSubscriptionStatus()
          }
        )
