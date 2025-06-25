@@ -11,12 +11,14 @@ export interface SubscriptionPlan {
   resume_limit_per_month: number;
   cover_letter_limit_per_month: number;
   linkedin_optimize_limit_per_month: number;
+  job_application_limit_per_month: number;
 }
 
 export interface FeatureUsage {
   resume_count: number;
   cover_letter_count: number;
   linkedin_optimize_count: number;
+  job_application_count: number;
 }
 
 export interface SubscriptionStatus {

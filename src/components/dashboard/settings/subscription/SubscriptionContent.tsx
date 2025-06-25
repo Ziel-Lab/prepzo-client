@@ -43,12 +43,15 @@ interface SubscriptionPlan {
   resume_limit_per_month: number;
   cover_letter_limit_per_month: number;
   linkedin_optimize_limit_per_month: number;
+  job_application_limit_per_month: number;
 }
 
 interface FeatureUsage {
   resume_count: number;
   cover_letter_count: number;
   linkedin_optimize_count: number;
+  job_application_count: number;
+  job_application_limit_per_month: number;
 }
 
 interface SubscriptionStatus {
@@ -231,6 +234,11 @@ const SubscriptionContent = () => {
       used: subscription.usage.linkedin_optimize_count,
       limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
     },
+    {
+      name: "Job Applications",
+      used: subscription.usage.job_application_count,
+      limit: subscription.subscription_plans.job_application_limit_per_month,
+    }
   ];
 
   return (

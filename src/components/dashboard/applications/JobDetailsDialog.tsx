@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, DollarSign, Building, ExternalLink, Globe, Hash, User } from "lucide-react";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
+import Link from "next/link";
 
 // Re-declare a lightweight Job type (should ideally be imported from a shared file)
 type HiringTeamMember = {
@@ -135,27 +136,27 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Hash className="h-4 w-4 text-gray-500" />
                 <div>
                   <span className="text-sm font-medium">TheirStack Job ID</span>
                   <p className="text-sm text-gray-600">{application.id}</p>
                 </div>
-              </div>
+              </div> */}
 
               <div className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4 text-gray-500" />
                 <div>
-                  <span className="text-sm font-medium">URL</span>
+                  <span className="text-sm font-medium">URL </span>
                   {isRevealed ? (
-                    <a 
+                    <Link 
                       href={application.url ?? "#"} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:underline"
                     >
                       {application.url && application.url.length > 50 ? `${application.url.substring(0, 50)}...` : application.url ?? "N/A"}
-                    </a>
+                    </Link>
                   ) : (
                     <p className="text-sm text-gray-600">Hidden</p>
                   )}
