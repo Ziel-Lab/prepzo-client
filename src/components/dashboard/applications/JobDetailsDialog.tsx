@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, DollarSign, Building, ExternalLink, Globe, Hash, User } from "lucide-react";
+import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 
 // Re-declare a lightweight Job type (should ideally be imported from a shared file)
 type HiringTeamMember = {
@@ -218,9 +219,11 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
           <div>
             <h3 className="text-lg font-semibold mb-4">Description</h3>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-sans">
-                {application.description}
-              </pre>
+              {application.description ? (
+                <MarkdownRenderer content={application.description} />
+              ) : (
+                <span className="text-gray-500">No description provided.</span>
+              )}
             </div>
           </div>
 

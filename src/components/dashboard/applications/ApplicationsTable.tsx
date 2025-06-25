@@ -503,7 +503,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             {!isBlurred && (
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div className="flex items-center gap-1">
-                {/* <DollarSign className="h-4 w-4" /> */}
                 <span>{application.salary_string || "Not disclosed"}</span>
               </div>
               <div className="flex items-center gap-1">
