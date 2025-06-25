@@ -132,13 +132,14 @@ export type SearchFilters = {
   max_salary_usd?: number;
   company_name_or?: string[];
   hiring_managers_exists?: boolean;
+  location_or?: string[];
 };
 
 export type Filters = {
   search?: string;
   status?: string;
   remote?: boolean;
-  // seniority?: string; // Uncomment if needed in the future
+  seniority?: string; 
 };
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
@@ -206,12 +207,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         job_country_code_or: searchFilters.job_country_code_or || ["IN"],
         include_total_results: false,
         ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
-        // ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
+        ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
         // ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
         ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
         ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
         ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
+        ...(searchFilters.location_or && searchFilters.location_or.length > 0 && { location_or: searchFilters.location_or }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -458,9 +460,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <div className="font-medium">
                   {isRevealed ? application.company : "Hidden Company"}
                 </div>
-                {/* <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500">
                   {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
-                </div> */}
+                </div>
               </div>
             </div>
             )}
@@ -608,6 +610,19 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="e.g. Bangalore, Karnataka (comma separated)"
+                value={searchFilters.location_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({
+                  ...prev,
+                  location_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
               <Select
                 value={searchFilters.job_country_code_or?.[0] || "IN"}
@@ -629,7 +644,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              {/* <Label htmlFor="seniority">Seniority Level</Label>
+              <Label htmlFor="seniority">Seniority Level</Label>
               <Select
                 value={searchFilters.job_seniority_or?.[0] || "any"}
                 onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
@@ -645,7 +660,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="c_level">C-Level</SelectItem>
                 </SelectContent>
-              </Select> */}
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -668,7 +683,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min_salary">Min Salary (USD)</Label>
+              <Label htmlFor="min_salary">Min Salary (USD) Annual</Label>
               <Input
                 id="min_salary"
                 type="number"
@@ -679,7 +694,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="max_salary">Max Salary (USD)</Label>
+              <Label htmlFor="max_salary">Max Salary (USD) Annual</Label>
               <Input
                 id="max_salary"
                 type="number"
