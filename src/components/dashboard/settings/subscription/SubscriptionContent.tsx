@@ -292,7 +292,7 @@ const SubscriptionContent = () => {
               {subscription.subscription_plans.name}
             </span>
           </CardTitle>
-          <CardDescription>Ends on {formattedEnd}.</CardDescription>
+          {!isFreeUser && <CardDescription>Ends on {formattedEnd}.</CardDescription>}
           {isCanceling && (
             <p className="text-sm text-gray-500 mt-1">
               (You'll revert to Free on {formattedEnd})
