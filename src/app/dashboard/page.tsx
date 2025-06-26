@@ -43,7 +43,8 @@ const DashboardPage = () => {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !user) {
-          console.error("User not authenticated or error fetching user. Redirecting to login.", authError);
+          console.error("User not authenticated or error fetching user. Clearing session and redirecting.", authError);
+          await supabase.auth.signOut(); // Clear the invalid session
           window.location.href = '/auth/sign-up'; 
           return; 
         }
