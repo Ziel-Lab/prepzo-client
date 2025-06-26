@@ -51,6 +51,7 @@ interface FeatureUsage {
   resume_period_count: number;
   cover_letter_period_count: number;
   linkedin_optimize_period_count: number;
+  job_search_results_period_count: number;
 }
 
 interface SubscriptionStatus {
@@ -235,7 +236,7 @@ const SubscriptionContent = () => {
     },
     {
       name: "Job Reveals",
-      used: subscription.usage.job_search_results_count ?? 0,
+      used: subscription.usage.job_search_results_period_count,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ];
