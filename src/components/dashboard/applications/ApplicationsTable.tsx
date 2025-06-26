@@ -132,19 +132,23 @@ export type SearchFilters = {
   max_salary_usd?: number;
   company_name_or?: string[];
   hiring_managers_exists?: boolean;
+  job_location_pattern_or?: string[];
 };
 
 export type Filters = {
   search?: string;
   status?: string;
   remote?: boolean;
-  // seniority?: string; // Uncomment if needed in the future
+  seniority?: string; 
 };
 
-// Extend FeatureUsage to include job_search_results_count until context is updated
+// Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
 type ExtendedFeatureUsage = FeatureUsage & { job_search_results_count?: number };
 
-type ExtendedSubscriptionPlan = SubscriptionPlan & { job_search_results_limit_per_month?: number };
+type ExtendedSubscriptionPlan = SubscriptionPlan & {
+  job_search_results_limit_per_month?: number;
+  job_search_results_limit?: number;
+};
 
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -171,12 +175,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   // ---------------------------------------------------------------------------
   const { subscription } = useSubscription();
 
-  const JOB_SEARCH_LIMIT = (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ?? 100;
+  // Prefer the new column `job_search_results_limit`; fallback to *_per_month for backward-compat
+  const JOB_SEARCH_LIMIT = (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit ??
+                           (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ??
+                           100;
   const initialUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
 
   const [creditsLeft, setCreditsLeft] = useState<number>(JOB_SEARCH_LIMIT - initialUsed);
 
-  // Re-initialise credits when subscription data changes (e.g. realtime update)
+  // Recalculate remaining credits whenever subscription usage or limits change
   useEffect(() => {
     if (subscription) {
       const used = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
@@ -200,12 +207,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         job_country_code_or: searchFilters.job_country_code_or || ["IN"],
         include_total_results: false,
         ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
-        // ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
-        // ...(searchFilters.remote !== undefined && { remote: searchFilters.remote }),
+        ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),
         ...(searchFilters.company_name_or && searchFilters.company_name_or.length > 0 && { company_name_or: searchFilters.company_name_or }),
         ...(searchFilters.min_salary_usd && { min_salary_usd: searchFilters.min_salary_usd }),
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
         ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
+        ...(searchFilters.job_location_pattern_or && searchFilters.job_location_pattern_or.length > 0 && { job_location_pattern_or: searchFilters.job_location_pattern_or }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -224,11 +231,38 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch jobs – status ${res.status}`);
+      // -------------------------------------------------------------------
+      // Handle API errors (e.g. usage limits) and HTTP errors gracefully
+      // -------------------------------------------------------------------
+      type ApiResponse = {
+        data?: unknown;
+        error?: string;
+        limit?: number;
+        usage?: number;
+      };
+
+      let json: ApiResponse | null = null;
+      try {
+        json = await res.json();
+      } catch {
+        // If parsing fails we will handle via status check below
       }
 
-      const json = await res.json();
+      // If backend returned an explicit error payload, surface it to the user
+      if (json?.error) {
+        toast({
+          title: "Limit reached",
+          description: json.error as string,
+        });
+        return; // Stop further processing – nothing to render
+      }
+
+      // If HTTP status is not OK, use any parsed message or a fallback
+      if (!res.ok) {
+        const errMsg = (json && typeof json.error === "string") ? json.error : `Failed to fetch jobs – status ${res.status}`;
+        throw new Error(errMsg);
+      }
+
       if (json?.data && Array.isArray(json.data)) {
         setApplications(json.data as Job[]);
       }
@@ -346,7 +380,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
-    // Deduct one credit locally; backend should update usage separately
+    // Deduct one credit locally
     setCreditsLeft(cl => Math.max(cl - 1, 0));
     setChargedJobs(prev => new Set(prev).add(jobId));
     setRevealedJobs(prev => new Set(prev).add(jobId));
@@ -425,9 +459,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <div className="font-medium">
                   {isRevealed ? application.company : "Hidden Company"}
                 </div>
-                {/* <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500">
                   {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
-                </div> */}
+                </div>
               </div>
             </div>
             )}
@@ -469,7 +503,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             {!isBlurred && (
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div className="flex items-center gap-1">
-                {/* <DollarSign className="h-4 w-4" /> */}
                 <span>{application.salary_string || "Not disclosed"}</span>
               </div>
               <div className="flex items-center gap-1">
@@ -513,20 +546,20 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  {/* <DropdownMenuItem>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit Status
-                  </DropdownMenuItem>
-                  {isRevealed && (
+                  </DropdownMenuItem> */}
+                  {/* {isRevealed && (
                     <DropdownMenuItem>
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Open Job
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem className="text-red-600">
+                  )} */}
+                  {/* <DropdownMenuItem className="text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -575,6 +608,19 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="e.g. Bangalore, Karnataka (comma separated, regex supported)"
+                value={searchFilters.job_location_pattern_or?.join(", ") || ""}
+                onChange={(e) => setSearchFilters(prev => ({
+                  ...prev,
+                  job_location_pattern_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
               <Select
                 value={searchFilters.job_country_code_or?.[0] || "IN"}
@@ -596,7 +642,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              {/* <Label htmlFor="seniority">Seniority Level</Label>
+              <Label htmlFor="seniority">Seniority Level</Label>
               <Select
                 value={searchFilters.job_seniority_or?.[0] || "any"}
                 onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
@@ -612,7 +658,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="c_level">C-Level</SelectItem>
                 </SelectContent>
-              </Select> */}
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -635,7 +681,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min_salary">Min Salary (USD)</Label>
+              <Label htmlFor="min_salary">Min Salary (USD) Annual</Label>
               <Input
                 id="min_salary"
                 type="number"
@@ -646,7 +692,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="max_salary">Max Salary (USD)</Label>
+              <Label htmlFor="max_salary">Max Salary (USD) Annual</Label>
               <Input
                 id="max_salary"
                 type="number"

@@ -56,6 +56,11 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       used: subscription.usage.linkedin_optimize_count,
       limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
     },
+    {
+      name: "Job Reveals",
+      used: subscription.usage.job_search_results_count ?? 0,
+      limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
+    },
   ] : [];
 
   return (
