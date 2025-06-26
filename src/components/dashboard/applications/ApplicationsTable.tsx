@@ -18,6 +18,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import type { FeatureUsage, SubscriptionPlan } from "@/contexts/SubscriptionContext";
 import countries from 'world-countries';
+import Image from "next/image";
 
 // Transform world-countries data to our format
 const COUNTRIES = countries.map(country => ({
@@ -658,7 +659,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             {!isBlurred && (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                {isRevealed ? (application.company?.charAt(0) ?? "?") : "?"}
+                {isRevealed ? (application.company_object?.logo ? <Image src={application.company_object.logo} alt={application.company} className="w-8 h-8 rounded-full object-cover" /> : application.company?.charAt(0) ?? "?") : "?"}
               </div>
               <div className="flex-1">
                 <div className="font-medium">
