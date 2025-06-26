@@ -46,9 +46,9 @@ interface SubscriptionPlan {
 }
 
 interface FeatureUsage {
-  resume_count: number;
-  cover_letter_count: number;
-  linkedin_optimize_count: number;
+  resume_period_count: number;
+  cover_letter_period_count: number;
+  linkedin_optimize_period_count: number;
 }
 
 interface SubscriptionStatus {
@@ -218,17 +218,17 @@ const SubscriptionContent = () => {
   const usageMetrics = [
     {
       name: "Resume Analyses",
-      used: subscription.usage.resume_count,
+      used: subscription.usage.resume_period_count,
       limit: subscription.subscription_plans.resume_limit_per_month,
     },
     {
       name: "Cover Letters",
-      used: subscription.usage.cover_letter_count,
+      used: subscription.usage.cover_letter_period_count,
       limit: subscription.subscription_plans.cover_letter_limit_per_month,
     },
     {
       name: "LinkedIn Optimizations",
-      used: subscription.usage.linkedin_optimize_count,
+      used: subscription.usage.linkedin_optimize_period_count,
       limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
     },
   ];
