@@ -1023,11 +1023,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <TableHead className="w-[140px]">Company</TableHead>
                     <TableHead className="w-[100px]">Country</TableHead>
                     <TableHead className="w-[120px]">Location</TableHead>
-                    <TableHead className="w-[100px]">Posted</TableHead>
                     <TableHead className="w-[120px]">Salary</TableHead>
+                    <TableHead className="w-[100px]">Posted</TableHead>
                     <TableHead className="w-[100px]">Hiring Team</TableHead>
                     <TableHead className="w-[100px]">Match</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[100px]">Employment</TableHead>
+                    <TableHead className="w-[100px]">Easy Apply</TableHead>
                     <TableHead className="w-[100px]">Industry</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1216,6 +1218,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {application.employment_statuses?.join(", ")}
+                        </TableCell>
+                        <TableCell>
+                          {application.easy_apply ? "Yes" : "No"}
                         </TableCell>
                         <TableCell>
                           {application.industry}
