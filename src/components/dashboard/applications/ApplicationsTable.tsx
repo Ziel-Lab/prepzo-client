@@ -1057,7 +1057,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gray-50">
-                    <TableHead className="w-[350px]">Job Details</TableHead>
+                    <TableHead className="w-[350px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
                     <TableHead className="w-[140px]">Company</TableHead>
                     <TableHead className="w-[100px]">Country</TableHead>
                     <TableHead className="w-[120px]">Location</TableHead>
@@ -1081,7 +1081,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     
                     return (
                       <TableRow key={application.id} className="hover:bg-gray-50">
-                        <TableCell>
+                        <TableCell className="sticky left-0 bg-white hover:bg-gray-50 z-10 border-r">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
                               <button
