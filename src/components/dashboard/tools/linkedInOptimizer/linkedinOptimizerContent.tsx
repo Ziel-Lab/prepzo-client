@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown';
 // Import the centralized Supabase client creator
 import { createClient } from "@/utils/supabase/client";
-import { AlertTriangle, CheckCircle, Info, Edit3, HelpCircle, FileText, MessageSquare, Loader2, Star } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Edit3, HelpCircle, FileText, MessageSquare, Loader2, Star, AlertCircle } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const loadingMessages = [
     "Analyzing your LinkedIn profile...",
@@ -330,223 +332,238 @@ const LinkedInOptimizerContent: React.FC = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-      <header className="mb-8 text-center">
-        <h1 className="text-4xl font-bold text-gray-800">LinkedIn Optimizer</h1>
-        <p className="text-lg text-gray-600">Optimize your LinkedIn profile based on your goals.</p>
-      </header>
+    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+        <header className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">LinkedIn Optimizer</h1>
+            <p className="mt-2 text-lg text-gray-600">Optimize your LinkedIn profile based on your goals.</p>
+        </header>
 
-      {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md mb-6" role="alert">
-          <div className="flex">
-            <div className="py-1"><AlertTriangle className="h-6 w-6 text-red-500 mr-3" /></div>
-            <div>
-              <p className="font-bold">Error</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          </div>
+        {error && (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        )}
+        
+        <div className="border-b border-gray-200">
+            <nav className="-mb-px flex justify-center space-x-8" aria-label="Tabs">
+                <button
+                onClick={() => setActiveTab('optimizer')}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'optimizer'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                >
+                Optimizer
+                </button>
+                <button
+                onClick={() => { setActiveTab('history'); if (history.length === 0 || error) fetchHistory(); }}
+                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'history'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                >
+                History
+                </button>
+            </nav>
         </div>
-      )}
 
-      <div className="mb-6 border-b border-gray-300">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab('optimizer')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'optimizer'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Optimizer
-          </button>
-          <button
-            onClick={() => { setActiveTab('history'); if (history.length === 0 || error) fetchHistory(); }} // Fetch history if empty or error exists
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'history'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            History
-          </button>
-        </nav>
-      </div>
+        {activeTab === 'optimizer' && (
+        <div className="space-y-8">
+            <Card>
+                <form onSubmit={handleSubmit}>
+                    <CardHeader>
+                        <CardTitle>Provide Your Profile and Goals</CardTitle>
+                        <CardDescription>
+                            Enter your LinkedIn profile URL and tell us what you want to achieve. Make sure your profile is public.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <label htmlFor="linkedinUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                                LinkedIn Profile URL
+                            </label>
+                            <input
+                                type="url"
+                                id="linkedinUrl"
+                                value={linkedinUrl}
+                                onChange={(e) => { setLinkedinUrl(e.target.value); handleInputChange(); }}
+                                placeholder="https://www.linkedin.com/in/yourprofile/"
+                                required
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="comments" className="block text-sm font-medium text-gray-700 mb-1">
+                                Goals & Comments
+                            </label>
+                            <textarea
+                                id="comments"
+                                value={comments}
+                                onChange={(e) => { setComments(e.target.value); handleInputChange(); }}
+                                rows={6}
+                                placeholder="What do you want to transform about your LinkedIn? How would you like to portray your image?"
+                                required
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                         <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full md:w-auto"
+                        >
+                            {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Optimizing...
+                            </>
+                            ) : 'Optimize Profile'}
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
 
-      {activeTab === 'optimizer' && (
-        <div className="bg-white shadow-xl rounded-lg p-6 md:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6 mb-8">
-            <div className="mb-6">
-              <label htmlFor="linkedinUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                LinkedIn Profile URL
-              </label>
-              <input
-                type="url"
-                id="linkedinUrl"
-                value={linkedinUrl}
-                onChange={(e) => { setLinkedinUrl(e.target.value); handleInputChange(); }}
-                placeholder="https://www.linkedin.com/in/yourprofile/"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-500">Ensure your profile is set to public.</p>
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="comments" className="block text-sm font-medium text-gray-700 mb-1">
-                Goals & Comments
-              </label>
-              <textarea
-                id="comments"
-                value={comments}
-                onChange={(e) => { setComments(e.target.value); handleInputChange(); }}
-                rows={6}
-                placeholder="What do you want to transform about your LinkedIn? How would you like to portray your image?"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-3"></div>
-                  Optimizing...
-                </>
-              ) : 'Optimize Profile'}
-            </button>
-          </form>
-
-          {isLoading && (
-            <div className="mt-10" ref={loadingCardRef}>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+            {isLoading && (
+              <Card ref={loadingCardRef} className="bg-blue-50 border-blue-200">
+                <CardContent className="p-6 text-center">
                     <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
                     <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
-                </div>
-            </div>
-          )}
-
-          <div ref={resultsRef} className="mt-10 pt-8 border-t-2 border-indigo-100">
-            {showOptimizerResultsContainer && (
-              <>
-                {hasContentForOptimizer ? (
-                  <div className="bg-slate-50 p-6 rounded-lg shadow-inner space-y-8">
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-2 flex items-center">
-                      <CheckCircle className="h-7 w-7 text-green-500 mr-3" /> Optimization Insights
-                    </h2>
-                    
-                    {changesRequired && changesRequired.trim() !== '' && (
-                      <div className="p-6 bg-white rounded-lg shadow-md">
-                        <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
-                          <Edit3 className="h-6 w-6 text-indigo-500 mr-2" /> Suggested Changes
-                        </h3>
-                        <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
-                          <ReactMarkdown>{changesRequired}</ReactMarkdown>
-                        </div>
-                      </div>
-                    )}
-
-                    {explanation && explanation.trim() !== '' && (
-                      <div className="p-6 bg-white rounded-lg shadow-md">
-                        <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
-                          <HelpCircle className="h-6 w-6 text-sky-500 mr-2" /> Explanation
-                        </h3>
-                        <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
-                          <ReactMarkdown>{explanation}</ReactMarkdown>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center p-6 bg-white rounded-lg shadow-md mt-6">
-                    <Info className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                    <h3 className="text-lg font-medium text-gray-700 mb-2">No Specific Feedback</h3>
-                    <p className="text-sm text-gray-500">The optimizer processed your input but did not provide specific changes or explanations at this time.</p>
-                  </div>
-                )}
-              </>
+                </CardContent>
+              </Card>
             )}
-          </div>
+
+            <div ref={resultsRef}>
+              {!isLoading && showOptimizerResultsContainer && (
+                <>
+                  {hasContentForOptimizer ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <CheckCircle className="h-7 w-7 text-green-500 mr-3" />
+                                Optimization Insights
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {changesRequired && changesRequired.trim() !== '' && (
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
+                                    <Edit3 className="h-6 w-6 text-indigo-500 mr-2" /> Suggested Changes
+                                </h3>
+                                <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
+                                    <ReactMarkdown>{changesRequired}</ReactMarkdown>
+                                </div>
+                                </div>
+                            )}
+
+                            {explanation && explanation.trim() !== '' && (
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
+                                    <HelpCircle className="h-6 w-6 text-sky-500 mr-2" /> Explanation
+                                </h3>
+                                <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
+                                    <ReactMarkdown>{explanation}</ReactMarkdown>
+                                </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="text-center">
+                        <CardContent className="p-6">
+                            <Info className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                            <h3 className="text-lg font-medium text-gray-700 mb-2">No Specific Feedback</h3>
+                            <p className="text-sm text-gray-500">The optimizer processed your input but did not provide specific changes or explanations at this time.</p>
+                        </CardContent>
+                    </Card>
+                  )}
+                </>
+              )}
+            </div>
         </div>
-      )}
+        )}
 
-      {activeTab === 'history' && (
-        <div className="bg-white shadow-xl rounded-lg p-6 md:p-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Optimization History</h2>
-          {isLoading && (
-            <div className="flex items-center justify-center p-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mr-3"></div>
-              Loading history...
-            </div>
-          )}
-          {!isLoading && history.length === 0 && !error && (
-            <div className="text-center p-10 text-gray-500">
-                <Info className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                No optimization history found.
-            </div>
-          )}
-          {!isLoading && history.length > 0 && (
-            <div className="space-y-6">
-              {history.map((item, index) => {
-                const changesFromHistory = item.api_response?.changes || item.api_response?.changes_required;
-                const explanationFromHistory = item.api_response?.explanation;
-
-                const hasApiChanges = typeof changesFromHistory === 'string' && changesFromHistory.trim() !== '';
-                const hasApiExplanation = typeof explanationFromHistory === 'string' && explanationFromHistory.trim() !== '';
-                               
-                return (
-                  <details key={item.id} className="bg-slate-50 p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                    <summary className="font-medium text-indigo-700 cursor-pointer hover:text-indigo-800 flex justify-between items-center">
-                      <span>
-                        <FileText size={16} className="inline mr-2 mb-0.5" /> 
-                        Optimization from: {new Date(item.created_at).toLocaleString()}
-                      </span>
-                      <span className="text-xs text-gray-500">Profile: {item.linkedin_url.substring(0,40)}...</span>
-                    </summary>
-                    <div className="mt-6 space-y-6 pt-4 border-t border-slate-200">
-                      <div className="mb-4 p-3 bg-indigo-50 rounded-md border border-indigo-200 text-xs">
-                        <p className="font-semibold text-indigo-700">Original Input:</p>
-                        <p><strong className="text-gray-600">URL:</strong> <a href={item.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.linkedin_url}</a></p>
-                        <p><strong className="text-gray-600">Your Comments:</strong> {item.comments.substring(0,150)}{item.comments.length > 150 ? '...' : ''}</p>
-                      </div>
-
-                      {hasApiChanges && (
-                         <div className="p-4 bg-white rounded-md shadow-sm border border-gray-200">
-                          <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
-                            <Edit3 className="h-5 w-5 text-indigo-500 mr-2" />Changes Suggested:
-                          </h4>
-                          <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
-                              <ReactMarkdown>{changesFromHistory}</ReactMarkdown>
-                          </div>
-                        </div>
-                      )}
-                      {hasApiExplanation && (
-                         <div className="p-4 bg-white rounded-md shadow-sm border border-gray-200">
-                          <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
-                            <HelpCircle className="h-5 w-5 text-sky-500 mr-2" />Explanation:
-                          </h4>
-                          <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
-                              <ReactMarkdown>{explanationFromHistory}</ReactMarkdown>
-                          </div>
-                        </div>
-                      )}
-                      {!hasApiChanges && !hasApiExplanation && (
-                        <div className="text-center p-4 text-gray-500 bg-white rounded-md shadow-sm border border-gray-200">
-                            (No specific changes or explanation were recorded for this history item.)
-                        </div>
-                      )}
+        {activeTab === 'history' && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Optimization History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {isLoading && (
+                    <div className="flex items-center justify-center p-10">
+                        <Loader2 className="mr-3 h-8 w-8 animate-spin text-indigo-500" />
+                        <span className="text-lg">Loading history...</span>
                     </div>
-                  </details>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                    )}
+                    {!isLoading && history.length === 0 && !error && (
+                    <div className="text-center p-10 text-gray-500">
+                        <Info className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        No optimization history found.
+                    </div>
+                    )}
+                    {!isLoading && history.length > 0 && (
+                    <div className="space-y-6">
+                        {history.map((item) => {
+                        const changesFromHistory = item.api_response?.changes || item.api_response?.changes_required;
+                        const explanationFromHistory = item.api_response?.explanation;
+
+                        const hasApiChanges = typeof changesFromHistory === 'string' && changesFromHistory.trim() !== '';
+                        const hasApiExplanation = typeof explanationFromHistory === 'string' && explanationFromHistory.trim() !== '';
+                                        
+                        return (
+                            <details key={item.id} className="bg-slate-50 p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                            <summary className="font-medium text-indigo-700 cursor-pointer hover:text-indigo-800 flex justify-between items-center">
+                                <span>
+                                <FileText size={16} className="inline mr-2 mb-0.5" /> 
+                                Optimization from: {new Date(item.created_at).toLocaleString()}
+                                </span>
+                                <span className="text-xs text-gray-500">Profile: {item.linkedin_url.substring(0,40)}...</span>
+                            </summary>
+                            <div className="mt-6 space-y-6 pt-4 border-t border-slate-200">
+                                <div className="mb-4 p-3 bg-indigo-50 rounded-md border border-indigo-200 text-xs">
+                                <p className="font-semibold text-indigo-700">Original Input:</p>
+                                <p><strong className="text-gray-600">URL:</strong> <a href={item.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{item.linkedin_url}</a></p>
+                                <p><strong className="text-gray-600">Your Comments:</strong> {item.comments.substring(0,150)}{item.comments.length > 150 ? '...' : ''}</p>
+                                </div>
+
+                                {hasApiChanges && (
+                                <div className="p-4 bg-white rounded-md shadow-sm border border-gray-200">
+                                    <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
+                                    <Edit3 className="h-5 w-5 text-indigo-500 mr-2" />Changes Suggested:
+                                    </h4>
+                                    <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
+                                        <ReactMarkdown>{changesFromHistory}</ReactMarkdown>
+                                    </div>
+                                </div>
+                                )}
+                                {hasApiExplanation && (
+                                <div className="p-4 bg-white rounded-md shadow-sm border border-gray-200">
+                                    <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
+                                    <HelpCircle className="h-5 w-5 text-sky-500 mr-2" />Explanation:
+                                    </h4>
+                                    <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
+                                        <ReactMarkdown>{explanationFromHistory}</ReactMarkdown>
+                                    </div>
+                                </div>
+                                )}
+                                {!hasApiChanges && !hasApiExplanation && (
+                                <div className="text-center p-4 text-gray-500 bg-white rounded-md shadow-sm border border-gray-200">
+                                    (No specific changes or explanation were recorded for this history item.)
+                                </div>
+                                )}
+                            </div>
+                            </details>
+                        );
+                        })}
+                    </div>
+                    )}
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 };

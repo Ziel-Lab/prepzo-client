@@ -15,11 +15,10 @@ export interface SubscriptionPlan {
 }
 
 export interface FeatureUsage {
-  resume_count: number;
-  cover_letter_count: number;
-  linkedin_optimize_count: number;
-  job_application_count: number;
-  job_search_results_count?: number;
+  resume_period_count: number;
+  cover_letter_period_count: number;
+  linkedin_optimize_period_count: number;
+  job_search_results_period_count: number;
 }
 
 export interface SubscriptionStatus {
