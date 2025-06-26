@@ -282,6 +282,8 @@ type Job = {
     employee_count?: number;
     logo?: string;
     employee_count_range?: string;
+    annual_revenue_usd_readable?: string;
+    founded_year?: number;
   };
   hiring_team?: Array<{
     first_name?: string;
@@ -718,6 +720,41 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             </div>
             )}
 
+            {/* Employment Statuses */}
+            {!isBlurred && application.employment_statuses && application.employment_statuses.length > 0 && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employment:</span> {application.employment_statuses.join(", ")}
+              </div>
+            )}
+
+            {/* Easy Apply */}
+            {!isBlurred && application.easy_apply && (
+              <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 mt-1">
+                Easy Apply
+              </Badge>
+            )}
+
+            {/* Employee Count Range */}
+            {!isBlurred && application.company_object?.employee_count_range && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employees:</span> {application.company_object.employee_count_range}
+              </div>
+            )}
+
+            {/* Revenue */}
+            {!isBlurred && application.company_object?.annual_revenue_usd_readable && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Revenue:</span> {application.company_object.annual_revenue_usd_readable}
+              </div>
+            )}
+
+            {/* Founded Year */}
+            {!isBlurred && application.company_object?.founded_year && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Founded:</span> {application.company_object.founded_year}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
               {application.has_blurred_data && (
@@ -1031,6 +1068,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <TableHead className="w-[100px]">Actions</TableHead>
                     <TableHead className="w-[100px]">Employment</TableHead>
                     <TableHead className="w-[100px]">Easy Apply</TableHead>
+                    <TableHead className="w-[100px]">Revenue</TableHead>
+                    <TableHead className="w-[100px]">Founded</TableHead>
+                    <TableHead className="w-[100px]">Employees</TableHead>
                     <TableHead className="w-[100px]">Industry</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1225,6 +1265,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         </TableCell>
                         <TableCell>
                           {application.easy_apply ? "Yes" : "No"}
+                        </TableCell>
+                        <TableCell>
+                          {application.company_object?.employee_count_range || "Not disclosed"}
+                        </TableCell>
+                        <TableCell>
+                          {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
+                        </TableCell>
+                        <TableCell>
+                          {application.company_object?.founded_year || "-"}
                         </TableCell>
                         <TableCell>
                           {application.industry}
