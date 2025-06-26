@@ -11,7 +11,7 @@ export interface SubscriptionPlan {
   resume_limit_per_month: number;
   cover_letter_limit_per_month: number;
   linkedin_optimize_limit_per_month: number;
-  job_search_results_limit_per_month?: number;
+  job_search_results_limit_per_month: number;
 }
 
 export interface FeatureUsage {
