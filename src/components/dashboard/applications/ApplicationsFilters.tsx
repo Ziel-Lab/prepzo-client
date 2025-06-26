@@ -14,9 +14,10 @@ interface FilterOptions {
 
 interface ApplicationsFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
+  hasSearchResults?: boolean;
 }
 
-const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
+const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false }: ApplicationsFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -50,17 +51,18 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
     <Card>
       <CardContent className="p-4 lg:p-6">
         <div className="space-y-4">
-          {/* Search and basic filters */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search positions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+          {/* Search and basic filters - Only show if search results are available */}
+          {hasSearchResults && (
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search positions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               {/* <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -93,6 +95,7 @@ const ApplicationsFilters = ({ onFiltersChange }: ApplicationsFiltersProps) => {
               </Select>
             </div>
           </div>
+          )}
 
           {/* Clear filters button */}
           {hasActiveFilters && (

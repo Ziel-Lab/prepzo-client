@@ -274,7 +274,6 @@ type Job = {
   salary_string?: string;
   seniority: string;
   easy_apply?: boolean;
-  industry?: string;
   description?: string;
   company_object?: {
     name?: string;
@@ -284,6 +283,7 @@ type Job = {
     employee_count_range?: string;
     annual_revenue_usd_readable?: string;
     founded_year?: number;
+    industry?: string;
   };
   hiring_team?: Array<{
     first_name?: string;
@@ -327,7 +327,13 @@ type ExtendedSubscriptionPlan = SubscriptionPlan & {
   job_search_results_limit?: number;
 };
 
-const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
+const ApplicationsTable = ({ 
+  filters = {} as Filters, 
+  onSearchResultsChange 
+}: { 
+  filters?: Filters;
+  onSearchResultsChange?: (hasResults: boolean) => void;
+}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -490,6 +496,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     }
   }, [currentPage, hasSearched, showFilters, searchFilters]);
 
+  // Notify parent component when search results are available
+  useEffect(() => {
+    if (onSearchResultsChange) {
+      onSearchResultsChange(hasSearched && applications.length > 0);
+    }
+  }, [hasSearched, applications.length, onSearchResultsChange]);
+
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
     // Table search filter
@@ -499,7 +512,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         app.job_title.toLowerCase().includes(searchLower) ||
         app.company.toLowerCase().includes(searchLower) ||
         app.location.toLowerCase().includes(searchLower) ||
-        (app.industry && app.industry.toLowerCase().includes(searchLower)) ||
+        (app.company_object?.industry && app.company_object.industry.toLowerCase().includes(searchLower)) ||
         getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
       
       if (!matchesSearch) return false;
@@ -701,9 +714,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </div>
             )}
 
-            {!isBlurred && application.industry && (
+            {!isBlurred && application.company_object?.industry && (
               <div className="text-sm text-gray-600">
-                <span className="font-medium">Industry:</span> {application.industry}
+                <span className="font-medium">Industry:</span> {application.company_object?.industry || "Not disclosed"}
               </div>
             )}
 
@@ -992,34 +1005,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
           </div>
         </CardHeader>
         
-        {/* Search Bar - Only shown after results are displayed */}
-        {applications.length > 0 && (
-          <div className="px-6 pb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search jobs by title, company, location, industry..."
-                value={tableSearchQuery}
-                onChange={(e) => setTableSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2"
-              />
-              {tableSearchQuery && (
-                <button
-                  onClick={() => setTableSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {tableSearchQuery && (
-              <div className="mt-2 text-sm text-gray-600">
-                Showing {filteredApplications.length} of {applications.length} jobs matching "{tableSearchQuery}"
-              </div>
-            )}
-          </div>
-        )}
         
         <CardContent className="p-0">
           {filteredApplications.length === 0 && applications.length > 0 ? (
@@ -1276,7 +1261,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           {application.company_object?.founded_year || "-"}
                         </TableCell>
                         <TableCell>
-                          {application.industry}
+                          {application.company_object?.industry || "Not disclosed"}
                         </TableCell>
                       </TableRow>
                     );

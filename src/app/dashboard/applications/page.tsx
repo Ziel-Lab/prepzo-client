@@ -13,10 +13,14 @@ type FlexibleFilters = Partial<Record<string, Primitive>>;
 
 const Applications = () => {
   const [filters, setFilters] = useState<Filters>({} as Filters);
-  
+  const [hasSearchResults, setHasSearchResults] = useState<boolean>(false);
 
   const handleFiltersChange = (newFilters: Filters) => {
     setFilters(newFilters);
+  };
+
+  const handleSearchResultsChange = (hasResults: boolean) => {
+    setHasSearchResults(hasResults);
   };
 
   
@@ -40,7 +44,7 @@ const Applications = () => {
         
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
-            <ApplicationsFilters onFiltersChange={handleFiltersChange} />
+            <ApplicationsFilters onFiltersChange={handleFiltersChange} hasSearchResults={hasSearchResults} />
           </div>
           <div className="lg:w-auto">
             {/* <AdvancedFilters 
@@ -50,7 +54,7 @@ const Applications = () => {
           </div>
         </div>
         
-        <ApplicationsTable filters={combinedFilters} />
+        <ApplicationsTable filters={combinedFilters} onSearchResultsChange={handleSearchResultsChange} />
       </div>
     </DashboardLayout>
   );
