@@ -330,26 +330,7 @@ const LinkedInOptimizerContent: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto p-4 md:p-6">
-       {/* Subscription Debugging Section */}
-       <div className="p-4 border-2 border-dashed border-red-400 rounded-lg bg-red-50 my-4">
-            <h3 className="text-lg font-bold text-red-700">Subscription Debug Info (Temporary)</h3>
-            {isSubscriptionLoading ? (
-                <p>Loading subscription data...</p>
-            ) : subscriptionError ? (
-                <p>Error: {subscriptionError}</p>
-            ) : (
-                <pre className="text-xs overflow-auto bg-white p-2 rounded">
-                    {JSON.stringify({
-                        isPro,
-                        status: subscription?.status,
-                        planId: subscription?.subscription_plans?.id,
-                        planName: subscription?.subscription_plans?.name,
-                    }, null, 2)}
-                </pre>
-            )}
-        </div>
-        
+    <div className="space-y-6 max-w-4xl mx-auto p-4 md:p-6">       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Left Column: Form */}
