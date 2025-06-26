@@ -661,7 +661,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             {!isBlurred && (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                {isRevealed ? (application.company_object?.logo ? <Image src={application.company_object.logo} alt={application.company} className="w-8 h-8 rounded-full object-cover" /> : application.company?.charAt(0) ?? "?") : "?"}
+                {isRevealed ? (application.company_object?.logo ? <Image src={application.company_object.logo} alt={application.company} width={32} height={32} className="w-8 h-8 rounded-full object-cover" /> : application.company?.charAt(0) ?? "?") : "?"}
               </div>
               <div className="flex-1">
                 <div className="font-medium">
