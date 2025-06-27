@@ -171,6 +171,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
+  // const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
@@ -184,17 +185,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const JOB_SEARCH_LIMIT = (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit ??
                            (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ??
                            100;
-  const initialUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
-
-  const [creditsLeft, setCreditsLeft] = useState<number>(JOB_SEARCH_LIMIT - initialUsed);
-
-  // Recalculate remaining credits whenever subscription usage or limits change
-  useEffect(() => {
-    if (subscription) {
-      const used = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
-      setCreditsLeft(JOB_SEARCH_LIMIT - used);
-    }
-  }, [subscription, JOB_SEARCH_LIMIT]);
+  
+  // Derive credits left directly from subscription data instead of using local state
+  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -399,8 +392,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
-    // Deduct one credit locally
-    setCreditsLeft(cl => Math.max(cl - 1, 0));
+    // Mark this job as charged and revealed
     setChargedJobs(prev => new Set(prev).add(jobId));
     setRevealedJobs(prev => new Set(prev).add(jobId));
 
@@ -756,8 +748,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </Button>
             </div>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-              {/* <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span> */}
-              {/* <span>•</span> */}
+              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
+              <span>•</span>
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
               </span>
