@@ -840,7 +840,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                       
                       return (
                         <TableRow key={application.id} className="hover:bg-gray-50">
-                          <TableCell>
+                          <TableCell className="sticky left-0 bg-white hover:bg-gray-50 z-10 border-r">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
                                 <button
@@ -1001,7 +1001,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Details
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem>
+                                  {/* <DropdownMenuItem>
                                     <Edit className="h-4 w-4 mr-2" />
                                     Edit Status
                                   </DropdownMenuItem>
@@ -1014,7 +1014,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   <DropdownMenuItem className="text-red-600">
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Delete
-                                  </DropdownMenuItem>
+                                  </DropdownMenuItem> */}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
