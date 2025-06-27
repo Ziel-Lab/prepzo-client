@@ -29,7 +29,8 @@ export async function GET(request: Request) {
     )
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      // Redirect with success parameter to trigger analytics
+      return NextResponse.redirect(`${origin}${next}?login=success`)
     }
   }
 

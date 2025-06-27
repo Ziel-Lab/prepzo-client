@@ -4,6 +4,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { createClient } from '@/utils/supabase/client';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import { fetchWithCredentials } from '@/utils/fetchWithCredentials'; // Assuming this utility exists
+import { setAnalyticsUserId, clearAnalyticsUserId } from '@/utils/analytics';
 
 // Define backend URL (make sure NEXT_PUBLIC_BACKEND_URL is set in your .env.local)
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -53,11 +54,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Update final state based on Flask check result
+    const wasAuthenticated = isAuthenticated;
     setIsAuthenticated(flaskAuthSuccess);
     setAuthMethod(flaskAuthSuccess ? 'password' : null);
+
+    // Handle Google Analytics User-ID tracking
+    if (flaskAuthSuccess && currentSupabaseSession?.user && !wasAuthenticated) {
+      // User just logged in - set analytics user ID
+      setAnalyticsUserId(currentSupabaseSession.user.id);
+    } else if (!flaskAuthSuccess && wasAuthenticated) {
+      // User just logged out - clear analytics user ID
+      clearAnalyticsUserId();
+    }
+
     setIsLoading(false);
 
-  }, []); // No dependencies needed for this logic structure
+  }, [isAuthenticated]);
 
   // Check initial state and subscribe to Supabase changes
   useEffect(() => {
@@ -65,20 +77,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateAuthState(initialSupabaseSession); 
     });
 
-    // Listen for Supabase changes to update the stored session, but primary auth still relies on Flask check rerun via updateAuthState
+    // Listen for Supabase auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSupabaseSession) => {
       setSession(newSupabaseSession);
+      // Re-run auth check when Supabase session changes
+      updateAuthState(newSupabaseSession);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]); // updateAuthState is stable due to useCallback([])
+  }, [supabase, updateAuthState]);
 
   // Logout function
   const logout = useCallback(async () => {
     setIsLoading(true);
+    
+    // Clear analytics before logging out
+    clearAnalyticsUserId();
+    
     const { error: signOutError } = await supabase.auth.signOut(); 
     if (signOutError) {
         console.error("useAuth: Error logging out from Supabase:", signOutError);
@@ -88,10 +106,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (logoutError) {
         console.warn('useAuth: Failed to call Flask logout endpoint (might not exist):', logoutError);
     }
+    
     // Explicitly update state to logged out immediately
     setIsAuthenticated(false);
     setAuthMethod(null);
-    setSession(null); // Clear stored Supabase session
+    setSession(null);
     setIsLoading(false); 
   }, [supabase]);
 
