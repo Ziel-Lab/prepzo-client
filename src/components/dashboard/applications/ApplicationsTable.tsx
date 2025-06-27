@@ -184,10 +184,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const JOB_SEARCH_LIMIT = (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit ??
                            (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ??
                            100;
-  const initialUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
 
-  // Always derive creditsLeft from subscription context
-  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage)?.job_search_results_count ?? 0);
+  // Derive creditsLeft directly from subscription usage (like SubscriptionContent)
+  const creditsLeft = (subscription?.subscription_plans?.job_search_results_limit_per_month ?? 0)
+    - (subscription?.usage?.job_search_results_period_count ?? 0);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -391,6 +391,11 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       });
       return;
     }
+
+    // Deduct one credit locally
+    setCreditsLeft(cl => Math.max(cl - 1, 0));
+    setChargedJobs(prev => new Set(prev).add(jobId));
+    setRevealedJobs(prev => new Set(prev).add(jobId));
 
     // Fetch full job details
     await fetchJobDetails(jobId);
