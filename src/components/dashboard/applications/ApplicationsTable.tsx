@@ -310,10 +310,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     if (tableSearchQuery) {
       const searchLower = tableSearchQuery.toLowerCase();
       const matchesSearch = 
-        app.job_title.toLowerCase().includes(searchLower) ||
-        app.company.toLowerCase().includes(searchLower) ||
-        app.location.toLowerCase().includes(searchLower) ||
-        (app.company_object?.industry && app.company_object.industry.toLowerCase().includes(searchLower)) ||
+        (app.job_title || '').toLowerCase().includes(searchLower) ||
+        (app.company || '').toLowerCase().includes(searchLower) ||
+        (app.location || '').toLowerCase().includes(searchLower) ||
+        (app.company_object?.industry || '').toLowerCase().includes(searchLower) ||
         getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
