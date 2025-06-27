@@ -111,6 +111,7 @@ type Job = {
     employee_count?: number;
     logo?: string;
     employee_count_range?: string;
+    industry?: string;
   };
   hiring_team?: Array<{
     first_name?: string;
