@@ -816,21 +816,21 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead className="w-[350px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
-                      <TableHead className="w-[140px]">Company</TableHead>
-                      <TableHead className="w-[100px]">Country</TableHead>
-                      <TableHead className="w-[120px]">Location</TableHead>
-                      <TableHead className="w-[100px]">Hiring Team</TableHead>
-                      <TableHead className="w-[120px]">Posted</TableHead>
-                      <TableHead className="w-[100px]">Salary</TableHead>
-                      <TableHead className="w-[100px]">Match</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
-                      <TableHead className="w-[100px]">Employment</TableHead>
-                      <TableHead className="w-[100px]">Easy Apply</TableHead>
-                      <TableHead className="w-[100px]">Revenue</TableHead>
-                      <TableHead className="w-[100px]">Founded</TableHead>
-                      <TableHead className="w-[100px]">Employees</TableHead>
-                      <TableHead className="w-[100px]">Industry</TableHead>
+                      <TableHead className="w-[400px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
+                      <TableHead className="w-[180px]">Company</TableHead>
+                      <TableHead className="w-[120px]">Country</TableHead>
+                      <TableHead className="w-[150px]">Location</TableHead>
+                      <TableHead className="w-[140px]">Hiring Team</TableHead>
+                      <TableHead className="w-[130px]">Posted</TableHead>
+                      <TableHead className="w-[140px]">Salary</TableHead>
+                      <TableHead className="w-[120px]">Match</TableHead>
+                      <TableHead className="w-[140px]">Actions</TableHead>
+                      <TableHead className="w-[140px]">Employment</TableHead>
+                      <TableHead className="w-[120px]">Easy Apply</TableHead>
+                      <TableHead className="w-[140px]">Revenue</TableHead>
+                      <TableHead className="w-[120px]">Founded</TableHead>
+                      <TableHead className="w-[140px]">Employees</TableHead>
+                      <TableHead className="w-[140px]">Industry</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
