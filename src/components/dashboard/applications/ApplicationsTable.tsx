@@ -17,6 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import type { FeatureUsage, SubscriptionPlan } from "@/contexts/SubscriptionContext";
+import TagInput from "@/components/ui/TagInput";
+import countries from 'world-countries';
+import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 
 
 
@@ -583,62 +586,40 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="job_description">Job Keywords</Label>
-              <Input
-                id="job_description"
-                placeholder="e.g. react, python, senior (comma separated)"
-                value={searchFilters.job_description_contains_or?.join(", ") || ""}
-                onChange={(e) => setSearchFilters(prev => ({ 
-                  ...prev, 
-                  job_description_contains_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
-                }))}
+              <TagInput
+                value={searchFilters.job_description_contains_or || []}
+                onChange={tags => setSearchFilters(prev => ({ ...prev, job_description_contains_or: tags.length ? tags : undefined }))}
+                placeholder="e.g. react, python, senior"
+                label={undefined}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="company_name">Company Name</Label>
-              <Input
-                id="company_name"
+              <TagInput
+                value={searchFilters.company_name_or || []}
+                onChange={tags => setSearchFilters(prev => ({ ...prev, company_name_or: tags.length ? tags : undefined }))}
                 placeholder="e.g. Google, Microsoft"
-                value={searchFilters.company_name_or?.join(", ") || ""}
-                onChange={(e) => setSearchFilters(prev => ({ 
-                  ...prev, 
-                  company_name_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined 
-                }))}
+                label={undefined}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="e.g. Bangalore, Karnataka (comma separated, regex supported)"
-                value={searchFilters.job_location_pattern_or?.join(", ") || ""}
-                onChange={(e) => setSearchFilters(prev => ({
-                  ...prev,
-                  job_location_pattern_or: e.target.value ? e.target.value.split(",").map(s => s.trim()).filter(Boolean) : undefined
-                }))}
+              <TagInput
+                value={searchFilters.job_location_pattern_or || []}
+                onChange={tags => setSearchFilters(prev => ({ ...prev, job_location_pattern_or: tags.length ? tags : undefined }))}
+                placeholder="e.g. Bangalore, Karnataka"
+                label={undefined}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Select
-                value={searchFilters.job_country_code_or?.[0] || "IN"}
-                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_country_code_or: [value] }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select country" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IN">🇮🇳 India</SelectItem>
-                  <SelectItem value="US">🇺🇸 United States</SelectItem>
-                  <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
-                  <SelectItem value="CA">🇨🇦 Canada</SelectItem>
-                  <SelectItem value="AU">🇦🇺 Australia</SelectItem>
-                  <SelectItem value="DE">🇩🇪 Germany</SelectItem>
-                  <SelectItem value="SG">🇸🇬 Singapore</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="country">Countries</Label>
+              <CountryMultiSelect
+                selectedCountries={searchFilters.job_country_code_or || []}
+                onSelectionChange={(selected: string[]) => setSearchFilters(prev => ({ ...prev, job_country_code_or: selected }))}
+              />
             </div>
 
             <div className="space-y-2">
