@@ -148,7 +148,7 @@ export type Filters = {
 };
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
-type ExtendedFeatureUsage = FeatureUsage & { job_search_results_count?: number };
+type ExtendedFeatureUsage = FeatureUsage & { job_search_results_period_count?: number };
 
 type ExtendedSubscriptionPlan = SubscriptionPlan & {
   job_search_results_limit_per_month?: number;
@@ -187,7 +187,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                            100;
   
   // Derive credits left directly from subscription data instead of using local state
-  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0);
+  // Use job_search_results_period_count to match what's used in subscription/overview pages
+  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_period_count ?? 0);
 
   // ---------------------------------------------------------------------------
   // Data fetching
