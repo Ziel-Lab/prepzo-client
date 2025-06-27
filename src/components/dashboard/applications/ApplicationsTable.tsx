@@ -186,15 +186,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                            100;
   const initialUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
 
-  const [creditsLeft, setCreditsLeft] = useState<number>(JOB_SEARCH_LIMIT - initialUsed);
-
-  // Recalculate remaining credits whenever subscription usage or limits change
-  useEffect(() => {
-    if (subscription) {
-      const used = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_count ?? 0;
-      setCreditsLeft(JOB_SEARCH_LIMIT - used);
-    }
-  }, [subscription, JOB_SEARCH_LIMIT]);
+  // Always derive creditsLeft from subscription context
+  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage)?.job_search_results_count ?? 0);
 
   // ---------------------------------------------------------------------------
   // Data fetching
