@@ -20,6 +20,7 @@ import type { FeatureUsage, SubscriptionPlan } from "@/contexts/SubscriptionCont
 import TagInput from "@/components/ui/TagInput";
 import countries from 'world-countries';
 import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
+import ApplicationsFilters from "./ApplicationsFilters";
 
 
 
@@ -299,8 +300,22 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     }
   }, [currentPage, hasSearched, showFilters]);
 
+  // Add state for table search query
+  const [tableSearchQuery, setTableSearchQuery] = useState<string>("");
+
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
+    // Table search filter
+    if (tableSearchQuery) {
+      const searchLower = tableSearchQuery.toLowerCase();
+      const matchesSearch = 
+        app.job_title.toLowerCase().includes(searchLower) ||
+        app.company.toLowerCase().includes(searchLower) ||
+        app.location.toLowerCase().includes(searchLower) ||
+        (app.company_object?.industry && app.company_object.industry.toLowerCase().includes(searchLower)) ||
+        getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
     if (filters.search && !app.job_title.toLowerCase().includes(filters.search.toLowerCase()) && 
         !app.company.toLowerCase().includes(filters.search.toLowerCase())) {
       return false;
@@ -573,8 +588,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   };
 
   // Show filter form if filters haven't been applied yet or user wants to edit
+  let filterSection;
   if (showFilters || !hasSearched) {
-    return (
+    filterSection = (
       <Card>
         <CardHeader>
           <CardTitle className="text-xl font-bold flex items-center">
@@ -722,288 +738,297 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         </CardContent>
       </Card>
     );
+  } else {
+    filterSection = (
+      <>
+        <ApplicationsFilters
+          onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
+          hasSearchResults={filteredApplications.length > 0}
+        />
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
+              <Button variant="outline" size="sm" onClick={handleEditFilters}>
+                <Filter className="mr-2 h-4 w-4" />
+                Edit Filters
+              </Button>
+            </div>
+            <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
+              <span>•</span>
+              <span>
+                Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
+              </span>
+              {loading && (
+                <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isMobile ? (
+              // Mobile Layout
+              <div className="p-4">
+                {filteredApplications.map((application) => (
+                  <MobileApplicationCard key={application.id} application={application} />
+                ))}
+              </div>
+            ) : (
+              // Desktop Table Layout with updated hiding logic
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="w-[350px]">Job Details</TableHead>
+                      <TableHead className="w-[140px]">Company</TableHead>
+                      <TableHead className="w-[100px]">Country</TableHead>
+                      <TableHead className="w-[120px]">Location</TableHead>
+                      <TableHead className="w-[100px]">Posted</TableHead>
+                      <TableHead className="w-[120px]">Salary</TableHead>
+                      <TableHead className="w-[100px]">Hiring Team</TableHead>
+                      <TableHead className="w-[100px]">Match</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead className="w-[100px]">Industry</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredApplications.map((application) => {
+                      const isRevealed = revealedJobs.has(application.id);
+                      const isBlurred = application.has_blurred_data && !isRevealed;
+                      
+                      return (
+                        <TableRow key={application.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openJobDetails(application)}
+                                  className="font-semibold text-lg text-blue-600 hover:underline text-left"
+                                >
+                                  {application.job_title}
+                                  <Link2 className="h-4 w-4 inline ml-1" />
+                                </button>
+                                {isBlurred && (
+                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    Hidden
+                                  </Badge>
+                                )}
+                              </div>
+                              {!isBlurred && (
+                                <div className="flex items-center gap-3 mt-1">
+                                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                                    <Building className="h-3 w-3" />
+                                    {getSeniorityLevel(application.seniority)}
+                                  </div>
+                                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                                    <span>•</span>
+                                    {application.company_object?.employee_count_range || "Unknown size"}
+                                  </div>
+                                  {application.easy_apply && (
+                                    <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
+                                      Easy Apply
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {isBlurred ? (
+                              <span className="text-sm text-gray-500">Hidden</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {application.company_object?.logo ? (
+                                  <img
+                                    src={application.company_object.logo}
+                                    alt={application.company}
+                                    className="w-8 h-8 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                                    {application.company?.charAt(0) ?? "?"}
+                                  </div>
+                                )}
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-sm">
+                                    {application.company}
+                                  </span>
+                                  {(() => {
+                                    const hasTeam = application.hiring_team && application.hiring_team.length > 0;
+                                    if (hasTeam) {
+                                      return (
+                                        <span className="text-xs text-gray-500">
+                                          {application.hiring_team![0].first_name}
+                                        </span>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            
+                              <span className="text-sm flex items-center gap-1">
+                                {getFlagEmoji(application.country_code)}
+                                {getCountryName(application.country_code)}
+                              </span>
+                            
+                          </TableCell>
+                          <TableCell>
+                            
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1 text-sm">
+                                  
+                                  {application.location}
+                                </div>
+                                <div className="flex items-center gap-1 mt-1">
+                                  {application.remote && (
+                                    <Badge variant="default" className="text-xs">
+                                      Remote
+                                    </Badge>
+                                  )}
+                                  {application.hybrid && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Hybrid
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            
+                          </TableCell>
+                          <TableCell>
+                            {application.hiring_team?.map((teamMember) => (
+                              <div key={teamMember.first_name} className="flex items-center gap-1 text-sm">
+                                <span>{teamMember.first_name}</span>
+                              </div>
+                            ))}
+                          </TableCell>
+                          <TableCell>
+                            {isBlurred ? "—" : (
+                              <div className="flex items-center gap-1 text-sm">
+                                {formatDate(application.date_posted)}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isBlurred ? "—" : (
+                              <div className="flex items-center gap-1 text-sm">
+                                {application.salary_string || "Not disclosed"}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isBlurred ? "—" : (
+                              <span className={getMatchScoreColor(application.match_score || 85)}>
+                                {application.match_score || 85}%
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {application.has_blurred_data && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleReveal(application.id)}
+                                  className="h-8 px-2"
+                                >
+                                  {isRevealed ? (
+                                    <>
+                                      <EyeOff className="h-3 w-3 mr-1" />
+                                      Hide
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      Reveal
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuItem onClick={() => openJobDetails(application)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Status
+                                  </DropdownMenuItem>
+                                  {isRevealed && (
+                                    <DropdownMenuItem>
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      Open Job
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {application.industry}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-4 border-t gap-4">
+              <div className="text-sm text-gray-500 order-2 sm:order-1">
+                Rows per page: 25
+              </div>
+              <Pagination className="order-1 sm:order-2">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#" 
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <PaginationItem key={i + 1}>
+                      <PaginationLink 
+                        href="#" 
+                        isActive={currentPage === i + 1}
+                        onClick={() => setCurrentPage(i + 1)}
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#" 
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </CardContent>
+        </Card>
+      </>
+    );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleEditFilters}>
-              <Filter className="mr-2 h-4 w-4" />
-              Edit Filters
-            </Button>
-          </div>
-          <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-            <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
-            <span>•</span>
-            <span>
-              Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
-            </span>
-            {loading && (
-              <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isMobile ? (
-            // Mobile Layout
-            <div className="p-4">
-              {filteredApplications.map((application) => (
-                <MobileApplicationCard key={application.id} application={application} />
-              ))}
-            </div>
-          ) : (
-            // Desktop Table Layout with updated hiding logic
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="w-[350px]">Job Details</TableHead>
-                    <TableHead className="w-[140px]">Company</TableHead>
-                    <TableHead className="w-[100px]">Country</TableHead>
-                    <TableHead className="w-[120px]">Location</TableHead>
-                    <TableHead className="w-[100px]">Posted</TableHead>
-                    <TableHead className="w-[120px]">Salary</TableHead>
-                    <TableHead className="w-[100px]">Hiring Team</TableHead>
-                    <TableHead className="w-[100px]">Match</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
-                    <TableHead className="w-[100px]">Industry</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredApplications.map((application) => {
-                    const isRevealed = revealedJobs.has(application.id);
-                    const isBlurred = application.has_blurred_data && !isRevealed;
-                    
-                    return (
-                      <TableRow key={application.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openJobDetails(application)}
-                                className="font-semibold text-lg text-blue-600 hover:underline text-left"
-                              >
-                                {application.job_title}
-                                <Link2 className="h-4 w-4 inline ml-1" />
-                              </button>
-                              {isBlurred && (
-                                <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  Hidden
-                                </Badge>
-                              )}
-                            </div>
-                            {!isBlurred && (
-                              <div className="flex items-center gap-3 mt-1">
-                                <div className="flex items-center gap-1 text-sm text-gray-500">
-                                  <Building className="h-3 w-3" />
-                                  {getSeniorityLevel(application.seniority)}
-                                </div>
-                                <div className="flex items-center gap-1 text-sm text-gray-500">
-                                  <span>•</span>
-                                  {application.company_object?.employee_count_range || "Unknown size"}
-                                </div>
-                                {application.easy_apply && (
-                                  <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
-                                    Easy Apply
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {isBlurred ? (
-                            <span className="text-sm text-gray-500">Hidden</span>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {application.company_object?.logo ? (
-                                <img
-                                  src={application.company_object.logo}
-                                  alt={application.company}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                                  {application.company?.charAt(0) ?? "?"}
-                                </div>
-                              )}
-                              <div className="flex flex-col">
-                                <span className="font-medium text-sm">
-                                  {application.company}
-                                </span>
-                                {(() => {
-                                  const hasTeam = application.hiring_team && application.hiring_team.length > 0;
-                                  if (hasTeam) {
-                                    return (
-                                      <span className="text-xs text-gray-500">
-                                        {application.hiring_team![0].first_name}
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          
-                            <span className="text-sm flex items-center gap-1">
-                              {getFlagEmoji(application.country_code)}
-                              {getCountryName(application.country_code)}
-                            </span>
-                          
-                        </TableCell>
-                        <TableCell>
-                          
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-1 text-sm">
-                                
-                                {application.location}
-                              </div>
-                              <div className="flex items-center gap-1 mt-1">
-                                {application.remote && (
-                                  <Badge variant="default" className="text-xs">
-                                    Remote
-                                  </Badge>
-                                )}
-                                {application.hybrid && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Hybrid
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          
-                        </TableCell>
-                        <TableCell>
-                          {application.hiring_team?.map((teamMember) => (
-                            <div key={teamMember.first_name} className="flex items-center gap-1 text-sm">
-                              <span>{teamMember.first_name}</span>
-                            </div>
-                          ))}
-                        </TableCell>
-                        <TableCell>
-                          {isBlurred ? "—" : (
-                            <div className="flex items-center gap-1 text-sm">
-                              {formatDate(application.date_posted)}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isBlurred ? "—" : (
-                            <div className="flex items-center gap-1 text-sm">
-                              {application.salary_string || "Not disclosed"}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isBlurred ? "—" : (
-                            <span className={getMatchScoreColor(application.match_score || 85)}>
-                              {application.match_score || 85}%
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {application.has_blurred_data && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => toggleReveal(application.id)}
-                                className="h-8 px-2"
-                              >
-                                {isRevealed ? (
-                                  <>
-                                    <EyeOff className="h-3 w-3 mr-1" />
-                                    Hide
-                                  </>
-                                ) : (
-                                  <>
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    Reveal
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem onClick={() => openJobDetails(application)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Status
-                                </DropdownMenuItem>
-                                {isRevealed && (
-                                  <DropdownMenuItem>
-                                    <ExternalLink className="h-4 w-4 mr-2" />
-                                    Open Job
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {application.industry}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          
-          <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-4 border-t gap-4">
-            <div className="text-sm text-gray-500 order-2 sm:order-1">
-              Rows per page: 25
-            </div>
-            <Pagination className="order-1 sm:order-2">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    href="#" 
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-                {[...Array(totalPages)].map((_, i) => (
-                  <PaginationItem key={i + 1}>
-                    <PaginationLink 
-                      href="#" 
-                      isActive={currentPage === i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext 
-                    href="#" 
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </CardContent>
-      </Card>
-
+      {filterSection}
       {/* Job Details Dialog */}
       <JobDetailsDialog
         isOpen={isDetailsDialogOpen}
