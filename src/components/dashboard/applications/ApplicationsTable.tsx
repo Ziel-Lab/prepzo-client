@@ -512,9 +512,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </div>
             )}
 
-            {!isBlurred && application.industry && (
+            {!isBlurred && application.company_object?.industry && (
               <div className="text-sm text-gray-600">
-                <span className="font-medium">Industry:</span> {application.industry}
+                <span className="font-medium">Industry:</span> {application.company_object?.industry}
               </div>
             )}
 
@@ -530,6 +530,42 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </div>
             </div>
             )}
+
+             {/* Employment Statuses */}
+             {!isBlurred && application.employment_statuses && application.employment_statuses.length > 0 && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employment:</span> {application.employment_statuses.join(", ")}
+              </div>
+            )}
+
+            {/* Easy Apply */}
+            {!isBlurred && application.easy_apply && (
+              <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 mt-1">
+                Easy Apply
+              </Badge>
+            )}
+
+            {/* Employee Count Range */}
+            {!isBlurred && application.company_object?.employee_count_range && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employees:</span> {application.company_object.employee_count_range}
+              </div>
+            )}
+
+            {/* Revenue */}
+            {!isBlurred && application.company_object?.annual_revenue_usd_readable && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Revenue:</span> {application.company_object.annual_revenue_usd_readable}
+              </div>
+            )}
+
+            {/* Founded Year */}
+            {!isBlurred && application.company_object?.founded_year && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Founded:</span> {application.company_object.founded_year}
+              </div>
+            )}
+
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
@@ -990,16 +1026,16 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             {application.easy_apply ? "Yes" : "No"}
                           </TableCell>
                           <TableCell>
-                            {application.company_object?.annual_revenue_usd_readable}
+                            {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
                           </TableCell>
                           <TableCell>
-                            {application.company_object?.founded_year}
+                            {application.company_object?.founded_year || "-"}
                           </TableCell>
                           <TableCell>
-                            {application.company_object?.employee_count_range}
+                            {application.company_object?.employee_count_range || "Not disclosed"}
                           </TableCell>
                           <TableCell>
-                            {application.company_object?.industry}
+                            {application.company_object?.industry || "Not disclosed"}
                           </TableCell>
                         </TableRow>
                       );
