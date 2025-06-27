@@ -177,7 +177,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const supabase = createClient();
 
   // ---------------------------------------------------------------------------
-  // Credit tracking via feature_usage.job_search_results_count
+  // Credit tracking via feature_usage.job_search_results_period_count
   // ---------------------------------------------------------------------------
   const { subscription } = useSubscription();
 
@@ -186,9 +186,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                            (subscription?.subscription_plans as ExtendedSubscriptionPlan | undefined)?.job_search_results_limit_per_month ??
                            100;
   
-  // Derive credits left directly from subscription data instead of using local state
+  // Track credits used in this session for immediate UI updates
+  const [creditsUsedThisSession, setCreditsUsedThisSession] = useState(0);
+  
+  // Derive credits left directly from subscription data and subtract session usage
   // Use job_search_results_period_count to match what's used in subscription/overview pages
-  const creditsLeft = JOB_SEARCH_LIMIT - ((subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_period_count ?? 0);
+  const backendCreditsUsed = (subscription?.usage as ExtendedFeatureUsage | undefined)?.job_search_results_period_count ?? 0;
+  const creditsLeft = JOB_SEARCH_LIMIT - backendCreditsUsed - creditsUsedThisSession;
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -385,7 +389,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     }
 
     // New reveal attempt – check credits
-    if (creditsLeft === 0) {
+    if (creditsLeft <= 0) {
       toast({
         title: "No credits left",
         description: "You've used all of your monthly credits. Upgrade or wait until next month to reveal more jobs.",
@@ -396,6 +400,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     // Mark this job as charged and revealed
     setChargedJobs(prev => new Set(prev).add(jobId));
     setRevealedJobs(prev => new Set(prev).add(jobId));
+    
+    // Immediately update credits used for UI feedback
+    setCreditsUsedThisSession(prev => prev + 1);
 
     // Fetch full job details
     await fetchJobDetails(jobId);
