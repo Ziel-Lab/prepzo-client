@@ -43,22 +43,22 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
   const usageMetrics = (subscription && subscription.usage) ? [
     {
       name: "Resume Analyses",
-      used: subscription.usage.resume_count,
+      used: subscription.usage.resume_period_count,
       limit: subscription.subscription_plans?.resume_limit_per_month ?? 'N/A',
     },
     {
       name: "Cover Letters",
-      used: subscription.usage.cover_letter_count,
+      used: subscription.usage.cover_letter_period_count,
       limit: subscription.subscription_plans?.cover_letter_limit_per_month ?? 'N/A',
     },
     {
       name: "LinkedIn Optimizations",
-      used: subscription.usage.linkedin_optimize_count,
+      used: subscription.usage.linkedin_optimize_period_count,
       limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
     },
     {
       name: "Job Reveals",
-      used: subscription.usage.job_search_results_count ?? 0,
+      used: subscription.usage.job_search_results_period_count ?? 0,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ] : [];
