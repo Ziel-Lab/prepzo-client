@@ -103,15 +103,15 @@ type Job = {
   salary_string?: string;
   seniority: string;
   easy_apply?: boolean;
-  industry?: string;
   description?: string;
   company_object?: {
     name?: string;
     domain?: string;
-    employee_count?: number;
     logo?: string;
-    employee_count_range?: string;
     industry?: string;
+    annual_revenue_usd_readable?: string;
+    founded_year?: string;
+    employee_count_range?: string;
   };
   hiring_team?: Array<{
     first_name?: string;
@@ -784,11 +784,16 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                       <TableHead className="w-[140px]">Company</TableHead>
                       <TableHead className="w-[100px]">Country</TableHead>
                       <TableHead className="w-[120px]">Location</TableHead>
-                      <TableHead className="w-[100px]">Posted</TableHead>
-                      <TableHead className="w-[120px]">Salary</TableHead>
                       <TableHead className="w-[100px]">Hiring Team</TableHead>
+                      <TableHead className="w-[120px]">Posted</TableHead>
+                      <TableHead className="w-[100px]">Salary</TableHead>
                       <TableHead className="w-[100px]">Match</TableHead>
                       <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead className="w-[100px]">Employment</TableHead>
+                      <TableHead className="w-[100px]">Easy Apply</TableHead>
+                      <TableHead className="w-[100px]">Revenue</TableHead>
+                      <TableHead className="w-[100px]">Founded</TableHead>
+                      <TableHead className="w-[100px]">Employees</TableHead>
                       <TableHead className="w-[100px]">Industry</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -979,7 +984,22 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             </div>
                           </TableCell>
                           <TableCell>
-                            {application.industry}
+                            {application.employment_statuses?.join(", ")}
+                          </TableCell>
+                          <TableCell>
+                            {application.easy_apply ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.annual_revenue_usd_readable}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.founded_year}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.employee_count_range}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.industry}
                           </TableCell>
                         </TableRow>
                       );
