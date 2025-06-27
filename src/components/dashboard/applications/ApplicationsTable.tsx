@@ -392,11 +392,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
-    // Deduct one credit locally
-    setCreditsLeft(cl => Math.max(cl - 1, 0));
-    setChargedJobs(prev => new Set(prev).add(jobId));
-    setRevealedJobs(prev => new Set(prev).add(jobId));
-
     // Fetch full job details
     await fetchJobDetails(jobId);
   };
