@@ -36,6 +36,7 @@ interface SubscriptionContextType {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
+  creditsLeft: number;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -74,8 +75,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
       
       setSubscription(data);
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "An unexpected error occurred.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +113,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return proStatus.includes(subscription.status);
   }, [subscription]);
 
-  const value = { subscription, isPro, isLoading, error, refetch: fetchSubscriptionStatus };
+  const creditsLeft = useMemo(() => {
+    if (!subscription) return 0;
+    const limit = subscription.subscription_plans?.job_search_results_limit_per_month ?? 0;
+    const used = subscription.usage?.job_search_results_period_count ?? 0;
+    return limit - used;
+  }, [subscription]);
+
+  const value = { subscription, isPro, isLoading, error, refetch: fetchSubscriptionStatus, creditsLeft };
 
   return (
     <SubscriptionContext.Provider value={value}>
