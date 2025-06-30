@@ -4,47 +4,44 @@ import { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';
-import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from '@/components/ui/badge';
 
-interface StripeInvoice {
-    id: string;
-    created: number;
-    total: number;
-    status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
-    invoice_pdf: string;
-    number: string;
-    currency: string;
+interface SubscriptionHistoryEntry {
+    id: number;
+    created_at: string;
+    plan_id: number;
+    status: string;
+    stripe_subscription_id?: string;
+    hosted_invoice_url?: string;
 }
 
-const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency.toUpperCase(),
-    }).format(amount / 100);
-};
-
-const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', year: 'numeric'
     });
 };
 
+const getPlanName = (planId: number): string => {
+    switch (planId) {
+        case 1: return 'Free';
+        case 2: return 'Pro';
+        case 3: return 'Premium';
+        default: return 'Unknown Plan';
+    }
+};
+
 const SubscriptionHistory = () => {
-    const { isPro } = useSubscription();
-    const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
+    const [history, setHistory] = useState<SubscriptionHistoryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isPro) {
-            setIsLoading(false);
-            return;
-        }
-
-        const fetchInvoices = async () => {
+        const fetchHistory = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
                 const supabase = createClient();
                 const { data: { session } } = await supabase.auth.getSession();
@@ -61,11 +58,11 @@ const SubscriptionHistory = () => {
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to fetch invoices.');
+                    throw new Error(errorData.error || 'Failed to fetch subscription history.');
                 }
 
                 const data = await response.json();
-                setInvoices(data);
+                setHistory(data);
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -73,28 +70,32 @@ const SubscriptionHistory = () => {
             }
         };
 
-        fetchInvoices();
-    }, [isPro]);
+        fetchHistory();
+    }, []);
 
-    if (!isPro) {
-        return (
-           <Card>
-               <CardHeader>
-                   <CardTitle>Billing History</CardTitle>
-                   <CardDescription>Your payment and subscription history will appear here when you upgrade.</CardDescription>
-               </CardHeader>
-               <CardContent>
-                   <p className="text-sm text-muted-foreground">You do not have any billing history yet.</p>
-               </CardContent>
-           </Card>
-       );
-   }
+    const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+        switch (status?.toLowerCase()) {
+            case 'active':
+            case 'paid':
+                return 'default';
+            case 'free':
+            case 'free_trial':
+                return 'secondary';
+            case 'canceling':
+            case 'past_due':
+                return 'destructive';
+            case 'canceled':
+                return 'outline';
+            default:
+                return 'secondary';
+        }
+    }
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Billing History</CardTitle>
-                <CardDescription>Below is a list of your past payments.</CardDescription>
+                <CardTitle>Subscription History</CardTitle>
+                <CardDescription>Below is a list of your past subscription changes.</CardDescription>
             </CardHeader>
             <CardContent>
                  {isLoading ? (
@@ -106,29 +107,31 @@ const SubscriptionHistory = () => {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Date</TableHead>
-                                <TableHead>Number</TableHead>
-                                <TableHead>Amount</TableHead>
+                                <TableHead>Plan</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
+                                <TableHead>Subscription ID</TableHead>
+                                <TableHead className="text-right">Invoice</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {invoices.length > 0 ? (
-                                invoices.map((invoice) => (
-                                    <TableRow key={invoice.id}>
-                                        <TableCell>{formatDate(invoice.created)}</TableCell>
-                                        <TableCell>{invoice.number}</TableCell>
-                                        <TableCell>{formatAmount(invoice.total, invoice.currency)}</TableCell>
+                            {history.length > 0 ? (
+                                history.map((entry) => (
+                                    <TableRow key={entry.id}>
+                                        <TableCell>{formatDate(entry.created_at)}</TableCell>
+                                        <TableCell>{getPlanName(entry.plan_id)}</TableCell>
                                         <TableCell>
-                                            <Badge variant={invoice.status === 'paid' ? 'default' : 'secondary'} className="capitalize">
-                                                {invoice.status}
+                                            <Badge variant={getStatusVariant(entry.status)} className="capitalize">
+                                                {entry.status?.replace(/_/g, ' ') || 'N/A'}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            {entry.stripe_subscription_id || 'N/A'}
+                                        </TableCell>
                                         <TableCell className="text-right">
-                                            {invoice.invoice_pdf && (
+                                            {entry.hosted_invoice_url && (
                                                 <Button asChild variant="outline" size="sm">
-                                                    <a href={invoice.invoice_pdf} target="_blank" rel="noopener noreferrer">
-                                                        Download PDF
+                                                    <a href={entry.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
+                                                        View Invoice
                                                     </a>
                                                 </Button>
                                             )}
@@ -138,7 +141,7 @@ const SubscriptionHistory = () => {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center">
-                                        You have no past invoices.
+                                        You have no subscription history yet.
                                     </TableCell>
                                 </TableRow>
                             )}

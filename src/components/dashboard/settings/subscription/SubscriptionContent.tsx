@@ -33,6 +33,7 @@ import {
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { createClient } from "@/utils/supabase/client";
 import SubscriptionHistory from "./subscriptionHistory";
+import SubscriptionPricing from "./subscriptionPricing";
 
 // --- Interfaces based on your backend schema ---
 
@@ -101,7 +102,12 @@ const SubscriptionContent = () => {
          throw new Error("Could not retrieve user session for upgrade.");
        }
  
-       const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK!;
+       const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1;
+       if (!paymentLink) {
+        throw new Error(
+          "The payment link for the Pro plan is not configured. Please contact support."
+        );
+      }
        const url = new URL(paymentLink);
        url.searchParams.set("client_reference_id", session.user.id);
        if (session.user.email) {
@@ -112,6 +118,37 @@ const SubscriptionContent = () => {
     } catch (err: any) {
        setActionError(err.message);
        setIsProcessingAction(false);
+    }
+  };
+
+  const handlePremiumUpgrade = async () => {
+    setIsProcessingAction(true);
+    setActionError(null);
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error("Could not retrieve user session for upgrade.");
+      }
+
+      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
+      if (!paymentLink) {
+        throw new Error(
+          "The payment link for the Premium plan is not configured. Please contact support."
+        );
+      }
+      const url = new URL(paymentLink);
+      url.searchParams.set("client_reference_id", session.user.id);
+      if (session.user.email) {
+        url.searchParams.set("prefilled_email", session.user.email);
+      }
+
+      window.location.href = url.toString();
+    } catch (err: any) {
+      setActionError(err.message);
+      setIsProcessingAction(false);
     }
   };
 
@@ -181,6 +218,40 @@ const SubscriptionContent = () => {
     }
   };
 
+  const handleManageBilling = async () => {
+    setIsProcessingAction(true);
+    setActionError(null);
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error("Could not retrieve user session to manage billing.");
+      }
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
+      const res = await fetch(`${backendUrl}/subscription/customer-portal`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          data.error || "Could not create billing management session."
+        );
+      }
+
+      window.location.href = data.url;
+    } catch (err: any) {
+      setActionError(err.message);
+      setIsProcessingAction(false);
+    }
+  };
+
   // --- Loading / Error States ---
   if (isLoading) {
     return (
@@ -211,14 +282,19 @@ const SubscriptionContent = () => {
   const isFreeUser =
     subscription.status === "free" ||
     subscription.status === "free_trial" ||
-    subscription.status === "past_due";
-  const isPaidUser =
-    subscription.status === "active" || subscription.status === "processing";
+    !subscription.status; // Treat null/undefined status as free
+  const isProUser =
+    subscription.status === "active" &&
+    subscription.subscription_plans.name.toLowerCase().includes("pro");
+  const isPremiumUser =
+    subscription.status === "active" &&
+    subscription.subscription_plans.name.toLowerCase().includes("premium");
+  const isPaidUser = isProUser || isPremiumUser;
   const isCanceling = subscription.status === "canceling";
   const isExpired = subscription.status === "canceled";
 
   // --- Usage metrics ---
-  const usageMetrics = [
+  let usageMetrics = [
     {
       name: "Resume Analyses",
       used: subscription.usage.resume_period_count,
@@ -240,6 +316,12 @@ const SubscriptionContent = () => {
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ];
+
+  if (subscription.subscription_plans.id == 3) {
+    usageMetrics = usageMetrics.filter(
+      (metric) => metric.name === "Job Reveals"
+    );
+  }
 
   return (
     <>
@@ -284,107 +366,105 @@ const SubscriptionContent = () => {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {isPaidUser && <Star className="text-yellow-500" />} Your Plan:{" "}
-            <span className="text-purple-600 capitalize">
-              {subscription.subscription_plans.name}
-            </span>
-          </CardTitle>
-          {!isFreeUser && <CardDescription>Ends on {formattedEnd}.</CardDescription>}
-          {isCanceling && (
-            <p className="text-sm text-gray-500 mt-1">
-              (You'll revert to Free on {formattedEnd})
-            </p>
-          )}
-        </CardHeader>
+      <SubscriptionPricing
+        isFreeUser={isFreeUser}
+        isProUser={isProUser}
+        isPremiumUser={isPremiumUser}
+        isProcessingAction={isProcessingAction}
+        handleUpgrade={handleUpgrade}
+        handlePremiumUpgrade={handlePremiumUpgrade}
+      />
 
-        <CardContent>
-          <h3 className="text-md font-semibold mb-4">Monthly Usage</h3>
-          <div className="space-y-6">
-            {usageMetrics.map((m) => (
-              <div key={m.name}>
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-sm font-medium">{m.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {m.used} / {m.limit ?? "—"}
-                  </p>
+      {isPaidUser && (
+        <Card className="mt-12">
+          <CardHeader>
+            <CardTitle>Monthly Usage</CardTitle>
+            <CardDescription>Your usage resets on {formattedEnd}.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {usageMetrics.map((m) => (
+                <div key={m.name}>
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-sm font-medium">{m.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {m.used} / {m.limit ?? "—"}
+                    </p>
+                  </div>
+                  <Progress
+                    value={m.limit > 0 ? (m.used / m.limit) * 100 : 0}
+                  />
                 </div>
-                <Progress
-                  value={m.limit > 0 ? (m.used / m.limit) * 100 : 0}
-                />
-              </div>
-            ))}
-          </div>
-        </CardContent>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        <CardFooter className="flex justify-end gap-4">
-          {/* Free users see Upgrade */}
-          {isFreeUser && (
-            <Button onClick={handleUpgrade} disabled={isProcessingAction}>
-              {isProcessingAction ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Star className="mr-2 h-4 w-4" />
-              )}
-              Upgrade to Pro
-            </Button>
-          )}
-
-          {/* Users with a canceling sub see a Reactivate button */}
-          {isCanceling && (
-            <Button onClick={handleReactivate} disabled={isProcessingAction}>
-              {isProcessingAction ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="mr-2 h-4 w-4" />
-              )}
-              Reactivate Subscription
-            </Button>
-          )}
-
-          {/* Paid/processing users see Cancel */}
-          {isPaidUser && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" disabled={isProcessingAction}>
+      <div className="mt-8 flex justify-center items-center flex-wrap gap-4">
+        {(isPaidUser || isCanceling) && (
+          <Button
+            variant="outline"
+            onClick={handleManageBilling}
+            disabled={isProcessingAction}
+          >
+            {isProcessingAction ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            Manage Billing
+          </Button>
+        )}
+        {isCanceling && (
+          <Button onClick={handleReactivate} disabled={isProcessingAction}>
+            {isProcessingAction ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle className="mr-2 h-4 w-4" />
+            )}
+            Reactivate Subscription
+          </Button>
+        )}
+        {isPaidUser && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive" disabled={isProcessingAction}>
+                {isProcessingAction ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="mr-2 h-4 w-4" />
+                )}
+                Cancel Subscription
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Cancellation</DialogTitle>
+                <DialogDescription>
+                  You'll keep your Pro benefits until your current period ends, then you'll
+                  be downgraded to the Free plan. This can be undone by
+                  reactivating anytime before the period ends.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="ghost">Nevermind</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancel}
+                  disabled={isProcessingAction}
+                >
                   {isProcessingAction ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <XCircle className="mr-2 h-4 w-4" />
+                    "Yes, Cancel Now"
                   )}
-                  Cancel Subscription
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Confirm Cancellation</DialogTitle>
-                  <DialogDescription>
-                    You'll keep Pro until your period end; this cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="ghost">Nevermind</Button>
-                  </DialogClose>
-                  <Button
-                    variant="destructive"
-                    onClick={handleCancel}
-                    disabled={isProcessingAction}
-                  >
-                    {isProcessingAction ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      "Yes, Cancel Now"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-        </CardFooter>
-      </Card>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
 
       <div className="mt-8">
         <SubscriptionHistory />
