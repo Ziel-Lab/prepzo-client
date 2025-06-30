@@ -102,6 +102,12 @@ const SubscriptionContent = () => {
         throw new Error("Could not retrieve user session for upgrade.");
       }
 
+      // --- DEBUGGING STEP ---
+      console.log("Looking for payment link for plan:", plan);
+      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1);
+      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2);
+      // --- END DEBUGGING STEP ---
+
       const paymentLink =
         plan === "pro"
           ? process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1
