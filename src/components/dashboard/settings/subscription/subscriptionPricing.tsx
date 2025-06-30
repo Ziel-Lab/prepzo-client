@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, CheckCircle } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
 
 interface Plan {
   name: string;
@@ -24,22 +25,19 @@ interface Plan {
 }
 
 interface SubscriptionPricingProps {
-  isFreeUser: boolean;
-  isProUser: boolean;
-  isPremiumUser: boolean;
+  currentPlanId: string | number | undefined;
   isProcessingAction: boolean;
-  handleUpgrade: () => void;
-  handlePremiumUpgrade: () => void;
+  handleUpgrade: (plan: "pro" | "premium") => void;
 }
 
-const SubscriptionPricing = ({
-  isFreeUser,
-  isProUser,
-  isPremiumUser,
+const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
+  currentPlanId,
   isProcessingAction,
   handleUpgrade,
-  handlePremiumUpgrade,
-}: SubscriptionPricingProps) => {
+}) => {
+  const isPro = currentPlanId === "pro_plan";
+  const isPremium = currentPlanId === "premium_plan";
+
   const plans: Plan[] = [
     {
       name: "Free",
@@ -51,7 +49,7 @@ const SubscriptionPricing = ({
         "2 Cover Letters",
         "Unlimited Document Uploads",
       ],
-      isCurrent: isFreeUser,
+      isCurrent: false,
       action: () => {},
       actionLabel: "Current Plan",
       actionDisabled: true,
@@ -68,10 +66,10 @@ const SubscriptionPricing = ({
         "200 Job Reveals",
         "Unlimited Document Uploads",
       ],
-      isCurrent: isProUser,
-      action: handleUpgrade,
-      actionLabel: isProUser ? "Current Plan" : "Upgrade to Pro",
-      actionDisabled: isProUser || isProcessingAction,
+      isCurrent: isPro,
+      action: () => handleUpgrade("pro"),
+      actionLabel: isPro ? "Current Plan" : "Get Pro",
+      actionDisabled: isPro || isProcessingAction,
     },
     {
       name: "Premium",
@@ -85,10 +83,10 @@ const SubscriptionPricing = ({
         "500 Job Reveals",
         "Unlimited Document Uploads",
       ],
-      isCurrent: isPremiumUser,
-      action: handlePremiumUpgrade,
-      actionLabel: isPremiumUser ? "Current Plan" : "Upgrade to Premium",
-      actionDisabled: isPremiumUser || isProcessingAction,
+      isCurrent: isPremium,
+      action: () => handleUpgrade("premium"),
+      actionLabel: isPremium ? "Current Plan" : "Get Premium",
+      actionDisabled: isPremium || isProcessingAction,
     },
   ];
 

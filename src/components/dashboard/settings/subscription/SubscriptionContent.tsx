@@ -90,38 +90,7 @@ const SubscriptionContent = () => {
     }
   }, [searchParams, router]);
 
-  const handleUpgrade = async () => {
-    setIsProcessingAction(true);
-    setActionError(null);
-    try {
-       const {
-         data: { session },
-         error: sessionError,
-       } = await supabase.auth.getSession();
-       if (sessionError || !session) {
-         throw new Error("Could not retrieve user session for upgrade.");
-       }
- 
-       const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1;
-       if (!paymentLink) {
-        throw new Error(
-          "The payment link for the Pro plan is not configured. Please contact support."
-        );
-      }
-       const url = new URL(paymentLink);
-       url.searchParams.set("client_reference_id", session.user.id);
-       if (session.user.email) {
-         url.searchParams.set("prefilled_email", session.user.email);
-       }
- 
-       window.location.href = url.toString();
-    } catch (err: any) {
-       setActionError(err.message);
-       setIsProcessingAction(false);
-    }
-  };
-
-  const handlePremiumUpgrade = async () => {
+  const handleUpgrade = async (plan: "pro" | "premium") => {
     setIsProcessingAction(true);
     setActionError(null);
     try {
@@ -133,10 +102,16 @@ const SubscriptionContent = () => {
         throw new Error("Could not retrieve user session for upgrade.");
       }
 
-      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
+      const paymentLink =
+        plan === "pro"
+          ? process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1
+          : process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
+
       if (!paymentLink) {
         throw new Error(
-          "The payment link for the Premium plan is not configured. Please contact support."
+          `The payment link for the ${
+            plan === "pro" ? "Pro" : "Premium"
+          } plan is not configured. Please contact support.`
         );
       }
       const url = new URL(paymentLink);
@@ -367,12 +342,9 @@ const SubscriptionContent = () => {
       )}
 
       <SubscriptionPricing
-        isFreeUser={isFreeUser}
-        isProUser={isProUser}
-        isPremiumUser={isPremiumUser}
+        currentPlanId={subscription.subscription_plans?.id}
         isProcessingAction={isProcessingAction}
         handleUpgrade={handleUpgrade}
-        handlePremiumUpgrade={handlePremiumUpgrade}
       />
 
       {isPaidUser && (
