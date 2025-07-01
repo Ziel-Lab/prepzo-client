@@ -51,7 +51,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
     answer: "Yes, we do. If you do not get a job or the goal that you established in the beginning with Prepzo, we offer a 3 month money-back guarantee. Please read our terms & conditions."
   }];
   return (
-    <section className="bg-white w-full py-12 sm:py-20">
+    <section className="bg-white w-full py-12 sm:py-20" id="faq">
       <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center px-4">
         <div>
           <div className="mb-6">
@@ -92,7 +92,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ onOpenAgentModal }) => { // Destruc
           </div>
         </div>
         
-        <Card className="border-prepzo/20 shadow-lg">
+        <Card className="border-prepzo/20 shadow-lg" >
           <CardHeader>
             <CardTitle>Frequently Asked Questions</CardTitle>
           </CardHeader>
