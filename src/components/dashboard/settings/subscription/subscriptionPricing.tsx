@@ -36,10 +36,8 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   handleUpgrade,
 }) => {
   // Based on your backend: plan_id 2 = Pro, plan_id 3 = Premium
-  console.log("📊 Current plan ID:", currentPlanId);
   const isPro = currentPlanId === 2;
   const isPremium = currentPlanId === 3;
-  console.log("📊 Plan status:", { isPro, isPremium });
 
   const plans: Plan[] = [
     {
@@ -70,10 +68,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         "Unlimited Document Uploads",
       ],
       isCurrent: isPro,
-      action: () => {
-        console.log("🔴 Pro plan button clicked!");
-        handleUpgrade("pro");
-      },
+      action: () => handleUpgrade("pro"),
       actionLabel: isPro ? "Current Plan" : "Get Pro",
       actionDisabled: isPro || isProcessingAction,
     },
@@ -90,10 +85,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         "Unlimited Document Uploads",
       ],
       isCurrent: isPremium,
-      action: () => {
-        console.log("🟣 Premium plan button clicked!");
-        handleUpgrade("premium");
-      },
+      action: () => handleUpgrade("premium"),
       actionLabel: isPremium ? "Current Plan" : "Get Premium",
       actionDisabled: isPremium || isProcessingAction,
     },

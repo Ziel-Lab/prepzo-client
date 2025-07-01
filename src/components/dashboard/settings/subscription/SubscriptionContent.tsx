@@ -103,10 +103,9 @@ const SubscriptionContent = () => {
       }
 
       // --- DEBUGGING STEP ---
-      console.log("🚀 User clicked upgrade to:", plan);
-      console.log("📍 Environment variables check:");
-      console.log("  - NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1 (Pro):", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1 ? "✅ SET" : "❌ MISSING");
-      console.log("  - NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2 (Premium):", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2 ? "✅ SET" : "❌ MISSING");
+      console.log("Looking for payment link for plan:", plan);
+      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1);
+      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2);
       // --- END DEBUGGING STEP ---
 
       const paymentLink =
@@ -114,36 +113,20 @@ const SubscriptionContent = () => {
           ? process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1
           : process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
 
-      console.log(`🔗 Selected payment link for ${plan}:`, paymentLink ? "✅ Found" : "❌ Missing");
-
       if (!paymentLink) {
-        const envVar = plan === "pro" ? "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1" : "NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2";
-        console.error(`❌ Missing environment variable: ${envVar}`);
         throw new Error(
           `The payment link for the ${
             plan === "pro" ? "Pro" : "Premium"
-          } plan is not configured. Please set ${envVar} in your Vercel environment variables and redeploy.`
+          } plan is not configured. Please contact support.`
         );
       }
-      // Validate that the payment link is a proper URL
-      let finalUrl;
-      try {
-        const url = new URL(paymentLink);
-        url.searchParams.set("client_reference_id", session.user.id);
-        if (session.user.email) {
-          url.searchParams.set("prefilled_email", session.user.email);
-        }
-        finalUrl = url.toString();
-      } catch (urlError) {
-        console.error("❌ Invalid payment link URL:", paymentLink);
-        throw new Error(`Invalid payment link for ${plan} plan. Please check your Stripe payment link configuration.`);
+      const url = new URL(paymentLink);
+      url.searchParams.set("client_reference_id", session.user.id);
+      if (session.user.email) {
+        url.searchParams.set("prefilled_email", session.user.email);
       }
 
-      console.log(`🔄 Redirecting to ${plan} payment page...`);
-      console.log("🔗 Final URL:", finalUrl);
-      
-      // Redirect to Stripe payment page
-      window.location.href = finalUrl;
+      window.location.href = url.toString();
     } catch (err: any) {
       setActionError(err.message);
       setIsProcessingAction(false);
