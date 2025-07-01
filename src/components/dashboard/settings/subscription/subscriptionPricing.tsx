@@ -28,12 +28,14 @@ interface SubscriptionPricingProps {
   currentPlanId: string | number | undefined;
   isProcessingAction: boolean;
   handleUpgrade: (plan: "pro" | "premium") => void;
+  handleFreeSignup?: () => void;
 }
 
 const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   currentPlanId,
   isProcessingAction,
   handleUpgrade,
+  handleFreeSignup,
 }) => {
   // Based on your backend: plan_id 2 = Pro, plan_id 3 = Premium
   const isPro = currentPlanId === 2;
@@ -50,10 +52,10 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         "2 Cover Letters",
         "Unlimited Document Uploads",
       ],
-      isCurrent: false,
-      action: () => {},
-      actionLabel: "Current Plan",
-      actionDisabled: true,
+      isCurrent: currentPlanId === 1,
+      action: handleFreeSignup || (() => {}),
+      actionLabel: currentPlanId === 1 ? "Current Plan" : "Get Started Free",
+              actionDisabled: (currentPlanId === 1 && !handleFreeSignup) || isProcessingAction,
     },
     {
       name: "Pro",

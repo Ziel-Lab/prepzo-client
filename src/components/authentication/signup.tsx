@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Linkedin, Mail } from 'lucide-react';
 
@@ -14,6 +14,8 @@ const SignUpForm = () => {
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
 
   useEffect(() => {
     const checkSession = async () => {
@@ -22,7 +24,7 @@ const SignUpForm = () => {
       if (sessionError) {
         console.error('Error checking session:', sessionError);
       } else if (session) {
-        router.push('/dashboard');
+        router.push(redirectTo);
         return;
       }
       setLoading(false);
@@ -41,7 +43,7 @@ const SignUpForm = () => {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: supabaseProvider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         },
       });
 

@@ -1,5 +1,5 @@
 import SignUpForm from '@/components/authentication/signup';
-import React from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
@@ -11,7 +11,13 @@ const SignUpPage = () => {
         <span className="sr-only">Back to Home</span>
       </Link>
       
-      <SignUpForm />
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      }>
+        <SignUpForm />
+      </Suspense>
     </div>
   );
 };
