@@ -104,14 +104,15 @@ const SubscriptionContent = () => {
 
       // --- DEBUGGING STEP ---
       console.log("Looking for payment link for plan:", plan);
-      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1);
-      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2);
       // --- END DEBUGGING STEP ---
 
+      // Direct Stripe payment links (bypassing environment variable issues)
       const paymentLink =
         plan === "pro"
-          ? process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1
-          : process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
+          ? "https://buy.stripe.com/test_aFa7sLb768b0c1e4d6frW00"  // Pro plan
+          : "https://buy.stripe.com/test_eVq7sL4II76WaXaeRKfrW01"; // Premium plan
+      
+      console.log(`🔗 Using ${plan} payment link:`, paymentLink);
 
       if (!paymentLink) {
         throw new Error(
