@@ -35,8 +35,9 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   isProcessingAction,
   handleUpgrade,
 }) => {
-  const isPro = currentPlanId === "pro_plan";
-  const isPremium = currentPlanId === "premium_plan";
+  // Based on your backend: plan_id 2 = Pro, plan_id 3 = Premium
+  const isPro = currentPlanId === 2;
+  const isPremium = currentPlanId === 3;
 
   const plans: Plan[] = [
     {
