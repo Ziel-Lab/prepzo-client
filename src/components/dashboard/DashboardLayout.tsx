@@ -21,7 +21,7 @@ import { useState, useEffect, useCallback, memo } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/utils/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { SubscriptionProvider, useSubscription } from "@/contexts/SubscriptionContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Image from 'next/image'
@@ -51,14 +51,6 @@ interface InternalSidebarLayoutProps {
 const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
   { pathname, onLogoutClick, onNavigateToDashboard, items, user, router }
 ) => {
-  const { subscription } = useSubscription();
-  
-  // Check if user is premium (plan_id = 3)
-  const isPremiumUser = subscription?.subscription_plans?.id === 3;
-  
-  // Get plan name for display
-  const planName = subscription?.subscription_plans?.name || 'Free';
-  const displayPlan = isPremiumUser ? 'Premium' : (subscription?.status === 'active' ? 'Pro' : 'Free');
   return (
     <>
       <SidebarHeader className="p-4 flex flex-col items-center">
@@ -68,30 +60,16 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
       >
         {/* <span className="text-white text-2xl font-bold">Prepzo</span> */}
         <Image src="/static/images/footer-logo.png" alt="Prepzo" width={125} height={125} />
-        {/* Show plan badge based on subscription */}
-        {subscription?.status === 'active' && (
-          <span className={`ml-2 px-2 py-1 rounded-md text-sm font-semibold ${
-            isPremiumUser 
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-              : 'bg-white text-[#12231B]'
-          }`}>
-            {displayPlan}
-          </span>
-        )}
+        {/* <span className="ml-2 bg-white text-[#12231B] px-2 py-1 rounded-md text-sm font-semibold">Pro</span> */}
       </div>
         <Button 
-          className={`w-full transition-colors ${
-            isPremiumUser 
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-              : 'bg-[#1e3529] text-white hover:bg-[#2a4a3a]'
-          }`}
+          className="w-full bg-[#1e3529] text-white hover:bg-[#2a4a3a] transition-colors"
           size="lg"
           onClick={() => {
             router.push('/dashboard/My-Agent');
           }}
         >
-          <Bot className="h-4 w-4 mr-2" />
-          {isPremiumUser ? 'Talk to Prepzo Premium' : 'Talk to Prepzo'}
+          Talk to Prepzo
         </Button>
       </SidebarHeader>
       <SidebarContent>
@@ -131,16 +109,9 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
                         className="w-9 h-9 rounded-full object-cover"
                     />
                     <div className="flex-grow truncate">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-semibold">
-                              {user.user_metadata.full_name || 'User'}
-                          </span>
-                          {isPremiumUser && (
-                            <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                              ✨ Premium
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-white text-sm font-semibold block">
+                            {user.user_metadata.full_name || 'User'}
+                        </span>
                         <span className="text-white/60 text-xs block">
                             View settings
                         </span>
@@ -165,29 +136,6 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
   );
 });
 InternalSidebarLayout.displayName = 'InternalSidebarLayout'; // For better debugging
-
-// Mobile header component
-const MobileHeader = memo(() => {
-  const { subscription } = useSubscription();
-  const isPremiumUser = subscription?.subscription_plans?.id === 3;
-  const displayPlan = isPremiumUser ? 'Premium' : (subscription?.status === 'active' ? 'Pro' : 'Free');
-  
-  return (
-    <div className="flex items-center">
-      <span className="text-white text-xl font-bold">Prepzo</span>
-      {subscription?.status === 'active' && (
-        <span className={`ml-2 px-2 py-0.5 rounded-md text-xs font-semibold ${
-          isPremiumUser 
-            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-            : 'bg-white text-[#12231B]'
-        }`}>
-          {displayPlan}
-        </span>
-      )}
-    </div>
-  );
-});
-MobileHeader.displayName = 'MobileHeader';
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     const pathname = usePathname();
@@ -237,7 +185,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
               {/* Mobile burger menu */}
               <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#12231B] p-4 flex items-center justify-between">
-                <MobileHeader />
+                <div className="flex items-center">
+                  <span className="text-white text-xl font-bold">Prepzo</span>
+                  <span className="ml-2 bg-white text-[#12231B] px-2 py-0.5 rounded-md text-xs font-semibold">Pro</span>
+                </div>
                 
                 <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                   <SheetTrigger asChild>

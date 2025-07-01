@@ -375,6 +375,19 @@ const SubscriptionContent = () => {
                   />
                 </div>
               ))}
+              
+              {/* Premium user unlimited access message */}
+              {subscription.subscription_plans.id === 3 && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <Star className="h-5 w-5" />
+                    <span className="font-semibold">Premium Benefits</span>
+                  </div>
+                  <p className="text-sm text-green-600 mt-1">
+                    ✨ You have unlimited access to Resume Analyses, Cover Letter Generation, and LinkedIn Optimizations
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
