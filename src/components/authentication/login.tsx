@@ -15,6 +15,15 @@ const MinimalLoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+  
+  // Get redirect parameter from URL
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('redirect') || '/dashboard';
+    }
+    return '/dashboard';
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -23,7 +32,8 @@ const MinimalLoginPage = () => {
       if (sessionError) {
         console.error('Error checking session:', sessionError);
       } else if (session) {
-        router.push('/dashboard');
+        const redirectUrl = getRedirectUrl();
+        router.push(redirectUrl);
         return;
       }
       setLoading(false);
@@ -38,12 +48,13 @@ const MinimalLoginPage = () => {
     setLoading(true);
 
     const supabaseProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
+    const redirectUrl = getRedirectUrl();
 
     try {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: supabaseProvider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectUrl)}`
         }
       });
       if (oauthError) throw oauthError;
@@ -144,7 +155,10 @@ const MinimalLoginPage = () => {
           </p>
           <p className="text-sm text-muted-foreground">
             Need an account?{' '}
-            <Link href="/auth/sign-up" className="text-primary hover:underline font-medium">
+            <Link 
+              href={`/auth/sign-up${typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('redirect') ? `?redirect=${encodeURIComponent(new URLSearchParams(window.location.search).get('redirect')!)}` : ''}`} 
+              className="text-primary hover:underline font-medium"
+            >
               Sign Up
             </Link>
           </p>

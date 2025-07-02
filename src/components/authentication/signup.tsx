@@ -148,7 +148,10 @@ const SignUpForm = () => {
           </p>
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-primary hover:underline font-medium">
+            <Link 
+              href={`/auth/login${redirectTo !== '/dashboard' ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`}
+              className="text-primary hover:underline font-medium"
+            >
               Sign in
             </Link>
           </p>
