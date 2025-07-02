@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, Edit3, Target, Zap, FileText, MessageSquare } from "lucide-react";
 import Navbar from '@/components/navbar/Navbar';
 import Footer from '@/components/footer/Footer';
-import Link from 'next/link';
+
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 

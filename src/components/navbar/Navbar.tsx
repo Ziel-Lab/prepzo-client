@@ -41,6 +41,24 @@ const Navbar = () => {
     };
   }, [supabase]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-dropdown="features"]')) {
+        setIsFeaturesOpen(false);
+      }
+    };
+
+    if (isFeaturesOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isFeaturesOpen]);
+
   const loginTargetHref = "/auth/login";
 
   const featuresMenuItems = [
@@ -86,10 +104,13 @@ const Navbar = () => {
           {/* Features Dropdown */}
           <div 
             className="relative group"
-            onMouseEnter={() => setIsFeaturesOpen(true)}
+            data-dropdown="features"
             onMouseLeave={() => setIsFeaturesOpen(false)}
           >
-            <button className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group flex items-center gap-1">
+            <button 
+              onClick={() => setIsFeaturesOpen(!isFeaturesOpen)}
+              className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group flex items-center gap-1"
+            >
               <span>Features</span>
               <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isFeaturesOpen ? 'rotate-180' : ''}`} />
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
@@ -200,6 +221,9 @@ const Navbar = () => {
               <Link href="/blogs" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
                 Blogs
               </Link>
+              <Link href="/#pricing" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+                Pricing
+              </Link>
               <Link href="/contact" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
                 Contact
               </Link>
@@ -208,7 +232,7 @@ const Navbar = () => {
             <div className="border-t border-border pt-4">
               <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
                 <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-                  Sign Up
+                  {isAuthenticated ? "Dashboard" : "Sign Up"}
                 </Button>
               </Link>
             </div>
