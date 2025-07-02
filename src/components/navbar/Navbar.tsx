@@ -105,7 +105,6 @@ const Navbar = () => {
           <div 
             className="relative group"
             data-dropdown="features"
-            onMouseLeave={() => setIsFeaturesOpen(false)}
           >
             <button 
               onClick={() => setIsFeaturesOpen(!isFeaturesOpen)}
@@ -119,6 +118,17 @@ const Navbar = () => {
             {/* Dropdown Menu */}
             {isFeaturesOpen && (
               <div className="absolute top-full left-0 mt-2 w-80 bg-background border border-border rounded-lg shadow-lg animate-fade-in z-50">
+                {/* Close Button */}
+                {/* <div className="flex justify-between items-center px-2 py-1">
+                  <span className="text-sm font-medium text-foreground/80"></span>
+                  <button
+                    onClick={() => setIsFeaturesOpen(false)}
+                    className="p-1 hover:bg-prepzo/10 rounded-md transition-colors"
+                    aria-label="Close features menu"
+                  >
+                    <X className="h-4 w-4 text-foreground/60 hover:text-foreground" />
+                  </button>
+                </div> */}
                 <div className="p-2">
                   {featuresMenuItems.map((item, index) => {
                     const IconComponent = item.icon;
