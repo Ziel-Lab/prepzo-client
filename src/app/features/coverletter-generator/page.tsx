@@ -289,7 +289,7 @@ const CoverLetterGenerator = () => {
               <Button 
                 onClick={handleGenerateCoverLetter}
                 disabled={isLoading}
-                className="bg-primary hover:bg-primary/90 text-white px-6 md:px-8 py-2 md:py-3 text-sm md:text-base w-full sm:w-auto"
+                className="bg-primary hover:bg-primary/90 text-white px-6 md:px-8 py-2 md:py-3 text-sm md:text-md w-full sm:w-auto"
               >
                 {isLoading ? "Loading..." : "Generate My Cover Letter"}
               </Button>
