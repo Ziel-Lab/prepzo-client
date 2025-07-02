@@ -220,7 +220,22 @@ const CoverLetterContent = () => {
 
   const handleResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setNewResumeFile(event.target.files[0]);
+      const file = event.target.files[0];
+      
+      // Friendly PDF validation
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setError(
+          "Hey there! 👋 We'd love to help you with your resume, but our AI works best with PDF files. " +
+          "PDFs preserve your formatting perfectly and are what most recruiters expect. " +
+          "Could you convert your file to PDF and try again? Most word processors have a 'Save as PDF' option!"
+        );
+        setNewResumeFile(null);
+        // Clear the input
+        event.target.value = '';
+        return;
+      }
+      
+      setNewResumeFile(file);
       setSelectedResumeUrl("");
       setError(null);
     } else {
@@ -567,10 +582,21 @@ const CoverLetterContent = () => {
                 ) : <p className="text-sm text-gray-500">No documents found. Please upload a resume.</p>
               )}
               {resumeInputMethod === 'upload' && (
-                <div className="space-y-1">
-                  <Input id="newResumeUpload" type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleResumeFileChange} className={`w-full ${fieldErrors.resume ? 'border-red-500' : ''}`} disabled={isLoading || isUploadingNewResume} />
+                <div className="space-y-3">
+                  <Input id="newResumeUpload" type="file" accept=".pdf" onChange={handleResumeFileChange} className={`w-full ${fieldErrors.resume ? 'border-red-500' : ''}`} disabled={isLoading || isUploadingNewResume} />
                   {newResumeFile && <p className="text-xs text-gray-600">Selected: {newResumeFile.name}</p>}
                   {isUploadingNewResume && <div className="flex items-center text-sm text-blue-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading...</div>}
+                  
+                  {/* PDF Benefits Info */}
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <FileIcon className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-700">
+                        <p className="font-medium mb-1">Why PDF works best:</p>
+                        <p>✅ Preserves your formatting perfectly • ✅ Professional standard • ✅ Works with all recruitment systems</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               {fieldErrors.resume && <p className="text-sm text-red-500 mt-1">{fieldErrors.resume}</p>}

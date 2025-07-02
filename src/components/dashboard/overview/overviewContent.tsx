@@ -40,7 +40,8 @@ const tools = [
 const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuote }) => {
   const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
 
-  const usageMetrics = (subscription && subscription.usage) ? [
+  // Usage metrics with Premium user filtering (same logic as SubscriptionContent.tsx)
+  let usageMetrics = (subscription && subscription.usage) ? [
     {
       name: "Resume Analyses",
       used: subscription.usage.resume_period_count,
@@ -62,6 +63,13 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ] : [];
+
+  // Filter metrics for Premium users (plan_id = 3) - only show Job Reveals since they have unlimited access to others
+  if (subscription?.subscription_plans?.id === 3) {
+    usageMetrics = usageMetrics.filter(
+      (metric) => metric.name === "Job Reveals"
+    );
+  }
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -121,7 +129,14 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                 <BarChart2 className="h-5 w-5" />
                 Monthly Usage
               </CardTitle>
-              <CardDescription>Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.name || '...'}</span></CardDescription>
+              <CardDescription>
+                Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.name || '...'}</span>
+                {subscription?.subscription_plans?.id === 3 && (
+                  <div className="text-xs text-green-600 mt-1">
+                    ✨ Unlimited Resume, Cover Letter & LinkedIn access
+                  </div>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {isSubscriptionLoading ? (

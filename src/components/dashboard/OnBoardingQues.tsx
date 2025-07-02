@@ -104,7 +104,7 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
 
         // Only open if we successfully fetch the profile AND 'answered' is explicitly false.
         if (!error && data && data.answered === false) {
-          setIsOpen(true);
+            setIsOpen(true);
         } else {
           setIsOpen(false);
         }

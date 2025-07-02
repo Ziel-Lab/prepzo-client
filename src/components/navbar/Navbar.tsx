@@ -135,6 +135,10 @@ const Navbar = () => {
             <span>Blogs</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
           </Link>
+          <Link href="/#pricing" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
+            <span>Pricing</span>
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+          </Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Contact</span>
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
@@ -146,7 +150,7 @@ const Navbar = () => {
           
           <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"}>
             <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
-              Sign Up
+              {isAuthenticated ? "Dashboard" : "Sign Up"}
             </Button>
           </Link>
           {/* <Link href={loginTargetHref} passHref>

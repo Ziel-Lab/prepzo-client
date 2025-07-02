@@ -104,14 +104,15 @@ const SubscriptionContent = () => {
 
       // --- DEBUGGING STEP ---
       console.log("Looking for payment link for plan:", plan);
-      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1);
-      console.log("NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2:", process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2);
       // --- END DEBUGGING STEP ---
 
+      // Direct Stripe payment links (bypassing environment variable issues)
       const paymentLink =
         plan === "pro"
-          ? process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_1
-          : process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_2;
+          ? "https://buy.stripe.com/dRm7sKazu1bK6sK7WW00000"  // Pro plan
+          : "https://buy.stripe.com/4gM9ASgXSaMk3gy0uu00001"; // Premium plan
+      
+      console.log(`🔗 Using ${plan} payment link:`, paymentLink);
 
       if (!paymentLink) {
         throw new Error(
@@ -374,6 +375,19 @@ const SubscriptionContent = () => {
                   />
                 </div>
               ))}
+              
+              {/* Premium user unlimited access message */}
+              {subscription.subscription_plans.id === 3 && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <Star className="h-5 w-5" />
+                    <span className="font-semibold">Premium Benefits</span>
+                  </div>
+                  <p className="text-sm text-green-600 mt-1">
+                    ✨ You have unlimited access to Resume Analyses, Cover Letter Generation, and LinkedIn Optimizations
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
