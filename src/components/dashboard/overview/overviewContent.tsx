@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { Loader2, AlertCircle, Wand2, FileText, Linkedin, BarChart2, ArrowRight } from 'lucide-react';
+import { Loader2, AlertCircle, Wand2, FileText, Linkedin, BarChart2, ArrowRight, Briefcase } from 'lucide-react';
 
 interface OverviewContentProps {
   userName: string | null;
@@ -34,6 +34,12 @@ const tools = [
     description: 'Enhance your LinkedIn profile to attract recruiters and opportunities.',
     link: '/dashboard/tools/linkedin-optimizer',
     icon: <Linkedin className="h-8 w-8 text-sky-600" />,
+  },
+  {
+    title: 'Applications',
+    description: 'Track and manage your job applications with detailed analytics.',
+    link: '/dashboard/applications',
+    icon: <Briefcase className="h-8 w-8 text-green-500" />,
   },
 ];
 
