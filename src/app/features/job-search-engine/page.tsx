@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Globe, Filter, Target } from "lucide-react";
 import Navbar from '@/components/navbar/Navbar';
 import Footer from '@/components/footer/Footer';
-import Link from 'next/link';
+
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 

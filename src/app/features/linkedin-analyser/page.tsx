@@ -1,11 +1,47 @@
-import React from 'react';
+"use client";
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { User, Eye, MessageSquare, TrendingUp, CheckCircle } from "lucide-react";
 import Navbar from '@/components/navbar/Navbar';
 import Footer from '@/components/footer/Footer';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
 const LinkedInAnalyzer = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkUserSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    };
+
+    checkUserSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const handleAnalyzeLinkedIn = () => {
+    if (isAuthenticated) {
+      router.push('/dashboard/tools/linkedin-optimizer');
+    } else {
+      // Redirect to login with return URL
+      router.push('/auth/login?redirect=/dashboard/tools/linkedin-optimizer');
+    }
+  };
+
   return (
     <>
       <Navbar/>
@@ -226,8 +262,12 @@ const LinkedInAnalyzer = () => {
               Transform your LinkedIn profile into a powerful networking and job-seeking asset
             </p>
             <div className="pt-4 md:pt-6">
-              <Button className="bg-primary hover:bg-primary/90 text-white px-6 md:px-8 py-2 md:py-3 text-sm md:text-base lg:text-lg w-full sm:w-auto">
-                Analyze My LinkedIn
+              <Button 
+                onClick={handleAnalyzeLinkedIn}
+                disabled={isLoading}
+                className="bg-primary hover:bg-primary/90 text-white px-6 md:px-8 py-2 md:py-3 text-sm md:text-base lg:text-lg w-full sm:w-auto"
+              >
+                {isLoading ? "Loading..." : "Analyze My LinkedIn"}
               </Button>
             </div>
           </section>
