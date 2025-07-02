@@ -38,5 +38,34 @@
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
+
+  <!-- Feature Pages -->
+  <url>
+    <loc>https://www.prepzo.ai/features/resume-analyser</loc>
+    <lastmod>2025-05-27T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prepzo.ai/features/coverletter-generator</loc>
+    <lastmod>2025-05-27T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prepzo.ai/features/linkedin-analyser</loc>
+    <lastmod>2025-05-27T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <url>
+    <loc>https://www.prepzo.ai/features/job-search-engine</loc>
+    <lastmod>2025-05-27T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
   
 </urlset>
