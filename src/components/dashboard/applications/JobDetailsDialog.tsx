@@ -145,21 +145,16 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
               </div> */}
 
               <div className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4 text-gray-500" />
+               
                 <div>
-                  <span className="text-sm font-medium">Application Link </span>
+                 
                   {isRevealed ? (
                     <Link 
                       href={application.url ?? "#"} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                    >
-                      <Button 
-                        size="sm" 
-                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Open Application
-                      </Button>
+                    > <ExternalLink className="h-4 w-4 text-gray-500 mr-2" />
+                       <span className="text-sm font-medium">Open Application </span>
                     </Link>
                   ) : (
                     <p className="text-sm text-gray-600">Hidden</p>
