@@ -642,7 +642,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <TagInput
                 value={searchFilters.job_description_contains_or || []}
                 onChange={tags => setSearchFilters(prev => ({ ...prev, job_description_contains_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. react, python, senior"
+                placeholder="e.g. React, Python — press Enter after each"
                 label={undefined}
               />
             </div>
@@ -652,7 +652,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <TagInput
                 value={searchFilters.company_name_or || []}
                 onChange={tags => setSearchFilters(prev => ({ ...prev, company_name_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. Google, Microsoft"
+                placeholder="e.g. Google, Microsoft — press Enter after each"
                 label={undefined}
               />
             </div>
@@ -662,7 +662,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <TagInput
                 value={searchFilters.job_location_pattern_or || []}
                 onChange={tags => setSearchFilters(prev => ({ ...prev, job_location_pattern_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. Bangalore, Karnataka"
+                placeholder="e.g. Bangalore, Karnataka — press Enter after each"
                 label={undefined}
               />
             </div>

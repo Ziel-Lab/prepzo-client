@@ -147,15 +147,19 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
               <div className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4 text-gray-500" />
                 <div>
-                  <span className="text-sm font-medium">URL </span>
+                  <span className="text-sm font-medium">Application Link </span>
                   {isRevealed ? (
                     <Link 
                       href={application.url ?? "#"} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline"
                     >
-                      {application.url && application.url.length > 50 ? `${application.url.substring(0, 50)}...` : application.url ?? "N/A"}
+                      <Button 
+                        size="sm" 
+                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Open Application
+                      </Button>
                     </Link>
                   ) : (
                     <p className="text-sm text-gray-600">Hidden</p>
