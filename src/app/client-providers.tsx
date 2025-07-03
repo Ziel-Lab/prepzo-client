@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
+import { initAmplitude } from "@/lib/amplitude";
 
 // Create a client instance INSIDE the Client Component or keep it stable
 // It's often recommended to keep the client stable across renders, 
@@ -40,6 +41,10 @@ function getQueryClient() {
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   // NOTE: Avoid useState for queryClient instability issues. ref: https://tanstack.com/query/v5/docs/react/examples/react/nextjs-app-router-client-component
   const queryClient = getQueryClient();
+
+  useEffect(() => {
+    initAmplitude();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
