@@ -204,7 +204,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       const requestBody = {
         page: currentPage - 1, // API is 0-indexed
         limit: 100,
-        already_revealed: true,
         posted_at_max_age_days: searchFilters.posted_at_max_age_days || 15,
         blur_company_data: true,
         order_by: [{ desc: true, field: "date_posted" }],
