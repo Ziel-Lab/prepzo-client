@@ -31,7 +31,7 @@ const SignUpForm = () => {
     };
 
     checkSession();
-  }, [supabase, router]);
+  }, [supabase, router] );
 
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
     // Persist chosen source so we can use it after the OAuth redirect

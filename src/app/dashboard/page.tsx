@@ -12,6 +12,7 @@ import OverviewContent from "@/components/dashboard/overview/overviewContent";
 import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
 import { User } from "@supabase/supabase-js";
 import { useSearchParams } from "next/navigation";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 
 const quotes = [
@@ -42,6 +43,7 @@ const DashboardContent = () => {
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
   const searchParams = useSearchParams();
+  const { subscription } = useSubscription();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -91,6 +93,10 @@ const DashboardContent = () => {
 
       const source = storedSource === 'linkedin' ? 'Linkedin' : 'Google';
 
+      // Determine subscription info
+      const subscription_status = subscription?.status ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Free';
+      const subscription_plan = subscription?.subscription_plans?.name || (subscription_status === 'Free' ? 'Free' : 'Pro');
+
       fetch('/api/amplitude-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,12 +105,12 @@ const DashboardContent = () => {
           user_email: user.email,
           user_name: user.user_metadata?.full_name,
           source,
-          subscription_status: 'Active',
-          subscription_plan: 'Pro',
+          subscription_status,
+          subscription_plan,
         }),
       });
     }
-  }, [searchParams, user]);
+  }, [searchParams, user, subscription]);
 
   return (
     <DashboardLayout>
