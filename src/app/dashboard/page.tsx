@@ -7,8 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import OverviewContent from "@/components/dashboard/overview/overviewContent";
 import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
 import { User } from "@supabase/supabase-js";
-import amplitude from '@/lib/amplitude'; 
-import { useSearchParams } from 'next/navigation';
+
 
 const quotes = [
   { quote: "The future depends on what you do today.", author: "Mahatma Gandhi" },
@@ -37,7 +36,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
-  const searchParams = useSearchParams();
+  
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -73,15 +72,6 @@ const DashboardPage = () => {
     
   }, [supabase]);
 
-  useEffect(() => {
-    if (searchParams.get('login') === 'success') {
-      amplitude.track('Sign Up', {
-        method: 'OAuth',
-        userId: user?.id,
-        email: user?.email,
-      });
-    }
-  }, [searchParams, user]);
 
   return (
     <DashboardLayout>
