@@ -34,6 +34,15 @@ const SignUpForm = () => {
   }, [supabase, router]);
 
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
+    // Persist chosen source so we can use it after the OAuth redirect
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('signup_source', provider);
+      }
+    } catch (e) {
+      // Ignore storage errors (e.g., disabled storage)
+      console.warn('Unable to access localStorage:', e);
+    }
     setIsOAuthLoading(provider);
     setError(null);
     setLoading(true);

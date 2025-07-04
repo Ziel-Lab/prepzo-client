@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+// This page relies on client-only hooks (e.g. useSearchParams).
+// Mark it as dynamic so Next.js skips static prerender at build time.
+export const dynamic = 'force-dynamic';
+
+import React, { useEffect, useState, Suspense } from "react";
 import { Hammer, Sparkles, Timer, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { createClient } from "@/utils/supabase/client";
 import OverviewContent from "@/components/dashboard/overview/overviewContent";
 import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
 import { User } from "@supabase/supabase-js";
+import { useSearchParams } from "next/navigation";
 
 
 const quotes = [
@@ -30,13 +35,13 @@ interface Quote {
   author: string;
 }
 
-const DashboardPage = () => {
+const DashboardContent = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
-  
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -72,6 +77,34 @@ const DashboardPage = () => {
     
   }, [supabase]);
 
+  useEffect(() => {
+    if (searchParams.get('login') === 'success' && user) {
+      // Determine the OAuth provider used during signup
+      let storedSource: string | null = 'Google';
+      try {
+        if (typeof window !== 'undefined') {
+          storedSource = localStorage.getItem('signup_source');
+        }
+      } catch (e) {
+        console.warn('Unable to read signup_source from localStorage:', e);
+      }
+
+      const source = storedSource === 'linkedin' ? 'Linkedin' : 'Google';
+
+      fetch('/api/amplitude-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_uuid: user.id,
+          user_email: user.email,
+          user_name: user.user_metadata?.full_name,
+          source,
+          subscription_status: 'Active',
+          subscription_plan: 'Pro',
+        }),
+      });
+    }
+  }, [searchParams, user]);
 
   return (
     <DashboardLayout>
@@ -84,6 +117,14 @@ const DashboardPage = () => {
         <OverviewContent userName={userName} currentQuote={currentQuote} />
       )}
     </DashboardLayout>
+  );
+};
+
+const DashboardPage = () => {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-full">Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 };
 
