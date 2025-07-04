@@ -100,10 +100,10 @@ const DashboardContent = () => {
 
         // Determine subscription info
         const subscription_status = subscription?.status ?
-          subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Free';
+          subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Active';
 
         const subscription_plan = subscription?.subscription_plans?.name ||
-          (subscription_status === 'Free' ? 'Free' : 'Pro');
+          (subscription_status === 'Pro' ? 'Pro' : 'Free');
 
         fetch('/api/amplitude-signup', {
           method: 'POST',
