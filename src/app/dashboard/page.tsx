@@ -43,7 +43,6 @@ const DashboardContent = () => {
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
   const searchParams = useSearchParams();
-  const { subscription } = useSubscription();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -79,42 +78,56 @@ const DashboardContent = () => {
     
   }, [supabase]);
 
-  useEffect(() => {
-    if (searchParams.get('login') === 'success' && user) {
-      // Determine the OAuth provider used during signup
-      let storedSource: string | null = 'Google';
-      try {
-        if (typeof window !== 'undefined') {
-          storedSource = localStorage.getItem('signup_source');
+  // Nested component that can safely access SubscriptionContext
+  const AmplitudeSignup = ({ user }: { user: User | null }) => {
+    const { subscription } = useSubscription();
+
+    useEffect(() => {
+      if (!user) return;
+
+      if (searchParams.get('login') === 'success') {
+        // Determine the OAuth provider used during signup
+        let storedSource: string | null = 'Google';
+        try {
+          if (typeof window !== 'undefined') {
+            storedSource = localStorage.getItem('signup_source');
+          }
+        } catch (e) {
+          console.warn('Unable to read signup_source from localStorage:', e);
         }
-      } catch (e) {
-        console.warn('Unable to read signup_source from localStorage:', e);
+
+        const source = storedSource === 'linkedin' ? 'Linkedin' : 'Google';
+
+        // Determine subscription info
+        const subscription_status = subscription?.status ?
+          subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Free';
+
+        const subscription_plan = subscription?.subscription_plans?.name ||
+          (subscription_status === 'Free' ? 'Free' : 'Pro');
+
+        fetch('/api/amplitude-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_uuid: user.id,
+            user_email: user.email,
+            user_name: user.user_metadata?.full_name,
+            source,
+            subscription_status,
+            subscription_plan,
+          }),
+        });
       }
+    }, [searchParams, user, subscription]);
 
-      const source = storedSource === 'linkedin' ? 'Linkedin' : 'Google';
-
-      // Determine subscription info
-      const subscription_status = subscription?.status ? subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Free';
-      const subscription_plan = subscription?.subscription_plans?.name || (subscription_status === 'Free' ? 'Free' : 'Pro');
-
-      fetch('/api/amplitude-signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_uuid: user.id,
-          user_email: user.email,
-          user_name: user.user_metadata?.full_name,
-          source,
-          subscription_status,
-          subscription_plan,
-        }),
-      });
-    }
-  }, [searchParams, user, subscription]);
+    return null;
+  };
 
   return (
     <DashboardLayout>
       <OnBoardingQues user={user} />
+      {/* Track signup event once SubscriptionProvider is in context */}
+      <AmplitudeSignup user={user} />
       {loading ? (
         <div className="flex justify-center items-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
