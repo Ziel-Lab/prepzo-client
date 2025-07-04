@@ -44,7 +44,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   const plans: Plan[] = [
     {
       name: "Free",
-      price: "$0",
+      price: "€0",
       priceSuffix: "/ month",
       description: "Perfect for getting started.",
       features: [
@@ -59,7 +59,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
     },
     {
       name: "Pro",
-      price: "$7.99",
+      price: "€7.99",
       priceSuffix: "/ month",
       description: "For serious job seekers.",
       features: [
@@ -76,7 +76,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
     },
     {
       name: "Premium",
-      price: "$19.99",
+      price: "€19.99",
       priceSuffix: "/ month",
       description: "For the ultimate power user.",
       features: [

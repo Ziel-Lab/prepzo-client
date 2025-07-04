@@ -519,7 +519,7 @@ const CoverLetterContent = () => {
                                         Generated Cover Letter
                                         <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
                                     </h4>
-                                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md border h-64 overflow-y-auto">
+                                    <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
                                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
                                       </ReactMarkdown>
@@ -528,7 +528,7 @@ const CoverLetterContent = () => {
                                 {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
                                     <div>
                                         <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
-                                        <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md overflow-x-auto overflow-y-auto">
+                                        <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
                                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
                                         </div>
                                     </div>
@@ -664,7 +664,7 @@ const CoverLetterContent = () => {
                 Cover Letter Text
                 <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(generatedResult.cover_letter)}><Copy size={14} className="mr-1"/>Copy All</Button>
               </h3>
-              <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border border-gray-300 overflow-y-auto h-full min-h-[300px] md:min-h-[400px]">
+              <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border border-gray-300 min-h-[600px] max-h-[800px] overflow-y-auto">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {generatedResult.cover_letter}
                 </ReactMarkdown>
@@ -678,7 +678,7 @@ const CoverLetterContent = () => {
                 <Card className="bg-amber-50 border-amber-200 p-4 flex-grow">
                   <CardContent className="p-0 flex flex-col h-full">
                     <p className="text-sm text-gray-700 mb-2">Consider incorporating these points into the "Your Additional Comments" field above and regenerating for an even better cover letter.</p>
-                    <div className="prose prose-sm max-w-none p-3 bg-white border border-gray-200 rounded-md overflow-y-auto flex-grow min-h-0">
+                    <div className="prose prose-sm max-w-none p-4 bg-white border border-gray-200 rounded-md min-h-[300px] max-h-[500px] overflow-y-auto">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{generatedResult.additional_comments}</ReactMarkdown>
                     </div>
                     <Button variant="link" size="sm" className="px-0 text-purple-600 hover:text-purple-700 mt-2 self-start" onClick={() => handleUseSuggestion(generatedResult.additional_comments || '')}>Use these suggestions</Button>
