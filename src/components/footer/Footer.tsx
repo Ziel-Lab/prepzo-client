@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
+import { FileText, User, Search, Briefcase, Headset, SquarePen  } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -31,16 +32,47 @@ const Footer = () => {
           <div>
             <h3 className="font-bold mb-4">Product</h3>
             <ul className="space-y-2">
-              <li><Link href="/#features" className="text-white/80 hover:text-white">Features</Link></li>
-              <li><Link href="/use-cases" className="text-white/80 hover:text-white">Use Cases</Link></li>
-              <li><Link href="/#testimonials" className="text-white/80 hover:text-white">Testimonials</Link></li>
+              <li>
+                <Link href="/features/resume-builder" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Resume Analyzer</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/features/coverletter-generator" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><Briefcase className="w-5 h-5 mr-2" /> Cover Letter Generator</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/features/linkedin-analyser" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><User className="w-5 h-5 mr-2" /> LinkedIn Optimizer</span>
+              </Link>
+              </li>
+              <li>
+                <Link href="/features/job-search" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><Search className="w-5 h-5 mr-2" /> Job Search Engine</span>
+              </Link>
+              </li>
             </ul>
           </div>
           
           <div>
             <h3 className="font-bold mb-4">Company</h3>
             <ul className="space-y-2">
-              <li><Link href="/contact" className="text-white/80 hover:text-white">Contact</Link></li>
+              <li>
+                <Link href="/contact" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><Headset className="w-5 h-5 mr-2" /> Contact</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/use-cases" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Use Cases</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/blogs" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><SquarePen  className="w-5 h-5 mr-2" /> Blogs</span>
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

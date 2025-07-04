@@ -163,6 +163,27 @@ export default function RootLayout({
             `,
           }}
         />
+
+        {/* Amplitude Analytics */}
+        <Script
+          src="https://cdn.eu.amplitude.com/script/f305ca2d29463ec9b3e855890722bf5.js"
+          strategy="afterInteractive"
+          async
+        />
+        <Script
+          id="amplitude-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+              window.amplitude.init('f305ca2d29463ec9b3e855890722bf5', {
+                fetchRemoteConfig: true,
+                serverZone: 'EU',
+                autocapture: true
+              });
+            `,
+          }}
+        />
         
         {/* HubSpot Tracking Code */}
         <Script 

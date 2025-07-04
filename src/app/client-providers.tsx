@@ -41,6 +41,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
   // NOTE: Avoid useState for queryClient instability issues. ref: https://tanstack.com/query/v5/docs/react/examples/react/nextjs-app-router-client-component
   const queryClient = getQueryClient();
 
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

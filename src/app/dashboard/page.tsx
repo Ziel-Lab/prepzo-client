@@ -8,6 +8,7 @@ import OverviewContent from "@/components/dashboard/overview/overviewContent";
 import OnBoardingQues from "@/components/dashboard/OnBoardingQues";
 import { User } from "@supabase/supabase-js";
 
+
 const quotes = [
   { quote: "The future depends on what you do today.", author: "Mahatma Gandhi" },
   { quote: "The best way to predict the future is to create it.", author: "Peter Drucker" },
@@ -35,6 +36,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const supabase = createClient();
+  
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -69,6 +71,7 @@ const DashboardPage = () => {
     setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
     
   }, [supabase]);
+
 
   return (
     <DashboardLayout>
