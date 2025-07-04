@@ -204,6 +204,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       const requestBody = {
         page: currentPage - 1, // API is 0-indexed
         limit: 100,
+        already_revealed: true,
         posted_at_max_age_days: searchFilters.posted_at_max_age_days || 15,
         blur_company_data: true,
         order_by: [{ desc: true, field: "date_posted" }],
@@ -349,7 +350,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       const res = await fetch(process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL + "/get-job-details", {
         method: "POST",
         headers,
-        body: JSON.stringify({ job_id_or: [jobId], limit: 1, blur_company_data: false }),
+        body: JSON.stringify({ job_id: jobId, job_id_or: [jobId], limit: 1, blur_company_data: false }),
       });
       if (!res.ok) throw new Error(`Failed to fetch job ${jobId}`);
       const json = await res.json();
