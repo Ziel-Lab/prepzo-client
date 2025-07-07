@@ -314,7 +314,28 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         const history: Array<{ job_id: number; job_details?: Job; revealed_at: string }> = await res.json();
 
         // Store the complete history data for the history section
-        setRevealedJobsHistory(history || []);
+        // Parse job_details if they come as JSON strings
+        const parsedHistory = history.map(item => {
+          let parsedJobDetails = item.job_details;
+          
+          // If job_details is a string, try to parse it
+          if (typeof item.job_details === 'string') {
+            try {
+              parsedJobDetails = JSON.parse(item.job_details);
+            } catch (e) {
+              console.warn('Failed to parse job_details for job_id:', item.job_id, e);
+              parsedJobDetails = undefined;
+            }
+          }
+          
+          return {
+            ...item,
+            job_details: parsedJobDetails
+          };
+        });
+        
+        console.log('Revealed jobs history:', parsedHistory); // Debug log
+        setRevealedJobsHistory(parsedHistory || []);
 
         if (!Array.isArray(history) || history.length === 0) return;
 
@@ -325,7 +346,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
         // If job_details were returned, merge them into current applications cache so
         // they display unblurred even before a new search matches them
-        const jobsWithDetails = history
+        const jobsWithDetails = parsedHistory
           .map((h) => h.job_details)
           .filter((j): j is Job => Boolean(j));
 
@@ -733,19 +754,34 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h4 className="font-medium text-sm">
-                        {item.job_details?.job_title || `Job ID: ${item.job_id}`}
+                        {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
                       </h4>
                       {item.job_details && (
                         <div className="text-sm text-gray-600 mt-1">
                           <span className="font-medium">{item.job_details.company}</span>
-                          <span className="mx-2">•</span>
-                          <span>{item.job_details.location}</span>
+                          {item.job_details.location && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>{item.job_details.location}</span>
+                            </>
+                          )}
                           {item.job_details.remote && (
                             <>
                               <span className="mx-2">•</span>
                               <Badge variant="default" className="text-xs ml-1">Remote</Badge>
                             </>
                           )}
+                          {item.job_details.seniority && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span className="text-xs">{getSeniorityLevel(item.job_details.seniority)}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {!item.job_details && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          Job details not available
                         </div>
                       )}
                       <div className="text-xs text-gray-500 mt-2">
@@ -761,6 +797,18 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View
+                        </Button>
+                      )}
+                      {item.job_details?.url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Apply
+                          </a>
                         </Button>
                       )}
                     </div>
