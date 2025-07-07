@@ -127,6 +127,20 @@ type Job = {
   country_code?: string;
 };
 
+// Valid job application statuses
+const JOB_STATUSES = {
+  revealed: "Revealed",
+  applied: "Applied", 
+  scheduled: "Scheduled",
+  interview: "Interview",
+  rejected: "Rejected",
+  offered: "Offered",
+  accepted: "Accepted",
+  withdrawn: "Withdrawn"
+} as const;
+
+type JobStatus = keyof typeof JOB_STATUSES;
+
 // Type for the API response structure from revealed jobs history
 type RevealedJobApiResponse = {
   data: Job[];
@@ -184,6 +198,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [revealedJobsHistory, setRevealedJobsHistory] = useState<Array<{ job_id: number; job_details?: Job; revealed_at: string }>>([]);
+  const [jobStatuses, setJobStatuses] = useState<Map<number, JobStatus>>(new Map());
+  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
@@ -537,6 +553,67 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     setIsDetailsDialogOpen(true);
   };
 
+  // ---------------------------------------------------------------------------
+  // Job Status Management
+  // ---------------------------------------------------------------------------
+  const updateJobStatus = async (jobId: number, newStatus: JobStatus) => {
+    try {
+      setUpdatingStatus(prev => new Set(prev).add(jobId));
+
+      // Retrieve JWT token for Authorization header
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (!sessionError && session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/update-job-status`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            job_id: jobId,
+            status: newStatus
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to update status (${res.status})`);
+      }
+
+      // Update local state
+      setJobStatuses(prev => {
+        const newMap = new Map(prev);
+        newMap.set(jobId, newStatus);
+        return newMap;
+      });
+
+      toast({
+        title: "Status updated",
+        description: `Job status changed to ${JOB_STATUSES[newStatus]}`,
+      });
+    } catch (err) {
+      console.error("Error updating job status:", err);
+      toast({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : "Could not update job status",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(jobId);
+        return newSet;
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -544,6 +621,30 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       day: 'numeric', 
       year: 'numeric' 
     });
+  };
+
+  // Get status color for badges
+  const getStatusBadgeColor = (status: JobStatus) => {
+    switch (status) {
+      case 'revealed':
+        return 'bg-gray-100 text-gray-800';
+      case 'applied':
+        return 'bg-blue-100 text-blue-800';
+      case 'scheduled':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'interview':
+        return 'bg-purple-100 text-purple-800';
+      case 'offered':
+        return 'bg-green-100 text-green-800';
+      case 'accepted':
+        return 'bg-green-600 text-white';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'withdrawn':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   // Mobile Card Component with updated hiding logic
@@ -779,9 +880,17 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <div key={item.job_id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">
-                        {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                      </h4>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-medium text-sm">
+                          {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                        </h4>
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')}`}
+                        >
+                          {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                        </Badge>
+                      </div>
                       {item.job_details && (
                         <div className="text-sm text-gray-600 mt-1">
                           <span className="font-medium">{item.job_details.company}</span>
@@ -814,7 +923,27 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         Revealed on: {formatDate(item.revealed_at)}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-end gap-2">
+                      {/* Status Update Dropdown */}
+                      <Select
+                        value={jobStatuses.get(item.job_id) || 'revealed'}
+                        onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                        disabled={updatingStatus.has(item.job_id)}
+                      >
+                        <SelectTrigger className="w-32 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2">
                       {item.job_details && (
                         <Button
                           variant="outline"
@@ -837,6 +966,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           </a>
                         </Button>
                       )}
+                      </div>
                     </div>
                   </div>
                 </div>
