@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter } from "lucide-react";
+import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter, History, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
@@ -171,6 +171,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [chargedJobs, setChargedJobs] = useState<Set<number>>(new Set());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [revealedJobsHistory, setRevealedJobsHistory] = useState<Array<{ job_id: number; job_details?: Job; revealed_at: string }>>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
   // const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
@@ -289,6 +292,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   useEffect(() => {
     const fetchRevealedJobsHistory = async () => {
       try {
+        setHistoryLoading(true);
         // Retrieve JWT token for Authorization header (same pattern as other calls)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
@@ -307,7 +311,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
         if (!res.ok) throw new Error(`Failed to fetch revealed jobs history (status ${res.status})`);
 
-        const history: Array<{ job_id: number; job_details?: Job }> = await res.json();
+        const history: Array<{ job_id: number; job_details?: Job; revealed_at: string }> = await res.json();
+
+        // Store the complete history data for the history section
+        setRevealedJobsHistory(history || []);
 
         if (!Array.isArray(history) || history.length === 0) return;
 
@@ -335,6 +342,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       } catch (err) {
         console.error("Error fetching revealed jobs history", err);
         // We silently fail here – user can still reveal jobs in this session
+      } finally {
+        setHistoryLoading(false);
       }
     };
 
@@ -687,158 +696,246 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   // Show filter form if filters haven't been applied yet or user wants to edit
   let filterSection;
+
+  // History Section Component - shows in both filter and results view
+  const HistorySection = () => (
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold flex items-center">
+            <History className="mr-2 h-5 w-5" />
+            Previously Revealed Jobs ({revealedJobsHistory.length})
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistory(!showHistory)}
+          >
+            {showHistory ? "Hide" : "Show"} History
+          </Button>
+        </div>
+      </CardHeader>
+      {showHistory && (
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading revealed jobs history...
+            </div>
+          ) : revealedJobsHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No previously revealed jobs found.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {revealedJobsHistory.slice(0, 10).map((item) => (
+                <div key={item.job_id} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">
+                        {item.job_details?.job_title || `Job ID: ${item.job_id}`}
+                      </h4>
+                      {item.job_details && (
+                        <div className="text-sm text-gray-600 mt-1">
+                          <span className="font-medium">{item.job_details.company}</span>
+                          <span className="mx-2">•</span>
+                          <span>{item.job_details.location}</span>
+                          {item.job_details.remote && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <Badge variant="default" className="text-xs ml-1">Remote</Badge>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-2">
+                        Revealed on: {formatDate(item.revealed_at)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.job_details && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openJobDetails(item.job_details!)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {revealedJobsHistory.length > 10 && (
+                <p className="text-sm text-gray-500 text-center mt-4">
+                  Showing latest 10 of {revealedJobsHistory.length} revealed jobs
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+
   if (showFilters || !hasSearched) {
     filterSection = (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
-            Job Search Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="job_description">Job Keywords</Label>
-              <TagInput
-                value={searchFilters.job_description_contains_or || []}
-                onChange={tags => setSearchFilters(prev => ({ ...prev, job_description_contains_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. React, Python — press Enter after each"
-                label={undefined}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company_name">Company Name</Label>
-              <TagInput
-                value={searchFilters.company_name_or || []}
-                onChange={tags => setSearchFilters(prev => ({ ...prev, company_name_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. Google, Microsoft — press Enter after each"
-                label={undefined}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <TagInput
-                value={searchFilters.job_location_pattern_or || []}
-                onChange={tags => setSearchFilters(prev => ({ ...prev, job_location_pattern_or: tags.length ? tags : undefined }))}
-                placeholder="e.g. Bangalore, Karnataka — press Enter after each"
-                label={undefined}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="country">Countries</Label>
-              <CountryMultiSelect
-                selectedCountries={searchFilters.job_country_code_or || []}
-                onSelectionChange={(selected: string[]) => setSearchFilters(prev => ({ ...prev, job_country_code_or: selected }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="seniority">Seniority Level</Label>
-              <Select
-                value={searchFilters.job_seniority_or?.[0] || "any"}
-                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="any">Any level</SelectItem>
-                  <SelectItem value="junior">Junior</SelectItem>
-                  <SelectItem value="mid_level">Mid Level</SelectItem>
-                  <SelectItem value="senior">Senior</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="c_level">C-Level</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="posted_days">Posted within</Label>
-              <Select
-                value={searchFilters.posted_at_max_age_days?.toString() || "15"}
-                onValueChange={(value) => setSearchFilters(prev => ({ ...prev, posted_at_max_age_days: parseInt(value) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timeframe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Last 24 hours</SelectItem>
-                  <SelectItem value="3">Last 3 days</SelectItem>
-                  <SelectItem value="7">Last week</SelectItem>
-                  <SelectItem value="15">Last 2 weeks</SelectItem>
-                  <SelectItem value="30">Last month</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="min_salary">Min Salary (USD) Annual</Label>
-              <Input
-                id="min_salary"
-                type="number"
-                placeholder="e.g. 100000"
-                value={searchFilters.min_salary_usd || ""}
-                onChange={(e) => setSearchFilters(prev => ({ ...prev, min_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="max_salary">Max Salary (USD) Annual</Label>
-              <Input
-                id="max_salary"
-                type="number"
-                placeholder="e.g. 200000"
-                value={searchFilters.max_salary_usd || ""}
-                onChange={(e) => setSearchFilters(prev => ({ ...prev, max_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Filters</h3>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remote"
-                  checked={searchFilters.remote || false}
-                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, remote: checked === true }))}
+      <>
+        <HistorySection />
+        {/* Job Search Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold flex items-center">
+              <Filter className="mr-2 h-5 w-5" />
+              Job Search Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="job_description">Job Keywords</Label>
+                <TagInput
+                  value={searchFilters.job_description_contains_or || []}
+                  onChange={tags => setSearchFilters(prev => ({ ...prev, job_description_contains_or: tags.length ? tags : undefined }))}
+                  placeholder="e.g. React, Python — press Enter after each"
+                  label={undefined}
                 />
-                <Label htmlFor="remote">Remote</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="hiring_managers"
-                  checked={searchFilters.hiring_managers_exists || false}
-                  onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, hiring_managers_exists: checked === true }))}
+
+              <div className="space-y-2">
+                <Label htmlFor="company_name">Company Name</Label>
+                <TagInput
+                  value={searchFilters.company_name_or || []}
+                  onChange={tags => setSearchFilters(prev => ({ ...prev, company_name_or: tags.length ? tags : undefined }))}
+                  placeholder="e.g. Google, Microsoft — press Enter after each"
+                  label={undefined}
                 />
-                <Label htmlFor="hiring_managers">Has Hiring Manager</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <TagInput
+                  value={searchFilters.job_location_pattern_or || []}
+                  onChange={tags => setSearchFilters(prev => ({ ...prev, job_location_pattern_or: tags.length ? tags : undefined }))}
+                  placeholder="e.g. Bangalore, Karnataka — press Enter after each"
+                  label={undefined}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="country">Countries</Label>
+                <CountryMultiSelect
+                  selectedCountries={searchFilters.job_country_code_or || []}
+                  onSelectionChange={(selected: string[]) => setSearchFilters(prev => ({ ...prev, job_country_code_or: selected }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="seniority">Seniority Level</Label>
+                <Select
+                  value={searchFilters.job_seniority_or?.[0] || "any"}
+                  onValueChange={(value) => setSearchFilters(prev => ({ ...prev, job_seniority_or: value === "any" ? undefined : [value] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any level</SelectItem>
+                    <SelectItem value="junior">Junior</SelectItem>
+                    <SelectItem value="mid_level">Mid Level</SelectItem>
+                    <SelectItem value="senior">Senior</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="c_level">C-Level</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="posted_days">Posted within</Label>
+                <Select
+                  value={searchFilters.posted_at_max_age_days?.toString() || "15"}
+                  onValueChange={(value) => setSearchFilters(prev => ({ ...prev, posted_at_max_age_days: parseInt(value) }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Last 24 hours</SelectItem>
+                    <SelectItem value="3">Last 3 days</SelectItem>
+                    <SelectItem value="7">Last week</SelectItem>
+                    <SelectItem value="15">Last 2 weeks</SelectItem>
+                    <SelectItem value="30">Last month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="min_salary">Min Salary (USD) Annual</Label>
+                <Input
+                  id="min_salary"
+                  type="number"
+                  placeholder="e.g. 100000"
+                  value={searchFilters.min_salary_usd || ""}
+                  onChange={(e) => setSearchFilters(prev => ({ ...prev, min_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="max_salary">Max Salary (USD) Annual</Label>
+                <Input
+                  id="max_salary"
+                  type="number"
+                  placeholder="e.g. 200000"
+                  value={searchFilters.max_salary_usd || ""}
+                  onChange={(e) => setSearchFilters(prev => ({ ...prev, max_salary_usd: e.target.value ? parseInt(e.target.value) : undefined }))}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button onClick={handleSearch} className="flex-1" disabled={loading}>
-              <Search className="mr-2 h-4 w-4" />
-              {loading ? "Searching..." : "Search Jobs"}
-            </Button>
-            {hasSearched && (
-              <Button variant="outline" onClick={() => setShowFilters(false)}>
-                Cancel
+            <Separator />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Filters</h3>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remote"
+                    checked={searchFilters.remote || false}
+                    onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, remote: checked === true }))}
+                  />
+                  <Label htmlFor="remote">Remote</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hiring_managers"
+                    checked={searchFilters.hiring_managers_exists || false}
+                    onCheckedChange={(checked) => setSearchFilters(prev => ({ ...prev, hiring_managers_exists: checked === true }))}
+                  />
+                  <Label htmlFor="hiring_managers">Has Hiring Manager</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button onClick={handleSearch} className="flex-1" disabled={loading}>
+                <Search className="mr-2 h-4 w-4" />
+                {loading ? "Searching..." : "Search Jobs"}
               </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {hasSearched && (
+                <Button variant="outline" onClick={() => setShowFilters(false)}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </>
     );
   } else {
     filterSection = (
       <>
+        <HistorySection />
         <ApplicationsFilters
           onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
           hasSearchResults={filteredApplications.length > 0}
