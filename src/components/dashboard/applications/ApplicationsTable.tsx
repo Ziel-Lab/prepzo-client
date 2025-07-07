@@ -354,7 +354,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
         if (!res.ok) throw new Error(`Failed to fetch revealed jobs history (status ${res.status})`);
 
-        const history: Array<{ job_id: number; job_details?: Job | RevealedJobApiResponse | string; revealed_at: string }> = await res.json();
+        const history: Array<{ job_id: number; job_details?: Job | RevealedJobApiResponse | string; revealed_at: string; status?: string }> = await res.json();
 
         // Store the complete history data for the history section
         // Parse job_details if they come as JSON strings
@@ -394,6 +394,18 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         }));
         
         setRevealedJobsHistory(finalHistory || []);
+
+        // Extract and store existing job statuses from the history
+        const statusMap = new Map<number, JobStatus>();
+        history.forEach(item => {
+          // The status is at the top level of each history item
+          if (item.status && typeof item.status === 'string' && item.status in JOB_STATUSES) {
+            statusMap.set(item.job_id, item.status as JobStatus);
+          }
+        });
+        
+        console.log('Extracted statuses:', statusMap); // Debug log
+        setJobStatuses(statusMap);
 
         if (!Array.isArray(history) || history.length === 0) return;
 
