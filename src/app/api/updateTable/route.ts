@@ -40,17 +40,14 @@ export async function POST() {
             return NextResponse.json({ message: 'User subscription and usage already initialized.' });
         }
 
-        // 5. If not, create subscription and usage records
-        console.log(`No subscription found for user ${user.id}. Backfilling with free plan.`);
-
-        // a. Prepare record data
+       // a. Prepare record data
         const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'N/A';
         const today = new Date();
         const { start: period_start, end: period_end } = getMonthDateRange(today);
         const freePlanId = 1; // Default Free Plan ID
 
         // b. Insert into user_subscriptions
-        const { error: subInsertError } = await supabaseAdmin.from('user_subscriptions').insert({
+        const subscriptionData = {
             user_id: user.id,
             plan_id: freePlanId,
             status: 'free',
@@ -58,15 +55,26 @@ export async function POST() {
             started_at: today.toISOString(),
             current_period_start: period_start.toISOString().split('T')[0],
             current_period_end: period_end.toISOString().split('T')[0],
-        });
+        };
+
+        const { data: subInsertData, error: subInsertError } = await supabaseAdmin
+            .from('user_subscriptions')
+            .insert(subscriptionData)
+            .select(); // Add select to return the inserted data
 
         if (subInsertError) {
-            console.error(`Failed to insert subscription for user ${user.id}:`, subInsertError.message);
+            console.error(`Failed to insert subscription for user ${user.id}:`, subInsertError);
+            console.error('Subscription insert error details:', {
+                message: subInsertError.message,
+                details: subInsertError.details,
+                hint: subInsertError.hint,
+                code: subInsertError.code
+            });
             throw new Error('Could not create user subscription record.');
         }
 
         // c. Insert into feature_usage
-        const { error: usageInsertError } = await supabaseAdmin.from('feature_usage').insert({
+        const usageData = {
             user_id: user.id,
             plan_id: freePlanId,
             display_name: displayName,
@@ -76,18 +84,33 @@ export async function POST() {
             cover_letter_count: 0,
             linkedin_optimize_count: 0,
             job_search_results_count: 0
-        });
+        };
+
+        const { data: usageInsertData, error: usageInsertError } = await supabaseAdmin
+            .from('feature_usage')
+            .insert(usageData)
+            .select(); // Add select to return the inserted data
 
         if (usageInsertError) {
-            console.error(`Failed to insert feature usage for user ${user.id}:`, usageInsertError.message);
+            console.error(`Failed to insert feature usage for user ${user.id}:`, usageInsertError);
+            console.error('Usage insert error details:', {
+                message: usageInsertError.message,
+                details: usageInsertError.details,
+                hint: usageInsertError.hint,
+                code: usageInsertError.code
+            });
             throw new Error('Could not create feature usage record.');
         }
 
-        console.log(`Successfully backfilled subscription for user ${user.id}.`);
-        return NextResponse.json({ message: 'Successfully initialized user subscription and usage.' });
+        return NextResponse.json({ 
+            message: 'Successfully initialized user subscription and usage.',
+            subscription: subInsertData,
+            usage: usageInsertData
+        });
 
     } catch (e: any) {
         console.error(`An error occurred during subscription backfill for user ${user.id}:`, e.message);
+        console.error('Full error details:', e);
         return NextResponse.json({ error: e.message || 'An unexpected error occurred during backfill.' }, { status: 500 });
     }
 }
