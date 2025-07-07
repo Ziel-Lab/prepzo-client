@@ -125,6 +125,7 @@ type Job = {
   employment_statuses?: string[];
   has_blurred_data?: boolean;
   country_code?: string;
+  already_revealed?: boolean;
 };
 
 // Valid job application statuses
@@ -299,7 +300,22 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       }
 
       if (json?.data && Array.isArray(json.data)) {
-        setApplications(json.data as Job[]);
+        const jobs = json.data as Job[];
+        
+        // Process jobs to handle already_revealed flag
+        const processedJobs = jobs.map(job => {
+          if (job.already_revealed) {
+            // Mark as revealed without consuming credits
+            setRevealedJobs(prev => new Set(prev).add(job.id));
+            setChargedJobs(prev => new Set(prev).add(job.id));
+            
+            // Job should not be blurred since backend already merged details
+            return { ...job, has_blurred_data: false };
+          }
+          return job;
+        });
+        
+        setApplications(processedJobs);
       }
     } catch (err: unknown) {
       console.error(err);
@@ -503,6 +519,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
+    // If job was already revealed (from backend flag), show a helpful message
+    if (job?.already_revealed) {
+      toast({
+        title: "Already revealed",
+        description: "This job was previously revealed and your full details are already shown.",
+      });
+      return;
+    }
+
     const isCurrentlyRevealed = revealedJobs.has(jobId);
 
     // If the job is currently revealed, hide it without affecting credits
@@ -667,9 +692,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     {application.job_title}
                     <Link2 className="h-4 w-4 inline ml-1" />
                   </button>
-                  {isBlurred && (
+                  {isBlurred ? (
                     <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                       Hidden
+                    </Badge>
+                  ) : application.already_revealed && (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      Previously Revealed
                     </Badge>
                   )}
                 </div>
@@ -787,7 +816,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
-              {application.has_blurred_data && (
+              {application.has_blurred_data && !application.already_revealed && (
               <Button
                 variant="outline"
                 size="sm"
@@ -807,7 +836,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 )}
               </Button>
               )}
-              
+              {application.already_revealed && (
+                <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
+                  <Eye className="h-3 w-3 mr-1" />
+                  Revealed
+                </Badge>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
@@ -1240,9 +1274,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   {application.job_title}
                                   <Link2 className="h-4 w-4 inline ml-1" />
                                 </button>
-                                {isBlurred && (
+                                {isBlurred ? (
                                   <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                                     Hidden
+                                  </Badge>
+                                ) : application.already_revealed && (
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    Previously Revealed
                                   </Badge>
                                 )}
                               </div>
@@ -1356,7 +1394,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              {application.has_blurred_data && (
+                              {application.has_blurred_data && !application.already_revealed && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1375,6 +1413,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     </>
                                   )}
                                 </Button>
+                              )}
+                              {application.already_revealed && (
+                                <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Revealed
+                                </Badge>
                               )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
