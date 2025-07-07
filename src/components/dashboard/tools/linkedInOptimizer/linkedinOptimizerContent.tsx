@@ -454,7 +454,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                                 <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
                                     <Edit3 className="h-6 w-6 text-indigo-500 mr-2" /> Suggested Changes
                                 </h3>
-                                <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
+                                <div className="prose prose-indigo max-w-none p-4 bg-white border border-gray-200 rounded-md min-h-[400px] max-h-[700px] overflow-y-auto">
                                     <ReactMarkdown>{changesRequired}</ReactMarkdown>
                                 </div>
                                 </div>
@@ -465,7 +465,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                                 <h3 className="text-xl font-medium text-gray-700 mb-3 flex items-center">
                                     <HelpCircle className="h-6 w-6 text-sky-500 mr-2" /> Explanation
                                 </h3>
-                                <div className="prose prose-indigo max-w-none overflow-y-auto max-h-96">
+                                <div className="prose prose-indigo max-w-none p-4 bg-white border border-gray-200 rounded-md min-h-[300px] max-h-[600px] overflow-y-auto">
                                     <ReactMarkdown>{explanation}</ReactMarkdown>
                                 </div>
                                 </div>
@@ -535,7 +535,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                                     <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
                                     <Edit3 className="h-5 w-5 text-indigo-500 mr-2" />Changes Suggested:
                                     </h4>
-                                    <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
+                                    <div className="prose prose-sm max-w-none p-4 bg-indigo-50 border border-indigo-200 rounded-md min-h-[300px] max-h-[500px] overflow-y-auto">
                                         <ReactMarkdown>{changesFromHistory}</ReactMarkdown>
                                     </div>
                                 </div>
@@ -545,7 +545,7 @@ const LinkedInOptimizerContent: React.FC = () => {
                                     <h4 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
                                     <HelpCircle className="h-5 w-5 text-sky-500 mr-2" />Explanation:
                                     </h4>
-                                    <div className="prose prose-sm max-w-none overflow-y-auto max-h-72">
+                                    <div className="prose prose-sm max-w-none p-4 bg-sky-50 border border-sky-200 rounded-md min-h-[250px] max-h-[450px] overflow-y-auto">
                                         <ReactMarkdown>{explanationFromHistory}</ReactMarkdown>
                                     </div>
                                 </div>

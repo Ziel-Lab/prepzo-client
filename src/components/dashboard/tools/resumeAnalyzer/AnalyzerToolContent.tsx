@@ -715,7 +715,7 @@ const AnalyzerToolContent = () => {
                                     <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast</span>
                                     <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(selectedHistoryItemForDialog.roast_feedback_text || '')}><Copy size={12} className="mr-1"/>Copy</Button>
                                 </h4>
-                                <div className="prose prose-sm max-w-none p-3 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 rounded-md border h-64 overflow-y-auto">
+                                <div className="prose prose-sm max-w-none p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 rounded-md border min-h-[400px] max-h-[700px] overflow-y-auto">
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                     {selectedHistoryItemForDialog.roast_feedback_text || "No roast content available"}
                                   </ReactMarkdown>
@@ -737,18 +737,18 @@ const AnalyzerToolContent = () => {
                                           }
                                         }}><Copy size={12} className="mr-1"/>Copy</Button>
                                     </h4>
-                                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md border h-48 overflow-y-auto">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {(() => {
-                                          try {
-                                            const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
-                                            return feedbackDetails.feedback || selectedHistoryItemForDialog.feedback || '';
-                                          } catch {
-                                            return selectedHistoryItemForDialog.feedback || '';
-                                          }
-                                        })()}
-                                      </ReactMarkdown>
-                                    </div>
+                                                                    <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[300px] max-h-[500px] overflow-y-auto">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {(() => {
+                                      try {
+                                        const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
+                                        return feedbackDetails.feedback || selectedHistoryItemForDialog.feedback || '';
+                                      } catch {
+                                        return selectedHistoryItemForDialog.feedback || '';
+                                      }
+                                    })()}
+                                  </ReactMarkdown>
+                                </div>
                                   </div>
                                 )}
                                 {selectedHistoryItemForDialog.new_resume && (
@@ -768,7 +768,7 @@ const AnalyzerToolContent = () => {
                                     {/* Changes Summary */}
                                     <div className="mb-3">
                                       <h5 className="font-medium text-sm mb-1 flex items-center"><Lightbulb className="mr-1 h-4 w-4 text-yellow-500"/>Summary of Changes:</h5>
-                                      <div className="prose prose-sm max-w-none p-2 bg-yellow-50 border border-yellow-200 rounded-md max-h-24 overflow-y-auto">
+                                      <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md min-h-[120px] max-h-[250px] overflow-y-auto">
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                           {(() => {
                                             try {
@@ -783,7 +783,7 @@ const AnalyzerToolContent = () => {
                                     </div>
                                     
                                     {/* Improved Resume Text */}
-                                    <div className="prose prose-sm max-w-none p-3 bg-green-50 rounded-md border border-green-200 h-48 overflow-y-auto">
+                                    <div className="prose prose-sm max-w-none p-4 bg-green-50 rounded-md border border-green-200 min-h-[400px] max-h-[600px] overflow-y-auto">
                                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {(() => {
                                           try {
@@ -1080,7 +1080,7 @@ const AnalyzerToolContent = () => {
                     <p className="text-md font-medium">Overall Score: <span className="text-blue-600 font-bold">{analysisResult.feedback.score}/10</span></p>
                 </div>
                 <h4 className="text-sm font-semibold mb-1">Detailed Feedback:</h4>
-                <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72">
+                <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border border-gray-200 min-h-[400px] max-h-[600px] overflow-y-auto">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {analysisResult.feedback.feedback}
                   </ReactMarkdown>
@@ -1106,7 +1106,7 @@ const AnalyzerToolContent = () => {
                     </div>
                     
                     <h4 className="text-sm font-semibold mb-1">Summary of Changes:</h4>
-                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md overflow-x-auto overflow-y-auto max-h-72 mb-4">
+                    <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto mb-4">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {analysisResult.new_resume.changes}
                       </ReactMarkdown>
@@ -1123,7 +1123,7 @@ const AnalyzerToolContent = () => {
                         <Copy size={12} className="mr-1" /> Copy Resume
                       </Button>
                     </h4>
-                    <div className="prose prose-sm max-w-none p-3 bg-gray-50 rounded-md border overflow-y-auto max-h-[400px]">
+                    <div className="prose prose-sm max-w-none p-4 bg-green-50 border border-green-200 rounded-md min-h-[600px] max-h-[800px] overflow-y-auto">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {analysisResult.new_resume.new_resume}
                       </ReactMarkdown>
@@ -1147,7 +1147,7 @@ const AnalyzerToolContent = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Card className="p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 shadow-lg border-orange-300">
-                <div className="prose prose-sm max-w-none p-3 rounded-md overflow-x-auto overflow-y-auto max-h-96 text-gray-800">
+                <div className="prose prose-sm max-w-none p-4 rounded-md min-h-[400px] max-h-[700px] overflow-y-auto text-gray-800">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {roastResult}
                   </ReactMarkdown>
