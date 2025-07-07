@@ -165,7 +165,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     posted_at_max_age_days: 15,
     job_country_code_or: ["IN"],
   });
-  const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set([540181867]));
+  // Track job IDs that the user has already revealed in past sessions
+  const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set());
+  // Job IDs that have already consumed a credit (either in previous sessions or this one)
   const [chargedJobs, setChargedJobs] = useState<Set<number>>(new Set());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -280,6 +282,65 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       setLoading(false);
     }
   };
+
+  // ---------------------------------------------------------------------------
+  // Load previously revealed jobs on component mount so we don't re-charge users
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const fetchRevealedJobsHistory = async () => {
+      try {
+        // Retrieve JWT token for Authorization header (same pattern as other calls)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (!sessionError && session?.access_token) {
+          headers["Authorization"] = `Bearer ${session.access_token}`;
+        }
+
+        // We fetch a generous limit so the user sees their recent history – adjust as needed
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/revealed-jobs-history?limit=500`,
+          { method: "GET", headers }
+        );
+
+        if (!res.ok) throw new Error(`Failed to fetch revealed jobs history (status ${res.status})`);
+
+        const history: Array<{ job_id: number; job_details?: Job }> = await res.json();
+
+        if (!Array.isArray(history) || history.length === 0) return;
+
+        // Extract IDs and mark them as already revealed/charged
+        const ids = history.map((h) => h.job_id);
+        setRevealedJobs(new Set(ids));
+        setChargedJobs(new Set(ids));
+
+        // If job_details were returned, merge them into current applications cache so
+        // they display unblurred even before a new search matches them
+        const jobsWithDetails = history
+          .map((h) => h.job_details)
+          .filter((j): j is Job => Boolean(j));
+
+        if (jobsWithDetails.length > 0) {
+          setApplications((prev) => {
+            const byId = new Map<number, Job>();
+            // Index existing
+            prev.forEach((j) => byId.set(j.id, j));
+            // Merge/overwrite with detailed versions
+            jobsWithDetails.forEach((j) => byId.set(j.id, { ...j, has_blurred_data: false }));
+            return Array.from(byId.values());
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching revealed jobs history", err);
+        // We silently fail here – user can still reveal jobs in this session
+      }
+    };
+
+    fetchRevealedJobsHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = () => {
     setHasSearched(true);
