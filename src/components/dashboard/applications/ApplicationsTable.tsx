@@ -127,6 +127,17 @@ type Job = {
   country_code?: string;
 };
 
+// Type for the API response structure from revealed jobs history
+type RevealedJobApiResponse = {
+  data: Job[];
+  metadata: {
+    total_results?: number;
+    total_companies?: number;
+    truncated_results: number;
+    truncated_companies: number;
+  };
+};
+
 export type SearchFilters = {
   job_description_contains_or?: string[];
   job_country_code_or?: string[];
@@ -311,7 +322,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
         if (!res.ok) throw new Error(`Failed to fetch revealed jobs history (status ${res.status})`);
 
-        const history: Array<{ job_id: number; job_details?: Job; revealed_at: string }> = await res.json();
+        const history: Array<{ job_id: number; job_details?: Job | RevealedJobApiResponse | string; revealed_at: string }> = await res.json();
 
         // Store the complete history data for the history section
         // Parse job_details if they come as JSON strings
@@ -328,14 +339,29 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
             }
           }
           
+          // Handle the nested structure: job_details.data[0] contains the actual job data
+          if (parsedJobDetails && typeof parsedJobDetails === 'object' && 'data' in parsedJobDetails) {
+            const apiResponse = parsedJobDetails as RevealedJobApiResponse;
+            if (Array.isArray(apiResponse.data) && apiResponse.data.length > 0) {
+              parsedJobDetails = apiResponse.data[0];
+            }
+          }
+          
           return {
             ...item,
-            job_details: parsedJobDetails
+            job_details: parsedJobDetails as Job | undefined
           };
         });
         
         console.log('Revealed jobs history:', parsedHistory); // Debug log
-        setRevealedJobsHistory(parsedHistory || []);
+        // Convert the parsed history to have only Job objects in job_details
+        const finalHistory: Array<{ job_id: number; job_details?: Job; revealed_at: string }> = parsedHistory.map(item => ({
+          job_id: item.job_id,
+          job_details: item.job_details as Job | undefined,
+          revealed_at: item.revealed_at
+        }));
+        
+        setRevealedJobsHistory(finalHistory || []);
 
         if (!Array.isArray(history) || history.length === 0) return;
 
