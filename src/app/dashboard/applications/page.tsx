@@ -38,17 +38,17 @@ const Applications = () => {
         
         {/* <ApplicationsStats /> */}
         
-        <div className="flex flex-col lg:flex-row gap-4">
+        {/* <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <ApplicationsFilters onFiltersChange={handleFiltersChange} />
-          </div>
-          <div className="lg:w-auto">
+          </div> */}
+          {/* <div className="lg:w-auto"> */}
             {/* <AdvancedFilters 
               onFiltersChange={handleAdvancedFiltersChange}
               activeFilters={advancedFilters}
             /> */}
-          </div>
-        </div>
+          {/* </div> */}
+        {/* </div> */}
         
         <ApplicationsTable filters={combinedFilters} />
       </div>
