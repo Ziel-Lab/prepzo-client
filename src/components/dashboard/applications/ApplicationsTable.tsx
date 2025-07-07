@@ -875,106 +875,134 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               No previously revealed jobs found.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {revealedJobsHistory.slice(0, 10).map((item) => (
-                <div key={item.job_id} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-sm">
-                          {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                        </h4>
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')}`}
-                        >
-                          {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
-                        </Badge>
+                <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                  {/* Mobile-first layout */}
+                  <div className="space-y-3">
+                    {/* Job title and status - full width on mobile */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-2 mb-2">
+                          <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                            {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                          </h4>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                          >
+                            {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                          </Badge>
+                        </div>
                       </div>
-                      {item.job_details && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">{item.job_details.company}</span>
-                          {item.job_details.location && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <span>{item.job_details.location}</span>
-                            </>
-                          )}
-                          {item.job_details.remote && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <Badge variant="default" className="text-xs ml-1">Remote</Badge>
-                            </>
-                          )}
-                          {item.job_details.seniority && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <span className="text-xs">{getSeniorityLevel(item.job_details.seniority)}</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {!item.job_details && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          Job details not available
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-2">
-                        Revealed on: {formatDate(item.revealed_at)}
+
+                      {/* Status dropdown - takes full width on mobile */}
+                      <div className="w-full sm:w-auto">
+                        <Select
+                          value={jobStatuses.get(item.job_id) || 'revealed'}
+                          onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                          disabled={updatingStatus.has(item.job_id)}
+                        >
+                          <SelectTrigger className="w-full sm:w-36 h-9 text-sm border-gray-300 hover:border-gray-400 transition-colors">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                              <SelectItem key={key} value={key} className="text-sm">
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {/* Status Update Dropdown */}
-                      <Select
-                        value={jobStatuses.get(item.job_id) || 'revealed'}
-                        onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
-                        disabled={updatingStatus.has(item.job_id)}
-                      >
-                        <SelectTrigger className="w-32 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+
+                    {/* Company and job details */}
+                    {item.job_details ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                          <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="font-medium">{item.job_details.company}</span>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                          {item.job_details.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-gray-400" />
+                              <span>{item.job_details.location}</span>
+                            </div>
+                          )}
+                          
+                          {item.job_details.seniority && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400">•</span>
+                              <span>{getSeniorityLevel(item.job_details.seniority)}</span>
+                            </div>
+                          )}
+                          
+                          {item.job_details.remote && (
+                            <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                              Remote
+                            </Badge>
+                          )}
+                          
+                          {item.job_details.hybrid && (
+                            <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                              Hybrid
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        Job details not available
+                      </div>
+                    )}
+
+                    {/* Footer with date and actions */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        <span>Revealed on {formatDate(item.revealed_at)}</span>
+                      </div>
                       
-                      {/* Action Buttons */}
+                      {/* Action buttons - responsive layout */}
                       <div className="flex items-center gap-2">
-                      {item.job_details && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openJobDetails(item.job_details!)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      )}
-                      {item.job_details?.url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <a href={item.job_details.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Apply
-                          </a>
-                        </Button>
-                      )}
+                        {item.job_details && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openJobDetails(item.job_details!)}
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        )}
+                        {item.job_details?.url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            <a href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Apply
+                            </a>
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
               {revealedJobsHistory.length > 10 && (
-                <p className="text-sm text-gray-500 text-center mt-4">
-                  Showing latest 10 of {revealedJobsHistory.length} revealed jobs
-                </p>
+                <div className="text-center mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    Showing latest 10 of <span className="font-medium">{revealedJobsHistory.length}</span> revealed jobs
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1289,14 +1317,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
                                   {application.remote && (
-                                    <Badge variant="default" className="text-xs">
-                                      Remote
-                                    </Badge>
+                                    <Badge variant="default" className="text-xs">Remote</Badge>
                                   )}
                                   {application.hybrid && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Hybrid
-                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">Hybrid</Badge>
                                   )}
                                 </div>
                               </div>
