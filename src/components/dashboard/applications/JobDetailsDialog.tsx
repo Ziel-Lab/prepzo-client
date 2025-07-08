@@ -195,7 +195,7 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
                 {isRevealed && application.company_object?.domain && (
                   <div className="flex items-center gap-2 mt-1">
                     <Globe className="h-3 w-3" />
-                    <span className="text-sm text-blue-600">{application.company_object.domain}</span>
+                    <span className="text-sm text-blue-600"><Link href={`https://${application.company_object.domain}`} target="_blank" rel="noopener noreferrer">{application.company_object.domain}</Link></span>
                   </div>
                 )}
               </div>

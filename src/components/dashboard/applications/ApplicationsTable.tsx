@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter, History, Loader2 } from "lucide-react";
+import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter, History, Loader2, FileText, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
@@ -21,6 +21,7 @@ import TagInput from "@/components/ui/TagInput";
 import countries from 'world-countries';
 import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 import ApplicationsFilters from "./ApplicationsFilters";
+import Link from "next/link";
 
 
 
@@ -1032,10 +1033,50 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             asChild
                             className="flex-1 sm:flex-none h-8 text-xs"
                           >
-                            <a href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                            <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
                               <ExternalLink className="h-3 w-3 mr-1" />
                               Apply
-                            </a>
+                            </Link>
+                          </Button>
+                        )}
+                        {item.job_details && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            {/* Pass job description & company website to Resume Analyzer via query params */}
+                            <Link
+                              href={`/dashboard/tools/analyze-resume?jobDescription=${encodeURIComponent(
+                                item.job_details.description || ""
+                              )}&companyWebsite=${encodeURIComponent(
+                                item.job_details.company_object?.domain || ""
+                              )}`}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              Resume Analyzer
+                            </Link>
+                          </Button>
+                        )}
+                        {item.job_details && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            {/* Pass job description & company website to Cover Letter Generator via query params */}
+                            <Link
+                              href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                item.job_details.description || ""
+                              )}&companyWebsite=${encodeURIComponent(
+                                item.job_details.company_object?.domain || ""
+                              )}`}
+                            >
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              Cover Letter
+                            </Link>
                           </Button>
                         )}
                       </div>
