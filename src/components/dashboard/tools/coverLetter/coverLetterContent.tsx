@@ -121,27 +121,27 @@ const CoverLetterContent = () => {
   const loadingCardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  // Prefill job description and company website from URL query parameters on initial load
+  // Prefill job description & company website from URL query params
   useEffect(() => {
-    const jdParam = searchParams.get("jobDescription");
-    const cwParam = searchParams.get("companyWebsite");
+    const jobDescParam = searchParams.get("jobDescription");
+    const companyWebsiteParam = searchParams.get("companyWebsite");
 
-    if (jdParam) {
+    if (jobDescParam) {
       try {
-        setJobDescription(decodeURIComponent(jdParam));
+        setJobDescription(decodeURIComponent(jobDescParam));
       } catch {
-        setJobDescription(jdParam);
+        setJobDescription(jobDescParam);
       }
     }
 
-    if (cwParam) {
+    if (companyWebsiteParam) {
       try {
-        setCompanyWebsite(decodeURIComponent(cwParam));
+        setCompanyWebsite(decodeURIComponent(companyWebsiteParam));
       } catch {
-        setCompanyWebsite(cwParam);
+        setCompanyWebsite(companyWebsiteParam);
       }
     }
-    // Run only once on mount
+    // Run only once on mount – searchParams is stable in App Router
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
