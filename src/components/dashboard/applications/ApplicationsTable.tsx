@@ -898,7 +898,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center">
             <History className="mr-2 h-5 w-5" />
-            Previously Revealed Jobs ({revealedJobsHistory.length})
+              Saved Jobs ({revealedJobsHistory.length})
           </CardTitle>
           <Button
             variant="outline"
