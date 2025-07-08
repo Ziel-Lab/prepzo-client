@@ -16,6 +16,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+import { useSearchParams } from "next/navigation";
 
 const loadingMessages = [
   "Our AI is reading your resume closely...",
@@ -104,6 +105,7 @@ const AnalyzerToolContent = () => {
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
   const [limitReached, setLimitReached] = useState(false);
   const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<AnalysisHistoryItem | null>(null);
+  const searchParams = useSearchParams();
 
   const supabase = createClient();
   const resultsCardRef = useRef<HTMLDivElement>(null);
@@ -269,6 +271,30 @@ const AnalyzerToolContent = () => {
         fetchData();
     }
   }, [supabase]);
+
+  // Prefill job description and company website from query params when component mounts
+  useEffect(() => {
+    const jobDescParam = searchParams.get("jobDescription");
+    const companyWebsiteParam = searchParams.get("companyWebsite");
+
+    if (jobDescParam) {
+      try {
+        setJobDescription(decodeURIComponent(jobDescParam));
+      } catch {
+        setJobDescription(jobDescParam);
+      }
+    }
+
+    if (companyWebsiteParam) {
+      try {
+        setCompanyWebsite(decodeURIComponent(companyWebsiteParam));
+      } catch {
+        setCompanyWebsite(companyWebsiteParam);
+      }
+    }
+    // We run this only once on mount – searchParams is stable in Next.js App Router
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
