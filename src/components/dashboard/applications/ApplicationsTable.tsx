@@ -1014,7 +1014,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                       </div>
                       
                       {/* Action buttons - responsive layout */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
                         {item.job_details && (
                           <Button
                             variant="outline"
@@ -1446,7 +1446,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
                               {application.has_blurred_data && !application.already_revealed && (
                                 <Button
                                   variant="outline"
