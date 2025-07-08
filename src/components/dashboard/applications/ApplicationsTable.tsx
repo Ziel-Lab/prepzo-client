@@ -1007,7 +1007,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     )}
 
                     {/* Footer with date and actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Calendar className="h-3 w-3" />
                         <span>Revealed on {formatDate(item.revealed_at)}</span>
