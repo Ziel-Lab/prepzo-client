@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+import { useSearchParams } from "next/navigation";
 
 const loadingMessages = [
     "Understanding the job role...",
@@ -118,6 +119,31 @@ const CoverLetterContent = () => {
   const supabase = createClient();
   const resultsRef = useRef<HTMLDivElement>(null);
   const loadingCardRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+
+  // Prefill job description and company website from URL query parameters on initial load
+  useEffect(() => {
+    const jdParam = searchParams.get("jobDescription");
+    const cwParam = searchParams.get("companyWebsite");
+
+    if (jdParam) {
+      try {
+        setJobDescription(decodeURIComponent(jdParam));
+      } catch {
+        setJobDescription(jdParam);
+      }
+    }
+
+    if (cwParam) {
+      try {
+        setCompanyWebsite(decodeURIComponent(cwParam));
+      } catch {
+        setCompanyWebsite(cwParam);
+      }
+    }
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
