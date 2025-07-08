@@ -1053,6 +1053,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               )}&companyWebsite=${encodeURIComponent(
                                 item.job_details.company_object?.domain || ""
                               )}`}
+                              target="_blank"
                             >
                               <FileText className="h-3 w-3 mr-1" />
                               Generate Resume 
@@ -1073,6 +1074,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               )}&companyWebsite=${encodeURIComponent(
                                 item.job_details.company_object?.domain || ""
                               )}`}
+                              target="_blank"
                             >
                               <Sparkles className="h-3 w-3 mr-1" />
                               Generate Cover Letter
