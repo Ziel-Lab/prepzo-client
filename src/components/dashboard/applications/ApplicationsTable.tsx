@@ -1055,7 +1055,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               )}`}
                             >
                               <FileText className="h-3 w-3 mr-1" />
-                              Resume Analyzer
+                              Generate Resume 
                             </Link>
                           </Button>
                         )}
@@ -1075,7 +1075,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               )}`}
                             >
                               <Sparkles className="h-3 w-3 mr-1" />
-                              Cover Letter
+                              Generate Cover Letter
                             </Link>
                           </Button>
                         )}
