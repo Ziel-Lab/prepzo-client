@@ -43,6 +43,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.7
+    },
+    
+    {
+      url: 'https://www.prepzo.ai/features/resume-analyser',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8
+    },
+    {
+      url: 'https://www.prepzo.ai/features/coverletter-generator',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8
+    },
+    {
+      url: 'https://www.prepzo.ai/features/linkedin-analyser',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8
+    },
+    {
+      url: 'https://www.prepzo.ai/features/job-search-engine',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8
     }
   ]
 
