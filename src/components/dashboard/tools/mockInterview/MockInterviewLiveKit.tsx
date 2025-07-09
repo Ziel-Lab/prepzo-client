@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import MockInterviewVoiceAssistant from "./MockInterviewVoiceAssistant";
 
-// Simple error boundary that just continues without showing errors
 class MockInterviewErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean }
