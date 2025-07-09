@@ -4,33 +4,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench } from "lucide-react";
 import Link from "next/link";
 
-const toolsData = [
+// Career tools configuration - completely restructured to force update
+const careerTools = [
   {
-    id: "linkedin-optimizer",
-    title: "LinkedIn Profile Optimizer",
-    description: "Enhance your LinkedIn profile with AI-powered suggestions",
-    comingSoon: false,
-    path: "/dashboard/tools/linkedin-optimizer",
+    toolId: "linkedin-optimizer",
+    name: "LinkedIn Profile Optimizer",
+    info: "Enhance your LinkedIn profile with AI-powered suggestions",
+    isActive: true,
+    route: "/dashboard/tools/linkedin-optimizer",
   },
   {
-    id: "resume-analyzer",
-    title: "Resume Analyzer",
-    description: "Analyze your resume against job descriptions for tailored feedback.",
-    comingSoon: false,
-    path: "/dashboard/tools/analyze-resume",
+    toolId: "resume-analyzer", 
+    name: "Resume Analyzer",
+    info: "Analyze your resume against job descriptions for tailored feedback.",
+    isActive: true,
+    route: "/dashboard/tools/analyze-resume",
   },
   {
-    id: "cover-letter-generator",
-    title: "Cover Letter Generator",
-    description: "Generate customized cover letters for your applications",
-    comingSoon: false,
-    path: "/dashboard/tools/cover-letter",
+    toolId: "cover-letter-generator",
+    name: "Cover Letter Generator", 
+    info: "Generate customized cover letters for your applications",
+    isActive: true,
+    route: "/dashboard/tools/cover-letter",
   },
   {
-    id: "mock-interview-simulator",
-    title: "Mock Interview Simulator",
-    description: "Practice interviews with AI-powered feedback",
-    comingSoon: true,
+    toolId: "interview-practice-tool",
+    name: "Mock Interview Simulator",
+    info: "Practice interviews with AI-powered feedback and comprehensive session tracking",
+    isActive: true,
+    route: "/dashboard/tools/mock-Interview",
   }
 ];
 
@@ -43,25 +45,25 @@ const ToolsContent = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {toolsData.map((tool) => (
-          <Card key={tool.id} className={tool.comingSoon ? "opacity-70" : ""}>
+        {careerTools.map((tool) => (
+          <Card key={tool.toolId} className={!tool.isActive ? "opacity-70" : ""}>
             <CardHeader>
               <CardTitle className="text-xl font-semibold flex items-center gap-2">
                 <Wrench className="h-5 w-5" />
-                {tool.title}
-                {tool.comingSoon && (
+                {tool.name}
+                {!tool.isActive && (
                   <span className="text-sm font-normal text-purple-600 ml-2">Coming Soon</span>
                 )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">{tool.description}</p>
-              {!tool.comingSoon && tool.path && (
-                <Link href={tool.path} className="mt-4 inline-block text-purple-600 hover:text-purple-700 font-medium">
+              <p className="text-gray-600">{tool.info}</p>
+              {tool.isActive && tool.route && (
+                <Link href={tool.route} className="mt-4 inline-block text-purple-600 hover:text-purple-700 font-medium">
                   Launch Tool →
                 </Link>
               )}
-              {!tool.comingSoon && !tool.path && (
+              {tool.isActive && !tool.route && (
                  <button className="mt-4 text-gray-400 font-medium cursor-not-allowed">
                     Launch Tool → (No path defined)
                   </button>
