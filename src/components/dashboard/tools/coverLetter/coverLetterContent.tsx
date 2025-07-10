@@ -136,7 +136,11 @@ const CoverLetterContent = () => {
 
     if (companyWebsiteParam) {
       try {
-        setCompanyWebsite(decodeURIComponent(companyWebsiteParam));
+        let url= decodeURIComponent(companyWebsiteParam);
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
+        }
+        setCompanyWebsite(url);
       } catch {
         setCompanyWebsite(companyWebsiteParam);
       }
