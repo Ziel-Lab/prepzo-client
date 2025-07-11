@@ -135,13 +135,13 @@ const Universities = () => {
               </div>
             </div>
             <div className="relative z-10 mt-8 lg:mt-0">
-              <div className="relative rounded-2xl overflow-hidden max-w-2xl mx-auto">
+              <div className="relative  overflow-hidden max-w-2xl mx-auto md:mt-6 md:pt-5">
                 <Image
                   src={universityGraduation}
                   alt="University graduation ceremony"
                   width={600}
                   height={400}
-                  className="w-full h-auto"
+                  className="w-full h-auto rounded-2xl"
                 />
               </div>
             </div>
