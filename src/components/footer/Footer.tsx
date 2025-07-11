@@ -34,7 +34,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <Link href="/features/resume-builder" className="text-white/80 hover:text-white">
-                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Resume Analyzer</span>
+                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Resume Generator</span>
                 </Link>
               </li>
               <li>

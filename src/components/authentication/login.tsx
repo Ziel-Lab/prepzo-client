@@ -42,6 +42,17 @@ const MinimalLoginPage = () => {
     checkSession();
   }, [supabase, router]);
 
+  // Handle OAuth error from URL params
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorParam = urlParams.get('error');
+      if (errorParam === 'oauth_failed') {
+        setError('Authentication failed. Please try again or contact support if the issue persists.');
+      }
+    }
+  }, []);
+
   const handleOAuthSignIn = async (provider: 'google' | 'linkedin') => {
     setIsOAuthLoading(provider);
     setError(null);
@@ -54,7 +65,7 @@ const MinimalLoginPage = () => {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: supabaseProvider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectUrl)}`
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectUrl)}&from=login`
         }
       });
       if (oauthError) throw oauthError;

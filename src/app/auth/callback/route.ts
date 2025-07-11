@@ -31,9 +31,21 @@ export async function GET(request: Request) {
     if (!error) {
       // Redirect with success parameter to trigger analytics
       return NextResponse.redirect(`${origin}${next}?login=success`)
+    } else {
+      // Log the specific error for debugging
+      console.error('OAuth callback error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code
+      })
+      // Redirect back to appropriate auth page with error message
+      const fromPage = searchParams.get('from');
+      const authPage = fromPage === 'login' ? '/auth/login' : '/auth/sign-up';
+      return NextResponse.redirect(`${origin}${authPage}?error=oauth_failed`)
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // Redirect back to sign-up if no code provided (default to sign-up)
+  return NextResponse.redirect(`${origin}/auth/sign-up?error=oauth_failed`)
 } 

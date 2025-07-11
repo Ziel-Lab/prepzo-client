@@ -65,7 +65,7 @@ const Navbar = () => {
     {
       href: "/features/resume-analyser",
       icon: FileText,
-      title: "Resume Analyzer",
+              title: "Resume Generator",
       description: "AI-powered resume analysis and optimization"
     },
     {
