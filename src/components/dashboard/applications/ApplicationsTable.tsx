@@ -1046,9 +1046,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             asChild
                             className="flex-1 sm:flex-none h-8 text-xs"
                           >
-                            {/* Pass job description & company website to Resume Analyzer via query params */}
-                            <Link
-                              href={`/dashboard/tools/analyze-resume?jobDescription=${encodeURIComponent(
+                                                  {/* Pass job description & company website to Resume Generator via query params */}
+                      <Link 
+                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
                                 item.job_details.description || ""
                               )}&companyWebsite=${encodeURIComponent(
                                 item.job_details.company_object?.domain || ""

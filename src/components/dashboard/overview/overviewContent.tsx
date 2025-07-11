@@ -18,9 +18,9 @@ interface OverviewContentProps {
 
 const tools = [
   {
-    title: 'Resume Analyzer',
-    description: 'Get AI-powered feedback on your resume against a job description.',
-    link: '/dashboard/tools/analyze-resume',
+    title: 'Resume Generator',
+    description: 'Generate and optimize your resume with AI-powered suggestions.',
+    link: '/dashboard/tools/resume-generator',
     icon: <FileText className="h-8 w-8 text-blue-500" />,
   },
   {
@@ -49,7 +49,7 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
   // Usage metrics with Premium user filtering (same logic as SubscriptionContent.tsx)
   let usageMetrics = (subscription && subscription.usage) ? [
     {
-      name: "Resume Analyses",
+      name: "Resume Generations",
       used: subscription.usage.resume_period_count,
       limit: subscription.subscription_plans?.resume_limit_per_month ?? 'N/A',
     },
