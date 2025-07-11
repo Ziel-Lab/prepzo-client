@@ -146,13 +146,28 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
             </CardHeader>
             <CardContent>
               {isSubscriptionLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <div className="flex flex-col items-center justify-center h-40 space-y-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-gray-700">Setting up your account...</p>
+                    <p className="text-xs text-gray-500">This may take a few moments for new users</p>
+                  </div>
                 </div>
               ) : subscriptionError ? (
-                <div className="text-red-600 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Error loading usage.</span>
+                <div className="flex flex-col items-center justify-center h-40 space-y-3">
+                  <AlertCircle className="h-6 w-6 text-amber-500" />
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-amber-700">Loading your usage data...</p>
+                    <p className="text-xs text-gray-500">Please wait while we set up your account</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.location.reload()}
+                    className="mt-2"
+                  >
+                    Refresh
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
