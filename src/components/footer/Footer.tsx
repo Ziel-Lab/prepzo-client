@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, User, Search, Briefcase, Headset, SquarePen  } from "lucide-react";
+import { FileText, User, Search, Briefcase, Headset, SquarePen, GraduationCap  } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -71,6 +71,11 @@ const Footer = () => {
               <li>
                 <Link href="/blogs" className="text-white/80 hover:text-white">
                   <span className="flex items-center"><SquarePen  className="w-5 h-5 mr-2" /> Blogs</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/universities" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><GraduationCap  className="w-5 h-5 mr-2" /> For Universities</span>
                 </Link>
               </li>
             </ul>
