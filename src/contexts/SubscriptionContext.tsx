@@ -44,9 +44,20 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const supabase = createClient();
 
-  const fetchSubscriptionStatus = useCallback(async () => {
+  // Helper function to detect if this might be a new user
+  const isLikelyNewUser = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('login') === 'success';
+  }, []);
+
+  // Helper function to wait
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const fetchSubscriptionStatus = useCallback(async (attemptNumber = 0) => {
     if (typeof window === 'undefined') {
         setIsLoading(false);
         return;
@@ -63,6 +74,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // For new users, ensure records exist first
+      if (isLikelyNewUser() && attemptNumber === 0) {
+        try {
+          await fetch('/api/updateTable', { method: 'POST' });
+        } catch (updateError) {
+          console.warn('Failed to ensure user records exist:', updateError);
+        }
+      }
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) throw new Error("Backend URL is not configured.");
 
@@ -74,12 +94,34 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
       
       setSubscription(data);
+      setRetryCount(0); // Reset retry count on success
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
+      console.error(`Subscription fetch attempt ${attemptNumber + 1} failed:`, err.message);
+      
+      // Retry logic with exponential backoff for new users or network errors
+      const maxRetries = isLikelyNewUser() ? 3 : 1;
+      const shouldRetry = attemptNumber < maxRetries && (
+        err.message.includes('Failed to fetch') || 
+        err.message.includes('Network') ||
+        err.message.includes('timeout') ||
+        isLikelyNewUser()
+      );
+
+      if (shouldRetry) {
+        const retryDelay = Math.min(1000 * Math.pow(2, attemptNumber), 5000); // Max 5 seconds
+        console.log(`Retrying subscription fetch in ${retryDelay}ms...`);
+        setRetryCount(attemptNumber + 1);
+        
+        await wait(retryDelay);
+        return fetchSubscriptionStatus(attemptNumber + 1);
+      } else {
+        setError(err.message || "An unexpected error occurred.");
+        setRetryCount(0);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, isLikelyNewUser]);
 
   useEffect(() => {
     fetchSubscriptionStatus();

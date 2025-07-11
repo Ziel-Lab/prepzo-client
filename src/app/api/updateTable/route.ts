@@ -2,12 +2,6 @@ import { createClient as createServerSupabaseClient } from '@/utils/supabase/ser
 import { createClient as createAdminSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-function getMonthDateRange(date: Date): { start: Date, end: Date } {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  return { start, end };
-}
-
 export async function POST() {
     // 1. Get the current user using the server client from utils
     const supabase = await createServerSupabaseClient();
@@ -51,7 +45,6 @@ export async function POST() {
         // 5. Fallback: Create missing records (for users who signed up before trigger was added)
         const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'N/A';
         const today = new Date();
-        const { start: period_start, end: period_end } = getMonthDateRange(today);
         const freePlanId = 1; // Default Free Plan ID
 
         const results = [];
@@ -64,8 +57,8 @@ export async function POST() {
                 status: 'free',
                 display_name: displayName,
                 started_at: today.toISOString(),
-                current_period_start: period_start.toISOString().split('T')[0],
-                current_period_end: period_end.toISOString().split('T')[0],
+                current_period_start: today.toISOString().split('T')[0], // Actual signup date - NOT first of month
+                // No current_period_end for new users - they're on free plan indefinitely
             };
 
             const { data: subInsertData, error: subInsertError } = await supabaseAdmin
@@ -87,8 +80,8 @@ export async function POST() {
                 user_id: user.id,
                 plan_id: freePlanId,
                 display_name: displayName,
-                period_start: period_start.toISOString().split('T')[0],
-                period_end: period_end.toISOString().split('T')[0],
+                period_start: today.toISOString().split('T')[0], // Actual signup date - NOT first of month
+                // No period_end for new users - usage tracking starts from signup date
                 resume_period_count: 0,
                 cover_letter_period_count: 0,
                 linkedin_optimize_period_count: 0,
