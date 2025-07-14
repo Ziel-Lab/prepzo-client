@@ -182,8 +182,33 @@ type ExtendedSubscriptionPlan = SubscriptionPlan & {
   job_search_results_limit?: number;
 };
 
+type GeneratedDocument = {
+  current_resume?: string;
+  company_website?: string;
+  created_at?: string;
+};
+
+type ResumeApiResponse = {
+  company_website: string;
+  current_resume: string;
+  created_at: string;
+  feedback_analysis?: {
+    feedback: string;
+    new_resume: string;
+  };
+};
+
+type CoverLetterApiResponse = {
+  company_website: string;
+  current_resume: string;
+  created_at: string;
+  feedback?: string;
+};
+
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage] = useState(5);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(true);
@@ -206,9 +231,76 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
   // const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
+  // Change the Map key type from number to string
+  const [generatedDocuments, setGeneratedDocuments] = useState<Map<string, GeneratedDocument>>(new Map());
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
+
+  // Fetch generated documents for jobs
+  useEffect(() => {
+    const fetchGeneratedDocuments = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.access_token) {
+          console.error("Could not retrieve user session for documents");
+          return;
+        }
+        const jwtToken = session.access_token;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        
+        // Fetch resumes
+        const resumeResponse = await fetch(`${backendUrl}/get-analyze-resume`, {
+          headers: { Authorization: `Bearer ${jwtToken}` }
+        });
+        
+        // Fetch cover letters
+        const coverLetterResponse = await fetch(`${backendUrl}/get-cover-letters`, {
+          headers: { Authorization: `Bearer ${jwtToken}` }
+        });
+
+        if (!resumeResponse.ok || !coverLetterResponse.ok) {
+          throw new Error("Failed to fetch documents");
+        }
+
+        const resumeData: ResumeApiResponse[] = await resumeResponse.json();
+        const coverLetterData: CoverLetterApiResponse[] = await coverLetterResponse.json();
+
+        // Combine documents by company website
+        const newDocuments = new Map<string, GeneratedDocument>();
+        
+        // Process resumes
+        resumeData.forEach((item: ResumeApiResponse) => {
+          if (item.company_website && item.current_resume) {
+            newDocuments.set(item.company_website, {
+              current_resume: item.current_resume,
+              company_website: item.company_website,
+              created_at: item.created_at
+            });
+          }
+        });
+
+        // Process cover letters
+        coverLetterData.forEach((item: CoverLetterApiResponse) => {
+          const existing = newDocuments.get(item.company_website) || {};
+          if (item.company_website && item.current_resume) {
+            newDocuments.set(item.company_website, {
+              ...existing,
+              current_resume: item.current_resume,
+              company_website: item.company_website,
+              created_at: item.created_at
+            });
+          }
+        });
+
+        setGeneratedDocuments(newDocuments);
+      } catch (error) {
+        console.error("Error fetching generated documents:", error);
+      }
+    };
+
+    fetchGeneratedDocuments();
+  }, [supabase]);
 
   // ---------------------------------------------------------------------------
   // Credit tracking via feature_usage.job_search_results_period_count
@@ -689,6 +781,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const MobileApplicationCard = ({ application }: { application: Job }) => {
     const isRevealed = revealedJobs.has(application.id);
     const isBlurred = application.has_blurred_data && !isRevealed;
+    const currentStatus = jobStatuses.get(application.id) || 'revealed';
     
     return (
       <Card className="mb-4">
@@ -717,9 +810,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 </div>
                 {!isBlurred && (
                 <div className="flex items-center gap-2 mt-1">
-                  {/* <Badge variant="secondary" className={getStatusColor(application.status || "Applied")}>
-                    {application.status || "Applied"}
-                  </Badge> */}
+                    <Badge variant="secondary" className={getStatusBadgeColor(currentStatus)}>
+                      {JOB_STATUSES[currentStatus]}
+                    </Badge>
                   <span className={getMatchScoreColor(application.match_score || 85)}>
                     {application.match_score || 85}% match
                   </span>
@@ -762,70 +855,125 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               )}
             </div>
             
-            {/* Hiring team & Industry */}
-            {!isBlurred && application.hiring_team?.length && (
-              <div className="text-sm text-gray-600 flex items-center gap-2">
-                <span className="font-medium">Hiring:</span>
-                {application.hiring_team.map((m) => (
-                  <span key={m.first_name}>{m.first_name}</span>
-                ))}
-              </div>
-            )}
-
-            {!isBlurred && application.company_object?.industry && (
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Industry:</span> {application.company_object?.industry}
-              </div>
-            )}
-
-            {/* Date and Salary */}
+            {/* Status Update */}
             {!isBlurred && (
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <div className="flex items-center gap-1">
-                <span>{application.salary_string || "Not disclosed"}</span>
+              <div className="w-full">
+                <Select
+                  value={currentStatus}
+                  onValueChange={(value: JobStatus) => updateJobStatus(application.id, value)}
+                  disabled={updatingStatus.has(application.id)}
+                >
+                  <SelectTrigger 
+                    className={`
+                      w-full h-9 text-sm 
+                      border-2 border-green-500 
+                      bg-green-50 
+                      hover:bg-green-100 
+                      transition-all 
+                      duration-200 
+                      focus:ring-2 
+                      focus:ring-green-200 
+                      focus:border-green-500
+                      ${updatingStatus.has(application.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                  >
+                    <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                      <SelectItem 
+                        key={key} 
+                        value={key} 
+                        className="text-sm hover:bg-green-50 cursor-pointer"
+                      >
+                        {label}
+                      </SelectItem>
+                ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex items-center gap-1">
-                
-                <span>{formatDate(application.date_posted)}</span>
-              </div>
+            )}
+
+            {/* Document Links */}
+            {!isBlurred && application.company_object?.domain && (
+              <div className="flex flex-col gap-2">
+                {generatedDocuments.has(application.company_object.domain) ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    >
+                      <Link 
+                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        View Resume
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    >
+                      <Link 
+                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        View Cover Letter
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full h-8 text-xs"
+                    >
+                      <Link 
+                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                          application.description || ""
+                        )}&companyWebsite=${encodeURIComponent(
+                          application.company_object.domain || ""
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Generate Resume
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full h-8 text-xs"
+                    >
+                      <Link
+                        href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                          application.description || ""
+                        )}&companyWebsite=${encodeURIComponent(
+                          application.company_object.domain || ""
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Generate Cover Letter
+                      </Link>
+                    </Button>
+                  </>
+                )}
             </div>
             )}
-
-             {/* Employment Statuses */}
-             {!isBlurred && application.employment_statuses && application.employment_statuses.length > 0 && (
-              <div className="text-xs text-gray-500">
-                <span className="font-medium">Employment:</span> {application.employment_statuses.join(", ")}
-              </div>
-            )}
-
-            {/* Easy Apply */}
-            {!isBlurred && application.easy_apply && (
-              <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 mt-1">
-                Easy Apply
-              </Badge>
-            )}
-
-            {/* Employee Count Range */}
-            {!isBlurred && application.company_object?.employee_count_range && (
-              <div className="text-xs text-gray-500">
-                <span className="font-medium">Employees:</span> {application.company_object.employee_count_range}
-              </div>
-            )}
-
-            {/* Revenue */}
-            {!isBlurred && application.company_object?.annual_revenue_usd_readable && (
-              <div className="text-xs text-gray-500">
-                <span className="font-medium">Revenue:</span> {application.company_object.annual_revenue_usd_readable}
-              </div>
-            )}
-
-            {/* Founded Year */}
-            {!isBlurred && application.company_object?.founded_year && (
-              <div className="text-xs text-gray-500">
-                <span className="font-medium">Founded:</span> {application.company_object.founded_year}
-              </div>
-            )}
-
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
@@ -866,20 +1014,14 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-                  {/* <DropdownMenuItem>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Status
-                  </DropdownMenuItem> */}
-                  {/* {isRevealed && (
-                    <DropdownMenuItem>
+                  {application.url && (
+                    <DropdownMenuItem asChild>
+                      <Link href={application.url} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="h-4 w-4 mr-2" />
-                      Open Job
+                        Apply Now
+                      </Link>
                     </DropdownMenuItem>
-                  )} */}
-                  {/* <DropdownMenuItem className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem> */}
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -893,7 +1035,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   let filterSection;
 
   // History Section Component - shows in both filter and results view
-  const HistorySection = () => (
+  const HistorySection = () => {
+    const totalHistoryPages = Math.ceil(revealedJobsHistory.length / historyItemsPerPage);
+    const startIndex = (historyCurrentPage - 1) * historyItemsPerPage;
+    const endIndex = startIndex + historyItemsPerPage;
+    const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
+
+    return (
     <Card className="mb-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -922,8 +1070,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               No previously revealed jobs found.
             </p>
           ) : (
+              <>
             <div className="space-y-4">
-              {revealedJobsHistory.slice(0, 10).map((item) => (
+                  {currentHistoryItems.map((item) => (
                 <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
                   {/* Mobile-first layout */}
                   <div className="space-y-3">
@@ -950,12 +1099,29 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
                           disabled={updatingStatus.has(item.job_id)}
                         >
-                          <SelectTrigger className="w-full sm:w-36 h-9 text-sm border-gray-300 hover:border-gray-400 transition-colors">
-                            <SelectValue />
+                              <SelectTrigger 
+                                className={`
+                                  w-full sm:w-36 h-9 text-sm 
+                                  border-2 border-green-500 
+                                  bg-green-50 
+                                  hover:bg-green-100 
+                                  transition-all 
+                                  duration-200 
+                                  focus:ring-2 
+                                  focus:ring-green-200 
+                                  focus:border-green-500
+                                  ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                `}
+                              >
+                                <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                              <SelectItem key={key} value={key} className="text-sm">
+                                  <SelectItem 
+                                    key={key} 
+                                    value={key} 
+                                    className="text-sm hover:bg-green-50 cursor-pointer"
+                                  >
                                 {label}
                               </SelectItem>
                             ))}
@@ -1040,13 +1206,32 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                           </Button>
                         )}
                         {item.job_details && (
+                              <>
+                                {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
+                                  // Show View Resume button if document exists
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Link 
+                                      href={generatedDocuments.get(item.job_details.company_object.domain)?.current_resume || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      View Resume
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  // Show Generate Resume button if no document exists
                           <Button
                             variant="outline"
                             size="sm"
                             asChild
                             className="flex-1 sm:flex-none h-8 text-xs"
                           >
-                                                  {/* Pass job description & company website to Resume Generator via query params */}
                       <Link 
                         href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
                                 item.job_details.description || ""
@@ -1054,20 +1239,38 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 item.job_details.company_object?.domain || ""
                               )}`}
                               target="_blank"
+                                      rel="noopener noreferrer"
                             >
                               <FileText className="h-3 w-3 mr-1" />
                               Generate Resume 
                             </Link>
                           </Button>
                         )}
-                        {item.job_details && (
+                                
+                                {/* Similar pattern for Cover Letter */}
+                                {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Link 
+                                      href={generatedDocuments.get(item.job_details.company_object.domain)?.current_resume || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <Sparkles className="h-3 w-3 mr-1" />
+                                      View Cover Letter
+                                    </Link>
+                                  </Button>
+                                ) : (
                           <Button
                             variant="outline"
                             size="sm"
                             asChild
                             className="flex-1 sm:flex-none h-8 text-xs"
                           >
-                            {/* Pass job description & company website to Cover Letter Generator via query params */}
                             <Link
                               href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
                                 item.job_details.description || ""
@@ -1075,30 +1278,80 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 item.job_details.company_object?.domain || ""
                               )}`}
                               target="_blank"
+                                      rel="noopener noreferrer"
                             >
                               <Sparkles className="h-3 w-3 mr-1" />
                               Generate Cover Letter
                             </Link>
                           </Button>
+                                )}
+                              </>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-              {revealedJobsHistory.length > 10 && (
-                <div className="text-center mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Showing latest 10 of <span className="font-medium">{revealedJobsHistory.length}</span> revealed jobs
-                  </p>
                 </div>
-              )}
+
+                {/* Pagination */}
+                {totalHistoryPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+                    <div className="text-sm text-gray-500 w-full sm:w-auto order-2 sm:order-1 text-center sm:text-left">
+                      Showing {startIndex + 1}-{Math.min(endIndex, revealedJobsHistory.length)} of {revealedJobsHistory.length}
+                    </div>
+                    <div className="flex items-center justify-center w-full sm:w-auto gap-1 order-1 sm:order-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage > 1) setHistoryCurrentPage(prev => prev - 1);
+                        }}
+                        disabled={historyCurrentPage === 1}
+                        className="h-8 px-3"
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center">
+                        {Array.from({ length: totalHistoryPages }, (_, i) => (
+                          <Button
+                            key={i + 1}
+                            variant={historyCurrentPage === i + 1 ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(i + 1)}
+                            className={`h-8 w-8 p-0 ${
+                              historyCurrentPage === i + 1 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {i + 1}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage < totalHistoryPages) setHistoryCurrentPage(prev => prev + 1);
+                        }}
+                        disabled={historyCurrentPage === totalHistoryPages}
+                        className="h-8 px-3"
+                      >
+                        Next
+                      </Button>
+                    </div>
             </div>
+                )}
+              </>
           )}
         </CardContent>
       )}
     </Card>
   );
+  };
 
   if (showFilters || !hasSearched) {
     filterSection = (
@@ -1297,25 +1550,22 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <TableRow className="bg-gray-50">
                       <TableHead className="w-[400px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
                       <TableHead className="w-[180px]">Company</TableHead>
+                      <TableHead className="w-[120px]">Status</TableHead>
                       <TableHead className="w-[120px]">Country</TableHead>
                       <TableHead className="w-[150px]">Location</TableHead>
                       <TableHead className="w-[140px]">Hiring Team</TableHead>
                       <TableHead className="w-[130px]">Posted</TableHead>
                       <TableHead className="w-[140px]">Salary</TableHead>
                       <TableHead className="w-[120px]">Match</TableHead>
+                      <TableHead className="w-[140px]">Documents</TableHead>
                       <TableHead className="w-[140px]">Actions</TableHead>
-                      <TableHead className="w-[140px]">Employment</TableHead>
-                      <TableHead className="w-[120px]">Easy Apply</TableHead>
-                      <TableHead className="w-[140px]">Revenue</TableHead>
-                      <TableHead className="w-[120px]">Founded</TableHead>
-                      <TableHead className="w-[140px]">Employees</TableHead>
-                      <TableHead className="w-[140px]">Industry</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredApplications.map((application) => {
                       const isRevealed = revealedJobs.has(application.id);
                       const isBlurred = application.has_blurred_data && !isRevealed;
+                      const currentStatus = jobStatuses.get(application.id) || 'revealed';
                       
                       return (
                         <TableRow key={application.id} className="hover:bg-gray-50">
@@ -1378,34 +1628,61 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   <span className="font-medium text-sm">
                                     {application.company}
                                   </span>
-                                  {(() => {
-                                    const hasTeam = application.hiring_team && application.hiring_team.length > 0;
-                                    if (hasTeam) {
-                                      return (
+                                  {application.company_object?.industry && (
                                         <span className="text-xs text-gray-500">
-                                          {application.hiring_team![0].first_name}
+                                      {application.company_object.industry}
                                         </span>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
+                                  )}
                                 </div>
                               </div>
                             )}
                           </TableCell>
                           <TableCell>
-                            
+                            {!isBlurred && (
+                              <Select
+                                value={currentStatus}
+                                onValueChange={(value: JobStatus) => updateJobStatus(application.id, value)}
+                                disabled={updatingStatus.has(application.id)}
+                              >
+                                <SelectTrigger 
+                                  className={`
+                                    w-full h-9 text-sm 
+                                    border-2 border-green-500 
+                                    bg-green-50 
+                                    hover:bg-green-100 
+                                    transition-all 
+                                    duration-200 
+                                    focus:ring-2 
+                                    focus:ring-green-200 
+                                    focus:border-green-500
+                                    ${updatingStatus.has(application.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                  `}
+                                >
+                                  <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                                    <SelectItem 
+                                      key={key} 
+                                      value={key} 
+                                      className="text-sm hover:bg-green-50 cursor-pointer"
+                                    >
+                                      {label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell>
                               <span className="text-sm flex items-center gap-1">
                                 {getFlagEmoji(application.country_code)}
                                 {getCountryName(application.country_code)}
                               </span>
-                            
                           </TableCell>
                           <TableCell>
-                            
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-1 text-sm">
-                                  
                                   {application.location}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
@@ -1417,7 +1694,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   )}
                                 </div>
                               </div>
-                            
                           </TableCell>
                           <TableCell>
                             {application.hiring_team?.map((teamMember) => (
@@ -1445,6 +1721,87 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               <span className={getMatchScoreColor(application.match_score || 85)}>
                                 {application.match_score || 85}%
                               </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!isBlurred && application.company_object?.domain && (
+                              <div className="flex flex-col gap-2">
+                                {generatedDocuments.has(application.company_object.domain) ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                    >
+                                      <Link 
+                                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        View Resume
+                                      </Link>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                    >
+                                      <Link 
+                                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Sparkles className="h-3 w-3 mr-1" />
+                                        View Cover Letter
+                                      </Link>
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="w-full h-8 text-xs"
+                                    >
+                                      <Link 
+                                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                          application.description || ""
+                                        )}&companyWebsite=${encodeURIComponent(
+                                          application.company_object.domain || ""
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        Generate Resume
+                                      </Link>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="w-full h-8 text-xs"
+                                    >
+                                      <Link
+                                        href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                          application.description || ""
+                                        )}&companyWebsite=${encodeURIComponent(
+                                          application.company_object.domain || ""
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Sparkles className="h-3 w-3 mr-1" />
+                                        Generate Cover Letter
+                                      </Link>
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </TableCell>
                           <TableCell>
@@ -1486,41 +1843,17 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Details
                                   </DropdownMenuItem>
-                                  {/* <DropdownMenuItem>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit Status
-                                  </DropdownMenuItem>
-                                  {isRevealed && (
-                                    <DropdownMenuItem>
+                                  {application.url && (
+                                    <DropdownMenuItem asChild>
+                                      <Link href={application.url} target="_blank" rel="noopener noreferrer">
                                       <ExternalLink className="h-4 w-4 mr-2" />
-                                      Open Job
+                                        Apply Now
+                                      </Link>
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuItem className="text-red-600">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem> */}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {application.employment_statuses?.join(", ")}
-                          </TableCell>
-                          <TableCell>
-                            {application.easy_apply ? "Yes" : "No"}
-                          </TableCell>
-                          <TableCell>
-                            {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
-                          </TableCell>
-                          <TableCell>
-                            {application.company_object?.founded_year || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {application.company_object?.employee_count_range || "Not disclosed"}
-                          </TableCell>
-                          <TableCell>
-                            {application.company_object?.industry || "Not disclosed"}
                           </TableCell>
                         </TableRow>
                       );
@@ -1577,6 +1910,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         onClose={() => setIsDetailsDialogOpen(false)}
         application={selectedJob}
         isRevealed={selectedJob ? (!selectedJob.has_blurred_data || revealedJobs.has(selectedJob.id)) : false}
+        onStatusUpdate={updateJobStatus}
       />
     </>
   );

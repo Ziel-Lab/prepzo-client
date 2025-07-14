@@ -5,6 +5,17 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, DollarSign, Building, ExternalLink, Globe, Hash, User } from "lucide-react";
 import { MarkdownRenderer } from "@/components/blog/MarkdownRenderer";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 // Re-declare a lightweight Job type (should ideally be imported from a shared file)
 type HiringTeamMember = {
@@ -13,6 +24,8 @@ type HiringTeamMember = {
   linkedin_url?: string;
   role?: string;
 };
+
+type JobStatus = "revealed" | "applied" | "scheduled" | "interview" | "rejected" | "offered" | "accepted" | "withdrawn";
 
 type Job = {
   id?: number;
@@ -44,9 +57,12 @@ interface JobDetailsDialogProps {
   onClose: () => void;
   application: Job | null;
   isRevealed: boolean;
+  onStatusUpdate?: (jobId: number, status: JobStatus) => Promise<void>;
 }
 
-const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetailsDialogProps) => {
+const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed, onStatusUpdate }: JobDetailsDialogProps) => {
+  const [showAppliedDialog, setShowAppliedDialog] = useState(false);
+  
   if (!application) return null;
 
   const formatDate = (dateString: string) => {
@@ -71,6 +87,22 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
       default:
         return "Not Specified";
     }
+  };
+
+  const handleOpenJob = () => {
+    // Open the job URL in a new tab
+    if (application.url) {
+      window.open(application.url, '_blank');
+    }
+    // Show the confirmation dialog
+    setShowAppliedDialog(true);
+  };
+
+  const handleAppliedConfirmation = async (hasApplied: boolean) => {
+    if (hasApplied && application.id && onStatusUpdate) {
+      await onStatusUpdate(application.id, 'applied' as JobStatus);
+    }
+    setShowAppliedDialog(false);
   };
 
   return (
@@ -271,16 +303,30 @@ const JobDetailsDialog = ({ isOpen, onClose, application, isRevealed }: JobDetai
               Close
             </Button>
             {isRevealed && (
-              <Button asChild>
-                <a href={application.url ?? "#"} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Job
-                </a>
+              <Button onClick={handleOpenJob}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open Job
               </Button>
             )}
           </div>
         </div>
       </DialogContent>
+
+      {/* Applied Confirmation Dialog */}
+      <AlertDialog open={showAppliedDialog} onOpenChange={setShowAppliedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Did you apply to this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Let us know if you've submitted your application. This helps us track your job search progress.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleAppliedConfirmation(false)}>No, not yet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleAppliedConfirmation(true)}>Yes, I applied</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
