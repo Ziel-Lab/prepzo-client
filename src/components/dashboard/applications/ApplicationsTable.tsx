@@ -929,6 +929,25 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         View Cover Letter
                       </Link>
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    >
+                      <Link 
+                        href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
+                          application.description || ""
+                        )}&companyWebsite=${encodeURIComponent(
+                          application.company_object.domain || ""
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View Analysis
+                      </Link>
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -1282,6 +1301,27 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     >
                                       <Sparkles className="h-3 w-3 mr-1" />
                                       Generate Cover Letter
+                                    </Link>
+                                  </Button>
+                                )}
+                                {item.job_details && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Link 
+                                      href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
+                                        item.job_details.description || ""
+                                      )}&companyWebsite=${encodeURIComponent(
+                                        item.job_details.company_object?.domain || ""
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Analysis
                                     </Link>
                                   </Button>
                                 )}
@@ -1756,6 +1796,25 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                       >
                                         <Sparkles className="h-3 w-3 mr-1" />
                                         View Cover Letter
+                                      </Link>
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                    >
+                                      <Link 
+                                        href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
+                                          application.description || ""
+                                        )}&companyWebsite=${encodeURIComponent(
+                                          application.company_object.domain || ""
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View Analysis
                                       </Link>
                                     </Button>
                                   </>
