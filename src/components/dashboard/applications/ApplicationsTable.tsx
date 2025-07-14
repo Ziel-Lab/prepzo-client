@@ -1097,48 +1097,53 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
                 {/* Pagination */}
                 {totalHistoryPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <div className="text-sm text-gray-500">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+                    <div className="text-sm text-gray-500 w-full sm:w-auto order-2 sm:order-1 text-center sm:text-left">
                       Showing {startIndex + 1}-{Math.min(endIndex, revealedJobsHistory.length)} of {revealedJobsHistory.length}
                     </div>
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              if (historyCurrentPage > 1) setHistoryCurrentPage(prev => prev - 1);
-                            }}
-                            className={historyCurrentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                          />
-                        </PaginationItem>
+                    <div className="flex items-center justify-center w-full sm:w-auto gap-1 order-1 sm:order-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage > 1) setHistoryCurrentPage(prev => prev - 1);
+                        }}
+                        disabled={historyCurrentPage === 1}
+                        className="h-8 px-3"
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center">
                         {Array.from({ length: totalHistoryPages }, (_, i) => (
-                          <PaginationItem key={i + 1}>
-                            <PaginationLink
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setHistoryCurrentPage(i + 1);
-                              }}
-                              isActive={historyCurrentPage === i + 1}
-                            >
-                              {i + 1}
-                            </PaginationLink>
-                          </PaginationItem>
+                          <Button
+                            key={i + 1}
+                            variant={historyCurrentPage === i + 1 ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(i + 1)}
+                            className={`h-8 w-8 p-0 ${
+                              historyCurrentPage === i + 1 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {i + 1}
+                          </Button>
                         ))}
-                        <PaginationItem>
-                          <PaginationNext
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              if (historyCurrentPage < totalHistoryPages) setHistoryCurrentPage(prev => prev + 1);
-                            }}
-                            className={historyCurrentPage === totalHistoryPages ? "pointer-events-none opacity-50" : ""}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage < totalHistoryPages) setHistoryCurrentPage(prev => prev + 1);
+                        }}
+                        disabled={historyCurrentPage === totalHistoryPages}
+                        className="h-8 px-3"
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
