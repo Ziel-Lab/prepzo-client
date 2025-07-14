@@ -73,7 +73,6 @@ const DocumentsContent = () => {
 
       if (sessionError || !sessionData?.session?.access_token) {
         setError("Could not retrieve user session for fetching documents. Please ensure you are logged in.");
-        console.error("fetchDocuments: Session error or no access token.", sessionError, sessionData);
         setIsFetchingDocs(false);
         return;
       }
@@ -95,8 +94,7 @@ const DocumentsContent = () => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
-          console.error("fetchDocuments: Response not OK:", response.status, errorData);
+                  const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
@@ -123,7 +121,6 @@ const DocumentsContent = () => {
         setCommentInputs(initialCommentInputs);
 
       } catch (err: any) {
-        console.error("fetchDocuments: Error:", err);
         setError(err.message || "Failed to fetch documents.");
       } finally {
         setIsFetchingDocs(false);
@@ -146,7 +143,6 @@ const DocumentsContent = () => {
   const handleUpload = async () => {
     if (!selectedFile) {
       setError("Please select a file first.");
-      console.error("handleUpload: No file selected");
       return;
     }
 
@@ -166,7 +162,6 @@ const DocumentsContent = () => {
 
     if (sessionError || !sessionData?.session?.access_token) {
       setError("Could not retrieve user session for upload. Please ensure you are logged in.");
-      console.error("handleUpload: Session error or no access token.", sessionError, sessionData);
       setIsLoading(false);
       return;
     }
@@ -196,7 +191,6 @@ const DocumentsContent = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
-        console.error("handleUpload: Fetch response not OK:", response.status, errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -224,7 +218,6 @@ const DocumentsContent = () => {
     } catch (err: any) {
       setIsLoading(false);
       setError(err.message || "An unexpected error occurred during upload.");
-      console.error("Upload error (in catch block):", err);
     }
   };
 
@@ -237,7 +230,6 @@ const DocumentsContent = () => {
 
     if (sessionError || !sessionData?.session?.access_token) {
       setDeleteError("Could not retrieve user session for deletion. Please ensure you are logged in.");
-      console.error("handleDeleteDocument: Session error or no access token.", sessionError, sessionData);
       setDeletingDocId(null);
       return;
     }
@@ -259,7 +251,6 @@ const DocumentsContent = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
-        console.error("handleDeleteDocument: Fetch response not OK:", response.status, errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -267,7 +258,6 @@ const DocumentsContent = () => {
       setDocuments(prevDocuments => prevDocuments.filter(doc => doc.id.toString() !== documentId.toString()));
 
     } catch (err: any) {
-      console.error("handleDeleteDocument: Error:", err);
       setDeleteError(err.message || "Failed to delete document.");
     } finally {
       setDeletingDocId(null);
@@ -313,7 +303,6 @@ const DocumentsContent = () => {
 
     if (sessionError || !sessionData?.session?.access_token) {
       setCommentError(prev => ({...prev, [docIdStr]: "Session error. Please log in."}) );
-      console.error("handleUpdateComment: Session error.", sessionError);
       setUpdatingCommentDocId(null);
       return;
     }
@@ -337,7 +326,6 @@ const DocumentsContent = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Failed to parse error JSON" }));
-        console.error("handleUpdateComment: Response not OK:", response.status, errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -351,7 +339,6 @@ const DocumentsContent = () => {
       setEditingCommentDocId(null); // Exit edit mode on successful save
 
     } catch (err: any) {
-      console.error("handleUpdateComment: Error for doc ID", docIdStr, err);
       setCommentError(prev => ({...prev, [docIdStr]: err.message || "Failed to update comment."}));
     } finally {
       setUpdatingCommentDocId(null);

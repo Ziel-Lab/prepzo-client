@@ -100,7 +100,6 @@ const LinkedInOptimizerContent: React.FC = () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !sessionData || !sessionData.session) {
-        console.error('[LinkedInOptimizerContent] Error getting session or session not found:', sessionError);
         setError('Authentication session not found. Please ensure you are logged in.');
         return null;
       }
@@ -108,7 +107,6 @@ const LinkedInOptimizerContent: React.FC = () => {
       return sessionData.session.access_token;
 
     } catch (e) {
-      console.error("[LinkedInOptimizerContent] Exception during supabase.auth.getSession():", e);
       setError('Authentication token not found due to an exception. Please log in.');
       return null;
     }
@@ -149,15 +147,14 @@ const LinkedInOptimizerContent: React.FC = () => {
         try {
             errorData = await response.json();
         } catch (e) {
-            console.error("[DEBUG] handleSubmit: Failed to parse error JSON", e);
+            // Failed to parse error JSON
         }
-        console.error("[DEBUG] handleSubmit: Response not OK. Error data:", errorData);
         
         const specificError = errorData.error || "";
         if (typeof specificError === 'string' && specificError.toLowerCase().includes("limit")) {
           setLimitReached(true);
         } else {
-          setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          setError("LinkedIn optimization failed to generate. Please refresh the page and try again!");
         }
         return;
       }
@@ -172,8 +169,7 @@ const LinkedInOptimizerContent: React.FC = () => {
       
       fetchHistory();
     } catch (err) {
-      console.error("[DEBUG] handleSubmit: Catch block error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("LinkedIn optimization request failed. Please refresh the page and try again!");
     } finally {
       setIsLoading(false);
     }
@@ -206,8 +202,7 @@ const LinkedInOptimizerContent: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP error fetching history: status: ${response.status}` }));
-        console.error("[DEBUG] fetchHistory: Response not OK. Error data:", errorData);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Unable to load your optimization history. Please refresh the page and try again!");
         setIsLoading(false);
         return;
       }
@@ -215,8 +210,7 @@ const LinkedInOptimizerContent: React.FC = () => {
       const data: OptimizationRecord[] = await response.json();
       setHistory(data);
     } catch (err) {
-      console.error("[DEBUG] fetchHistory: Catch block error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("History loading encountered an error. Please refresh the page and try again!");
     } finally {
       setIsLoading(false);
     }
