@@ -963,12 +963,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 className={`
                                   w-full sm:w-36 h-9 text-sm 
                                   border-2 border-green-500 
-                                  bg-green-50/50 
-                                  hover:bg-green-50 
+                                  bg-green-50 
+                                  hover:bg-green-100 
                                   transition-all 
                                   duration-200 
-                                  animate-pulse 
-                                  hover:animate-none
                                   focus:ring-2 
                                   focus:ring-green-200 
                                   focus:border-green-500
