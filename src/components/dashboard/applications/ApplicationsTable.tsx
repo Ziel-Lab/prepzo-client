@@ -809,33 +809,33 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   )}
                 </div>
                 {!isBlurred && (
-                  <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary" className={getStatusBadgeColor(currentStatus)}>
                       {JOB_STATUSES[currentStatus]}
                     </Badge>
-                    <span className={getMatchScoreColor(application.match_score || 85)}>
-                      {application.match_score || 85}% match
-                    </span>
-                  </div>
+                  <span className={getMatchScoreColor(application.match_score || 85)}>
+                    {application.match_score || 85}% match
+                  </span>
+                </div>
                 )}
               </div>
             </div>
 
             {/* Company Info */}
             {!isBlurred && (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
-                  {isRevealed ? (application.company?.charAt(0) ?? "?") : "?"}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                {isRevealed ? (application.company?.charAt(0) ?? "?") : "?"}
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">
+                  {isRevealed ? application.company : "Hidden Company"}
                 </div>
-                <div className="flex-1">
-                  <div className="font-medium">
-                    {isRevealed ? application.company : "Hidden Company"}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
-                  </div>
+                <div className="text-sm text-gray-500">
+                  {getSeniorityLevel(application.seniority)} • {application.company_object?.employee_count_range || "Unknown size"}
                 </div>
               </div>
+            </div>
             )}
 
             {/* Country, Location, Work Type */}
@@ -854,7 +854,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 <Badge variant="outline" className="text-xs">Hybrid</Badge>
               )}
             </div>
-
+            
             {/* Status Update */}
             {!isBlurred && (
               <div className="w-full">
@@ -888,12 +888,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                       >
                         {label}
                       </SelectItem>
-                    ))}
+                ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            
+
             {/* Document Links */}
             {!isBlurred && application.company_object?.domain && (
               <div className="flex flex-col gap-2">
@@ -927,25 +927,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                       >
                         <Sparkles className="h-3 w-3 mr-1" />
                         View Cover Letter
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                    >
-                      <Link 
-                        href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
-                          application.description || ""
-                        )}&companyWebsite=${encodeURIComponent(
-                          application.company_object.domain || ""
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View Analysis
                       </Link>
                     </Button>
                   </>
@@ -991,30 +972,30 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     </Button>
                   </>
                 )}
-              </div>
+            </div>
             )}
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
               {application.has_blurred_data && !application.already_revealed && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleReveal(application.id)}
-                  className="flex items-center gap-2"
-                >
-                  {isRevealed ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      Hide Details
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      Reveal Details
-                    </>
-                  )}
-                </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleReveal(application.id)}
+                className="flex items-center gap-2"
+              >
+                {isRevealed ? (
+                  <>
+                    <EyeOff className="h-4 w-4" />
+                    Hide Details
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    Reveal Details
+                  </>
+                )}
+              </Button>
               )}
               {application.already_revealed && (
                 <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
@@ -1036,7 +1017,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   {application.url && (
                     <DropdownMenuItem asChild>
                       <Link href={application.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" />
+                      <ExternalLink className="h-4 w-4 mr-2" />
                         Apply Now
                       </Link>
                     </DropdownMenuItem>
@@ -1061,63 +1042,63 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
 
     return (
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold flex items-center">
-              <History className="mr-2 h-5 w-5" />
+    <Card className="mb-4">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold flex items-center">
+            <History className="mr-2 h-5 w-5" />
               Saved Jobs ({revealedJobsHistory.length})
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHistory(!showHistory)}
-            >
-              {showHistory ? "Hide" : "Show"} History
-            </Button>
-          </div>
-        </CardHeader>
-        {showHistory && (
-          <CardContent>
-            {historyLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Loading revealed jobs history...
-              </div>
-            ) : revealedJobsHistory.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No previously revealed jobs found.
-              </p>
-            ) : (
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistory(!showHistory)}
+          >
+            {showHistory ? "Hide" : "Show"} History
+          </Button>
+        </div>
+      </CardHeader>
+      {showHistory && (
+        <CardContent>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Loading revealed jobs history...
+            </div>
+          ) : revealedJobsHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No previously revealed jobs found.
+            </p>
+          ) : (
               <>
-                <div className="space-y-4">
+            <div className="space-y-4">
                   {currentHistoryItems.map((item) => (
-                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
-                      {/* Mobile-first layout */}
-                      <div className="space-y-3">
-                        {/* Job title and status - full width on mobile */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start gap-2 mb-2">
-                              <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
-                                {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                              </h4>
-                              <Badge 
-                                variant="secondary" 
-                                className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
-                              >
-                                {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
-                              </Badge>
-                            </div>
-                          </div>
+                <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                  {/* Mobile-first layout */}
+                  <div className="space-y-3">
+                    {/* Job title and status - full width on mobile */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-2 mb-2">
+                          <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                            {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                          </h4>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                          >
+                            {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                          </Badge>
+                        </div>
+                      </div>
 
-                          {/* Status dropdown - takes full width on mobile */}
-                          <div className="w-full sm:w-auto">
-                            <Select
-                              value={jobStatuses.get(item.job_id) || 'revealed'}
-                              onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
-                              disabled={updatingStatus.has(item.job_id)}
-                            >
+                      {/* Status dropdown - takes full width on mobile */}
+                      <div className="w-full sm:w-auto">
+                        <Select
+                          value={jobStatuses.get(item.job_id) || 'revealed'}
+                          onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                          disabled={updatingStatus.has(item.job_id)}
+                        >
                               <SelectTrigger 
                                 className={`
                                   w-full sm:w-36 h-9 text-sm 
@@ -1133,98 +1114,98 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 `}
                               >
                                 <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(JOB_STATUSES).map(([key, label]) => (
                                   <SelectItem 
                                     key={key} 
                                     value={key} 
                                     className="text-sm hover:bg-green-50 cursor-pointer"
                                   >
-                                    {label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Company and job details */}
+                    {item.job_details ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-700">
+                          <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="font-medium">{item.job_details.company}</span>
                         </div>
-
-                        {/* Company and job details */}
-                        {item.job_details ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-gray-700">
-                              <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                              <span className="font-medium">{item.job_details.company}</span>
+                        
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                          {item.job_details.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-gray-400" />
+                              <span>{item.job_details.location}</span>
                             </div>
-                            
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                              {item.job_details.location && (
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 text-gray-400" />
-                                  <span>{item.job_details.location}</span>
-                                </div>
-                              )}
-                              
-                              {item.job_details.seniority && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-400">•</span>
-                                  <span>{getSeniorityLevel(item.job_details.seniority)}</span>
-                                </div>
-                              )}
-                              
-                              {item.job_details.remote && (
-                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
-                                  Remote
-                                </Badge>
-                              )}
-                              
-                              {item.job_details.hybrid && (
-                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
-                                  Hybrid
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-500 italic">
-                            Job details not available
-                          </div>
-                        )}
-
-                        {/* Footer with date and actions */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Calendar className="h-3 w-3" />
-                            <span>Revealed on {formatDate(item.revealed_at)}</span>
-                          </div>
+                          )}
                           
-                          {/* Action buttons - responsive layout */}
-                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
-                            {item.job_details && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openJobDetails(item.job_details!)}
-                                className="flex-1 sm:flex-none h-8 text-xs"
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                View
-                              </Button>
-                            )}
-                            {item.job_details?.url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                asChild
-                                className="flex-1 sm:flex-none h-8 text-xs"
-                              >
-                                <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  Apply
-                                </Link>
-                              </Button>
-                            )}
-                            {item.job_details && (
+                          {item.job_details.seniority && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400">•</span>
+                              <span>{getSeniorityLevel(item.job_details.seniority)}</span>
+                            </div>
+                          )}
+                          
+                          {item.job_details.remote && (
+                            <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                              Remote
+                            </Badge>
+                          )}
+                          
+                          {item.job_details.hybrid && (
+                            <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                              Hybrid
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        Job details not available
+                      </div>
+                    )}
+
+                    {/* Footer with date and actions */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        <span>Revealed on {formatDate(item.revealed_at)}</span>
+                      </div>
+                      
+                      {/* Action buttons - responsive layout */}
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                        {item.job_details && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openJobDetails(item.job_details!)}
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        )}
+                        {item.job_details?.url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Apply
+                            </Link>
+                          </Button>
+                        )}
+                        {item.job_details && (
                               <>
                                 {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
                                   // Show View Resume button if document exists
@@ -1245,26 +1226,26 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   </Button>
                                 ) : (
                                   // Show Generate Resume button if no document exists
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    asChild
-                                    className="flex-1 sm:flex-none h-8 text-xs"
-                                  >
-                                    <Link 
-                                      href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
-                                        item.job_details.description || ""
-                                      )}&companyWebsite=${encodeURIComponent(
-                                        item.job_details.company_object?.domain || ""
-                                      )}`}
-                                      target="_blank"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                      <Link 
+                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                item.job_details.description || ""
+                              )}&companyWebsite=${encodeURIComponent(
+                                item.job_details.company_object?.domain || ""
+                              )}`}
+                              target="_blank"
                                       rel="noopener noreferrer"
-                                    >
-                                      <FileText className="h-3 w-3 mr-1" />
-                                      Generate Resume
-                                    </Link>
-                                  </Button>
-                                )}
+                            >
+                              <FileText className="h-3 w-3 mr-1" />
+                              Generate Resume 
+                            </Link>
+                          </Button>
+                        )}
                                 
                                 {/* Similar pattern for Cover Letter */}
                                 {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
@@ -1284,54 +1265,33 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     </Link>
                                   </Button>
                                 ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    asChild
-                                    className="flex-1 sm:flex-none h-8 text-xs"
-                                  >
-                                    <Link
-                                      href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
-                                        item.job_details.description || ""
-                                      )}&companyWebsite=${encodeURIComponent(
-                                        item.job_details.company_object?.domain || ""
-                                      )}`}
-                                      target="_blank"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="flex-1 sm:flex-none h-8 text-xs"
+                          >
+                            <Link
+                              href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                item.job_details.description || ""
+                              )}&companyWebsite=${encodeURIComponent(
+                                item.job_details.company_object?.domain || ""
+                              )}`}
+                              target="_blank"
                                       rel="noopener noreferrer"
-                                    >
-                                      <Sparkles className="h-3 w-3 mr-1" />
-                                      Generate Cover Letter
-                                    </Link>
-                                  </Button>
-                                )}
-                                {item.job_details && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    asChild
-                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                                  >
-                                    <Link 
-                                      href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
-                                        item.job_details.description || ""
-                                      )}&companyWebsite=${encodeURIComponent(
-                                        item.job_details.company_object?.domain || ""
-                                      )}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <Eye className="h-3 w-3 mr-1" />
-                                      View Analysis
-                                    </Link>
-                                  </Button>
+                            >
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              Generate Cover Letter
+                            </Link>
+                          </Button>
                                 )}
                               </>
-                            )}
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </div>
-                  ))}
+                  </div>
+                </div>
+              ))}
                 </div>
 
                 {/* Pagination */}
@@ -1383,14 +1343,14 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         Next
                       </Button>
                     </div>
-                  </div>
+            </div>
                 )}
               </>
-            )}
-          </CardContent>
-        )}
-      </Card>
-    );
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
   };
 
   if (showFilters || !hasSearched) {
@@ -1669,9 +1629,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     {application.company}
                                   </span>
                                   {application.company_object?.industry && (
-                                    <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-gray-500">
                                       {application.company_object.industry}
-                                    </span>
+                                        </span>
                                   )}
                                 </div>
                               </div>
@@ -1715,25 +1675,25 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             )}
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm flex items-center gap-1">
-                              {getFlagEmoji(application.country_code)}
-                              {getCountryName(application.country_code)}
-                            </span>
+                              <span className="text-sm flex items-center gap-1">
+                                {getFlagEmoji(application.country_code)}
+                                {getCountryName(application.country_code)}
+                              </span>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-1 text-sm">
-                                {application.location}
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1 text-sm">
+                                  {application.location}
+                                </div>
+                                <div className="flex items-center gap-1 mt-1">
+                                  {application.remote && (
+                                    <Badge variant="default" className="text-xs">Remote</Badge>
+                                  )}
+                                  {application.hybrid && (
+                                    <Badge variant="outline" className="text-xs">Hybrid</Badge>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1 mt-1">
-                                {application.remote && (
-                                  <Badge variant="default" className="text-xs">Remote</Badge>
-                                )}
-                                {application.hybrid && (
-                                  <Badge variant="outline" className="text-xs">Hybrid</Badge>
-                                )}
-                              </div>
-                            </div>
                           </TableCell>
                           <TableCell>
                             {application.hiring_team?.map((teamMember) => (
@@ -1796,25 +1756,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                       >
                                         <Sparkles className="h-3 w-3 mr-1" />
                                         View Cover Letter
-                                      </Link>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      asChild
-                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                                    >
-                                      <Link 
-                                        href={`/dashboard/tools/resume-generator/analysis?jobDescription=${encodeURIComponent(
-                                          application.description || ""
-                                        )}&companyWebsite=${encodeURIComponent(
-                                          application.company_object.domain || ""
-                                        )}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Eye className="h-3 w-3 mr-1" />
-                                        View Analysis
                                       </Link>
                                     </Button>
                                   </>
@@ -1905,7 +1846,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   {application.url && (
                                     <DropdownMenuItem asChild>
                                       <Link href={application.url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                      <ExternalLink className="h-4 w-4 mr-2" />
                                         Apply Now
                                       </Link>
                                     </DropdownMenuItem>
