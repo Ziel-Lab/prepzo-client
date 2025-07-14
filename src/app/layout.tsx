@@ -144,7 +144,7 @@ export default function RootLayout({
           {children} {/* Render the page content */}
         </ClientProviders>
         <Analytics />
-        
+        <Script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="bkoC70HeGtS7HWG" data-version="062024"/>
         {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-0X56SMJDT3"
