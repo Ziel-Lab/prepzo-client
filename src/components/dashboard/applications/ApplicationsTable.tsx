@@ -184,6 +184,8 @@ type ExtendedSubscriptionPlan = SubscriptionPlan & {
 
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage] = useState(5);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(true);
@@ -893,212 +895,259 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   let filterSection;
 
   // History Section Component - shows in both filter and results view
-  const HistorySection = () => (
-    <Card className="mb-4">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center">
-            <History className="mr-2 h-5 w-5" />
+  const HistorySection = () => {
+    const totalHistoryPages = Math.ceil(revealedJobsHistory.length / historyItemsPerPage);
+    const startIndex = (historyCurrentPage - 1) * historyItemsPerPage;
+    const endIndex = startIndex + historyItemsPerPage;
+    const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
+
+    return (
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center">
+              <History className="mr-2 h-5 w-5" />
               Saved Jobs ({revealedJobsHistory.length})
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            {showHistory ? "Hide" : "Show"} History
-          </Button>
-        </div>
-      </CardHeader>
-      {showHistory && (
-        <CardContent>
-          {historyLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Loading revealed jobs history...
-            </div>
-          ) : revealedJobsHistory.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No previously revealed jobs found.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {revealedJobsHistory.slice(0, 10).map((item) => (
-                <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
-                  {/* Mobile-first layout */}
-                  <div className="space-y-3">
-                    {/* Job title and status - full width on mobile */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-2">
-                          <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
-                            {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                          </h4>
-                          <Badge 
-                            variant="secondary" 
-                            className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
-                          >
-                            {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
-                          </Badge>
-                        </div>
-                      </div>
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              {showHistory ? "Hide" : "Show"} History
+            </Button>
+          </div>
+        </CardHeader>
+        {showHistory && (
+          <CardContent>
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Loading revealed jobs history...
+              </div>
+            ) : revealedJobsHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No previously revealed jobs found.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {currentHistoryItems.map((item) => (
+                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                      {/* Mobile-first layout */}
+                      <div className="space-y-3">
+                        {/* Job title and status - full width on mobile */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2 mb-2">
+                              <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                                {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                              </h4>
+                              <Badge 
+                                variant="secondary" 
+                                className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                              >
+                                {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                              </Badge>
+                            </div>
+                          </div>
 
-                      {/* Status dropdown - takes full width on mobile */}
-                      <div className="w-full sm:w-auto">
-                        <Select
-                          value={jobStatuses.get(item.job_id) || 'revealed'}
-                          onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
-                          disabled={updatingStatus.has(item.job_id)}
-                        >
-                          <SelectTrigger className="w-full sm:w-36 h-9 text-sm border-gray-300 hover:border-gray-400 transition-colors">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                              <SelectItem key={key} value={key} className="text-sm">
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          {/* Status dropdown - takes full width on mobile */}
+                          <div className="w-full sm:w-auto">
+                            <Select
+                              value={jobStatuses.get(item.job_id) || 'revealed'}
+                              onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                              disabled={updatingStatus.has(item.job_id)}
+                            >
+                              <SelectTrigger className="w-full sm:w-36 h-9 text-sm border-gray-300 hover:border-gray-400 transition-colors">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                                  <SelectItem key={key} value={key} className="text-sm">
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Company and job details */}
+                        {item.job_details ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="font-medium">{item.job_details.company}</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                              {item.job_details.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-gray-400" />
+                                  <span>{item.job_details.location}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.seniority && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-400">•</span>
+                                  <span>{getSeniorityLevel(item.job_details.seniority)}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.remote && (
+                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                                  Remote
+                                </Badge>
+                              )}
+                              
+                              {item.job_details.hybrid && (
+                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                                  Hybrid
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">
+                            Job details not available
+                          </div>
+                        )}
+
+                        {/* Footer with date and actions */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="h-3 w-3" />
+                            <span>Revealed on {formatDate(item.revealed_at)}</span>
+                          </div>
+                          
+                          {/* Action buttons - responsive layout */}
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                            {item.job_details && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openJobDetails(item.job_details!)}
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                            )}
+                            {item.job_details?.url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Apply
+                                </Link>
+                              </Button>
+                            )}
+                            {item.job_details && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  asChild
+                                  className="flex-1 sm:flex-none h-8 text-xs"
+                                >
+                                  <Link 
+                                    href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                      item.job_details.description || ""
+                                    )}&companyWebsite=${encodeURIComponent(
+                                      item.job_details.company_object?.domain || ""
+                                    )}`}
+                                    target="_blank"
+                                  >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    Generate Resume 
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  asChild
+                                  className="flex-1 sm:flex-none h-8 text-xs"
+                                >
+                                  <Link
+                                    href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                      item.job_details.description || ""
+                                    )}&companyWebsite=${encodeURIComponent(
+                                      item.job_details.company_object?.domain || ""
+                                    )}`}
+                                    target="_blank"
+                                  >
+                                    <Sparkles className="h-3 w-3 mr-1" />
+                                    Generate Cover Letter
+                                  </Link>
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
 
-                    {/* Company and job details */}
-                    {item.job_details ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <span className="font-medium">{item.job_details.company}</span>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                          {item.job_details.location && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3 text-gray-400" />
-                              <span>{item.job_details.location}</span>
-                            </div>
-                          )}
-                          
-                          {item.job_details.seniority && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-400">•</span>
-                              <span>{getSeniorityLevel(item.job_details.seniority)}</span>
-                            </div>
-                          )}
-                          
-                          {item.job_details.remote && (
-                            <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
-                              Remote
-                            </Badge>
-                          )}
-                          
-                          {item.job_details.hybrid && (
-                            <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
-                              Hybrid
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500 italic">
-                        Job details not available
-                      </div>
-                    )}
-
-                    {/* Footer with date and actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Calendar className="h-3 w-3" />
-                        <span>Revealed on {formatDate(item.revealed_at)}</span>
-                      </div>
-                      
-                      {/* Action buttons - responsive layout */}
-                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
-                        {item.job_details && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openJobDetails(item.job_details!)}
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                        )}
-                        {item.job_details?.url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              Apply
-                            </Link>
-                          </Button>
-                        )}
-                        {item.job_details && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                                                  {/* Pass job description & company website to Resume Generator via query params */}
-                      <Link 
-                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
-                                item.job_details.description || ""
-                              )}&companyWebsite=${encodeURIComponent(
-                                item.job_details.company_object?.domain || ""
-                              )}`}
-                              target="_blank"
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              Generate Resume 
-                            </Link>
-                          </Button>
-                        )}
-                        {item.job_details && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            {/* Pass job description & company website to Cover Letter Generator via query params */}
-                            <Link
-                              href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
-                                item.job_details.description || ""
-                              )}&companyWebsite=${encodeURIComponent(
-                                item.job_details.company_object?.domain || ""
-                              )}`}
-                              target="_blank"
-                            >
-                              <Sparkles className="h-3 w-3 mr-1" />
-                              Generate Cover Letter
-                            </Link>
-                          </Button>
-                        )}
-                      </div>
+                {/* Pagination */}
+                {totalHistoryPages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div className="text-sm text-gray-500">
+                      Showing {startIndex + 1}-{Math.min(endIndex, revealedJobsHistory.length)} of {revealedJobsHistory.length}
                     </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (historyCurrentPage > 1) setHistoryCurrentPage(prev => prev - 1);
+                            }}
+                            className={historyCurrentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: totalHistoryPages }, (_, i) => (
+                          <PaginationItem key={i + 1}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setHistoryCurrentPage(i + 1);
+                              }}
+                              isActive={historyCurrentPage === i + 1}
+                            >
+                              {i + 1}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (historyCurrentPage < totalHistoryPages) setHistoryCurrentPage(prev => prev + 1);
+                            }}
+                            className={historyCurrentPage === totalHistoryPages ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
-                </div>
-              ))}
-              {revealedJobsHistory.length > 10 && (
-                <div className="text-center mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Showing latest 10 of <span className="font-medium">{revealedJobsHistory.length}</span> revealed jobs
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  );
+                )}
+              </>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+  };
 
   if (showFilters || !hasSearched) {
     filterSection = (
