@@ -1577,6 +1577,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         onClose={() => setIsDetailsDialogOpen(false)}
         application={selectedJob}
         isRevealed={selectedJob ? (!selectedJob.has_blurred_data || revealedJobs.has(selectedJob.id)) : false}
+        onStatusUpdate={updateJobStatus}
       />
     </>
   );
