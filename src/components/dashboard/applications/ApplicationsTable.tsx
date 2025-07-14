@@ -959,12 +959,31 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
                               disabled={updatingStatus.has(item.job_id)}
                             >
-                              <SelectTrigger className="w-full sm:w-36 h-9 text-sm border-gray-300 hover:border-gray-400 transition-colors">
-                                <SelectValue />
+                              <SelectTrigger 
+                                className={`
+                                  w-full sm:w-36 h-9 text-sm 
+                                  border-2 border-green-500 
+                                  bg-green-50/50 
+                                  hover:bg-green-50 
+                                  transition-all 
+                                  duration-200 
+                                  animate-pulse 
+                                  hover:animate-none
+                                  focus:ring-2 
+                                  focus:ring-green-200 
+                                  focus:border-green-500
+                                  ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                `}
+                              >
+                                <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
                               </SelectTrigger>
                               <SelectContent>
                                 {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                                  <SelectItem key={key} value={key} className="text-sm">
+                                  <SelectItem 
+                                    key={key} 
+                                    value={key} 
+                                    className="text-sm hover:bg-green-50 cursor-pointer"
+                                  >
                                     {label}
                                   </SelectItem>
                                 ))}
