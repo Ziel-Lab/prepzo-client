@@ -98,10 +98,10 @@ export function withRateLimit(
     }
     
     if (record.count >= maxRequests) {
-      return NextResponse.json(
+      return Promise.resolve(NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
         { status: 429 }
-      );
+      ));
     }
     
     record.count++;
