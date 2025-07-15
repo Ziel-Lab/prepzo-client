@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter, History, Loader2 } from "lucide-react";
+import { MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Building, MapPin, Calendar, DollarSign, EyeOff, Link2, Search, Filter, History, Loader2, FileText, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import JobDetailsDialog from "./JobDetailsDialog";
@@ -21,6 +21,7 @@ import TagInput from "@/components/ui/TagInput";
 import countries from 'world-countries';
 import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 import ApplicationsFilters from "./ApplicationsFilters";
+import Link from "next/link";
 
 
 
@@ -125,7 +126,22 @@ type Job = {
   employment_statuses?: string[];
   has_blurred_data?: boolean;
   country_code?: string;
+  already_revealed?: boolean;
 };
+
+// Valid job application statuses
+const JOB_STATUSES = {
+  revealed: "Revealed",
+  applied: "Applied", 
+  scheduled: "Scheduled",
+  interview: "Interview",
+  rejected: "Rejected",
+  offered: "Offered",
+  accepted: "Accepted",
+  withdrawn: "Withdrawn"
+} as const;
+
+type JobStatus = keyof typeof JOB_STATUSES;
 
 // Type for the API response structure from revealed jobs history
 type RevealedJobApiResponse = {
@@ -166,8 +182,16 @@ type ExtendedSubscriptionPlan = SubscriptionPlan & {
   job_search_results_limit?: number;
 };
 
+type GeneratedDocument = {
+  current_resume?: string;
+  company_website?: string;
+  created_at?: string;
+};
+
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage] = useState(5);
   const [applications, setApplications] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState<boolean>(true);
@@ -184,10 +208,14 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [revealedJobsHistory, setRevealedJobsHistory] = useState<Array<{ job_id: number; job_details?: Job; revealed_at: string }>>([]);
+  const [jobStatuses, setJobStatuses] = useState<Map<number, JobStatus>>(new Map());
+  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const isMobile = useIsMobile();
   const itemsPerPage = 10;
   // const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
+  // Change the Map key type from number to string
+  const [generatedDocuments, setGeneratedDocuments] = useState<Map<string, GeneratedDocument>>(new Map());
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
@@ -283,7 +311,22 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       }
 
       if (json?.data && Array.isArray(json.data)) {
-        setApplications(json.data as Job[]);
+        const jobs = json.data as Job[];
+        
+        // Process jobs to handle already_revealed flag
+        const processedJobs = jobs.map(job => {
+          if (job.already_revealed) {
+            // Mark as revealed without consuming credits
+            setRevealedJobs(prev => new Set(prev).add(job.id));
+            setChargedJobs(prev => new Set(prev).add(job.id));
+            
+            // Job should not be blurred since backend already merged details
+            return { ...job, has_blurred_data: false };
+          }
+          return job;
+        });
+        
+        setApplications(processedJobs);
       }
     } catch (err: unknown) {
       console.error(err);
@@ -322,7 +365,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
         if (!res.ok) throw new Error(`Failed to fetch revealed jobs history (status ${res.status})`);
 
-        const history: Array<{ job_id: number; job_details?: Job | RevealedJobApiResponse | string; revealed_at: string }> = await res.json();
+        const history: Array<{ job_id: number; job_details?: Job | RevealedJobApiResponse | string; revealed_at: string; status?: string }> = await res.json();
 
         // Store the complete history data for the history section
         // Parse job_details if they come as JSON strings
@@ -362,6 +405,18 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         }));
         
         setRevealedJobsHistory(finalHistory || []);
+
+        // Extract and store existing job statuses from the history
+        const statusMap = new Map<number, JobStatus>();
+        history.forEach(item => {
+          // The status is at the top level of each history item
+          if (item.status && typeof item.status === 'string' && item.status in JOB_STATUSES) {
+            statusMap.set(item.job_id, item.status as JobStatus);
+          }
+        });
+        
+        console.log('Extracted statuses:', statusMap); // Debug log
+        setJobStatuses(statusMap);
 
         if (!Array.isArray(history) || history.length === 0) return;
 
@@ -487,6 +542,15 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       return;
     }
 
+    // If job was already revealed (from backend flag), show a helpful message
+    if (job?.already_revealed) {
+      toast({
+        title: "Already revealed",
+        description: "This job was previously revealed and your full details are already shown.",
+      });
+      return;
+    }
+
     const isCurrentlyRevealed = revealedJobs.has(jobId);
 
     // If the job is currently revealed, hide it without affecting credits
@@ -537,6 +601,67 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     setIsDetailsDialogOpen(true);
   };
 
+  // ---------------------------------------------------------------------------
+  // Job Status Management
+  // ---------------------------------------------------------------------------
+  const updateJobStatus = async (jobId: number, newStatus: JobStatus) => {
+    try {
+      setUpdatingStatus(prev => new Set(prev).add(jobId));
+
+      // Retrieve JWT token for Authorization header
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (!sessionError && session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/update-job-status`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            job_id: jobId,
+            status: newStatus
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to update status (${res.status})`);
+      }
+
+      // Update local state
+      setJobStatuses(prev => {
+        const newMap = new Map(prev);
+        newMap.set(jobId, newStatus);
+        return newMap;
+      });
+
+      toast({
+        title: "Status updated",
+        description: `Job status changed to ${JOB_STATUSES[newStatus]}`,
+      });
+    } catch (err) {
+      console.error("Error updating job status:", err);
+      toast({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : "Could not update job status",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(jobId);
+        return newSet;
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -544,6 +669,30 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       day: 'numeric', 
       year: 'numeric' 
     });
+  };
+
+  // Get status color for badges
+  const getStatusBadgeColor = (status: JobStatus) => {
+    switch (status) {
+      case 'revealed':
+        return 'bg-gray-100 text-gray-800';
+      case 'applied':
+        return 'bg-blue-100 text-blue-800';
+      case 'scheduled':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'interview':
+        return 'bg-purple-100 text-purple-800';
+      case 'offered':
+        return 'bg-green-100 text-green-800';
+      case 'accepted':
+        return 'bg-green-600 text-white';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      case 'withdrawn':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   // Mobile Card Component with updated hiding logic
@@ -566,9 +715,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     {application.job_title}
                     <Link2 className="h-4 w-4 inline ml-1" />
                   </button>
-                  {isBlurred && (
+                  {isBlurred ? (
                     <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                       Hidden
+                    </Badge>
+                  ) : application.already_revealed && (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      Previously Revealed
                     </Badge>
                   )}
                 </div>
@@ -686,7 +839,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
-              {application.has_blurred_data && (
+              {application.has_blurred_data && !application.already_revealed && (
               <Button
                 variant="outline"
                 size="sm"
@@ -706,7 +859,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 )}
               </Button>
               )}
-              
+              {application.already_revealed && (
+                <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
+                  <Eye className="h-3 w-3 mr-1" />
+                  Revealed
+                </Badge>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
@@ -745,113 +903,323 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   let filterSection;
 
   // History Section Component - shows in both filter and results view
-  const HistorySection = () => (
-    <Card className="mb-4">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center">
-            <History className="mr-2 h-5 w-5" />
-            Previously Revealed Jobs ({revealedJobsHistory.length})
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            {showHistory ? "Hide" : "Show"} History
-          </Button>
-        </div>
-      </CardHeader>
-      {showHistory && (
-        <CardContent>
-          {historyLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Loading revealed jobs history...
-            </div>
-          ) : revealedJobsHistory.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No previously revealed jobs found.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {revealedJobsHistory.slice(0, 10).map((item) => (
-                <div key={item.job_id} className="border rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">
-                        {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                      </h4>
-                      {item.job_details && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">{item.job_details.company}</span>
-                          {item.job_details.location && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <span>{item.job_details.location}</span>
-                            </>
-                          )}
-                          {item.job_details.remote && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <Badge variant="default" className="text-xs ml-1">Remote</Badge>
-                            </>
-                          )}
-                          {item.job_details.seniority && (
-                            <>
-                              <span className="mx-2">•</span>
-                              <span className="text-xs">{getSeniorityLevel(item.job_details.seniority)}</span>
-                            </>
-                          )}
+  const HistorySection = () => {
+    const totalHistoryPages = Math.ceil(revealedJobsHistory.length / historyItemsPerPage);
+    const startIndex = (historyCurrentPage - 1) * historyItemsPerPage;
+    const endIndex = startIndex + historyItemsPerPage;
+    const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
+
+    return (
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center">
+              <History className="mr-2 h-5 w-5" />
+              Saved Jobs ({revealedJobsHistory.length})
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              {showHistory ? "Hide" : "Show"} History
+            </Button>
+          </div>
+        </CardHeader>
+        {showHistory && (
+          <CardContent>
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Loading revealed jobs history...
+              </div>
+            ) : revealedJobsHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No previously revealed jobs found.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {currentHistoryItems.map((item) => (
+                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                      {/* Mobile-first layout */}
+                      <div className="space-y-3">
+                        {/* Job title and status - full width on mobile */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2 mb-2">
+                              <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                                {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                              </h4>
+                              <Badge 
+                                variant="secondary" 
+                                className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                              >
+                                {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Status dropdown - takes full width on mobile */}
+                          <div className="w-full sm:w-auto">
+                            <Select
+                              value={jobStatuses.get(item.job_id) || 'revealed'}
+                              onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                              disabled={updatingStatus.has(item.job_id)}
+                            >
+                              <SelectTrigger 
+                                className={`
+                                  w-full sm:w-36 h-9 text-sm 
+                                  border-2 border-green-500 
+                                  bg-green-50 
+                                  hover:bg-green-100 
+                                  transition-all 
+                                  duration-200 
+                                  focus:ring-2 
+                                  focus:ring-green-200 
+                                  focus:border-green-500
+                                  ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                `}
+                              >
+                                <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                                  <SelectItem 
+                                    key={key} 
+                                    value={key} 
+                                    className="text-sm hover:bg-green-50 cursor-pointer"
+                                  >
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      )}
-                      {!item.job_details && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          Job details not available
+
+                        {/* Company and job details */}
+                        {item.job_details ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="font-medium">{item.job_details.company}</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                              {item.job_details.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-gray-400" />
+                                  <span>{item.job_details.location}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.seniority && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-400">•</span>
+                                  <span>{getSeniorityLevel(item.job_details.seniority)}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.remote && (
+                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                                  Remote
+                                </Badge>
+                              )}
+                              
+                              {item.job_details.hybrid && (
+                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                                  Hybrid
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">
+                            Job details not available
+                          </div>
+                        )}
+
+                        {/* Footer with date and actions */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="h-3 w-3" />
+                            <span>Revealed on {formatDate(item.revealed_at)}</span>
+                          </div>
+                          
+                          {/* Action buttons - responsive layout */}
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                            {item.job_details && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openJobDetails(item.job_details!)}
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                            )}
+                            {item.job_details?.url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Apply
+                                </Link>
+                              </Button>
+                            )}
+                            {item.job_details && (
+                              <>
+                                {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
+                                  // Show View Resume button if document exists
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Link 
+                                      href={generatedDocuments.get(item.job_details.company_object.domain)?.current_resume || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      View Resume
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  // Show Generate Resume button if no document exists
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs"
+                                  >
+                                    <Link 
+                                      href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                        item.job_details.description || ""
+                                      )}&companyWebsite=${encodeURIComponent(
+                                        item.job_details.company_object?.domain || ""
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Generate Resume
+                                    </Link>
+                                  </Button>
+                                )}
+                                
+                                {/* Similar pattern for Cover Letter */}
+                                {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                  >
+                                    <Link 
+                                      href={generatedDocuments.get(item.job_details.company_object.domain)?.current_resume || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <Sparkles className="h-3 w-3 mr-1" />
+                                      View Cover Letter
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs"
+                                  >
+                                    <Link
+                                      href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                        item.job_details.description || ""
+                                      )}&companyWebsite=${encodeURIComponent(
+                                        item.job_details.company_object?.domain || ""
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <Sparkles className="h-3 w-3 mr-1" />
+                                      Generate Cover Letter
+                                    </Link>
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-2">
-                        Revealed on: {formatDate(item.revealed_at)}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {item.job_details && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openJobDetails(item.job_details!)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      )}
-                      {item.job_details?.url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <a href={item.job_details.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Apply
-                          </a>
-                        </Button>
-                      )}
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalHistoryPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+                    <div className="text-sm text-gray-500 w-full sm:w-auto order-2 sm:order-1 text-center sm:text-left">
+                      Showing {startIndex + 1}-{Math.min(endIndex, revealedJobsHistory.length)} of {revealedJobsHistory.length}
+                    </div>
+                    <div className="flex items-center justify-center w-full sm:w-auto gap-1 order-1 sm:order-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage > 1) setHistoryCurrentPage(prev => prev - 1);
+                        }}
+                        disabled={historyCurrentPage === 1}
+                        className="h-8 px-3"
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center">
+                        {Array.from({ length: totalHistoryPages }, (_, i) => (
+                          <Button
+                            key={i + 1}
+                            variant={historyCurrentPage === i + 1 ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(i + 1)}
+                            className={`h-8 w-8 p-0 ${
+                              historyCurrentPage === i + 1 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {i + 1}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (historyCurrentPage < totalHistoryPages) setHistoryCurrentPage(prev => prev + 1);
+                        }}
+                        disabled={historyCurrentPage === totalHistoryPages}
+                        className="h-8 px-3"
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
-              {revealedJobsHistory.length > 10 && (
-                <p className="text-sm text-gray-500 text-center mt-4">
-                  Showing latest 10 of {revealedJobsHistory.length} revealed jobs
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  );
+                )}
+              </>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+  };
 
   if (showFilters || !hasSearched) {
     filterSection = (
@@ -1082,9 +1450,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   {application.job_title}
                                   <Link2 className="h-4 w-4 inline ml-1" />
                                 </button>
-                                {isBlurred && (
+                                {isBlurred ? (
                                   <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
                                     Hidden
+                                  </Badge>
+                                ) : application.already_revealed && (
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    Previously Revealed
                                   </Badge>
                                 )}
                               </div>
@@ -1159,14 +1531,10 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
                                   {application.remote && (
-                                    <Badge variant="default" className="text-xs">
-                                      Remote
-                                    </Badge>
+                                    <Badge variant="default" className="text-xs">Remote</Badge>
                                   )}
                                   {application.hybrid && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Hybrid
-                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">Hybrid</Badge>
                                   )}
                                 </div>
                               </div>
@@ -1201,8 +1569,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
-                              {application.has_blurred_data && (
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                              {application.has_blurred_data && !application.already_revealed && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1221,6 +1589,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     </>
                                   )}
                                 </Button>
+                              )}
+                              {application.already_revealed && (
+                                <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Revealed
+                                </Badge>
                               )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -1324,6 +1698,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         onClose={() => setIsDetailsDialogOpen(false)}
         application={selectedJob}
         isRevealed={selectedJob ? (!selectedJob.has_blurred_data || revealedJobs.has(selectedJob.id)) : false}
+        onStatusUpdate={updateJobStatus}
       />
     </>
   );

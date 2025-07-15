@@ -31,7 +31,15 @@ const SignUpForm = () => {
     };
 
     checkSession();
-  }, [supabase, router] );
+  }, [supabase, router]);
+
+  // Handle OAuth error from URL params
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'oauth_failed') {
+      setError('Authentication failed. Please try again or contact support if the issue persists.');
+    }
+  }, [searchParams]);
 
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
     // Persist chosen source so we can use it after the OAuth redirect
@@ -52,7 +60,7 @@ const SignUpForm = () => {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: supabaseProvider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}&from=signup`,
         },
       });
 

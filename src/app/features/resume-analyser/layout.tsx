@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Resume Analyzer & ATS Optimizer | Score & Improve Your CV",
-  description: "Upload your resume plus a job description to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
+  title: "Resume Generator & ATS Optimizer | Create & Improve Your CV",
+  description: "Generate and optimize your resume with AI-powered suggestions to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
   keywords: [
-    "resume analyzer",
-    "AI resume analysis",
+    "resume generator",
+    "AI resume creation",
     "ATS optimization", 
     "resume optimization",
-    "resume feedback",
+    "resume builder",
     "career tools",
     "job search",
     "resume score",
@@ -16,16 +16,16 @@ export const metadata: Metadata = {
     "resume improvement"
   ],
   openGraph: {
-    title: "Resume Analyzer & ATS Optimizer | Score & Improve Your CV",
-    description: "Upload your resume plus a job description to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
+    title: "Resume Generator & ATS Optimizer | Create & Improve Your CV",
+    description: "Generate and optimize your resume with AI-powered suggestions to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
     url: "https://www.prepzo.ai/features/resume-analyser",
     siteName: "Prepzo.ai",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Resume Analyzer & ATS Optimizer | Score & Improve Your CV",
-    description: "Upload your resume plus a job description to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
+    title: "Resume Generator & ATS Optimizer | Create & Improve Your CV",
+    description: "Generate and optimize your resume with AI-powered suggestions to get a 10-point score, ATS-ready format, keyword feedback and a polished version recruiters won't ignore.",
   },
   alternates: {
     canonical: "https://www.prepzo.ai/features/resume-analyser",

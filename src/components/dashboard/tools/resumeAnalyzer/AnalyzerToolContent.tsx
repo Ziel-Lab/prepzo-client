@@ -16,6 +16,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+import { useSearchParams } from "next/navigation";
 
 const loadingMessages = [
   "Our AI is reading your resume closely...",
@@ -91,7 +92,6 @@ const AnalyzerToolContent = () => {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ParsedAnalysisResult | null>(null);
-  const [rawResponseForDebug, setRawResponseForDebug] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ jobDescription?: string; companyWebsite?: string }>({});
   const [isLoadingRoast, setIsLoadingRoast] = useState(false);
   const [roastResult, setRoastResult] = useState<string | null>(null);
@@ -104,6 +104,7 @@ const AnalyzerToolContent = () => {
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
   const [limitReached, setLimitReached] = useState(false);
   const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<AnalysisHistoryItem | null>(null);
+  const searchParams = useSearchParams();
 
   const supabase = createClient();
   const resultsCardRef = useRef<HTMLDivElement>(null);
@@ -168,8 +169,7 @@ const AnalyzerToolContent = () => {
             setResumeInputMethod('upload');
         }
       } catch (err: any) {
-        console.error("Error fetching user documents:", err);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Unable to load your documents right now. Please refresh the page and try again!");
         setResumeInputMethod('upload'); 
       } finally {
         setIsFetchingUserDocs(false);
@@ -202,7 +202,7 @@ const AnalyzerToolContent = () => {
                   roastFeedbackTextFromApi = parsedInnerJson.roast;
                 }
               } catch (e) {
-                console.error("Error parsing nested roast string from item.feedback_analysis.feedback:", item.id, e);
+                // Error parsing nested roast string
               }
             } else if (item.feedback_analysis && typeof item.feedback_analysis.roast === 'string') {
                 roastFeedbackTextFromApi = item.feedback_analysis.roast;
@@ -213,7 +213,7 @@ const AnalyzerToolContent = () => {
                 const feedbackDetails: FeedbackDetails = JSON.parse(item.feedback_analysis.feedback);
                 parsedScore = feedbackDetails.score;
               } catch (e) {
-                console.error("Error parsing score from item.feedback_analysis.feedback JSON string for item ID:", item.id, e);
+                // Error parsing score from feedback JSON
               }
             }
           }
@@ -227,7 +227,7 @@ const AnalyzerToolContent = () => {
               const fileName = fileNameWithPotentialQuery.split('?')[0];
               derivedResumeTitle = decodeURIComponent(fileName);
             } catch (e) {
-                console.error("Error deriving resume title from URL:", resumeUrlFromAPI, e);
+                // Error deriving resume title from URL
             }
           }
           
@@ -259,8 +259,7 @@ const AnalyzerToolContent = () => {
         });
         setAnalysisHistory(formattedHistory);
       } catch (err: any) {
-        console.error("Error fetching analysis history:", err);
-        setHistoryError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setHistoryError("Unable to load your analysis history. Please refresh the page and try again!");
       } finally {
         setIsFetchingHistory(false);
       }
@@ -269,6 +268,34 @@ const AnalyzerToolContent = () => {
         fetchData();
     }
   }, [supabase]);
+
+  // Prefill job description and company website from query params when component mounts
+  useEffect(() => {
+    const jobDescParam = searchParams.get("jobDescription");
+    const companyWebsiteParam = searchParams.get("companyWebsite");
+
+    if (jobDescParam) {
+      try {
+        setJobDescription(decodeURIComponent(jobDescParam));
+      } catch {
+        setJobDescription(jobDescParam);
+      }
+    }
+
+    if (companyWebsiteParam) {
+      try {
+        let url = decodeURIComponent(companyWebsiteParam);
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
+        }
+        setCompanyWebsite(url);
+      } catch {
+        setCompanyWebsite(companyWebsiteParam);
+      }
+    }
+    // We run this only once on mount – searchParams is stable in Next.js App Router
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -330,8 +357,7 @@ const AnalyzerToolContent = () => {
       }
       return result.file_url;
     } catch (err:any) {
-      console.error("New resume upload error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("Upload failed. Please refresh the page and try uploading your resume again!");
       return null;
     } finally {
       setIsUploadingNewResume(false);
@@ -344,7 +370,6 @@ const AnalyzerToolContent = () => {
     setError(null);
     setLimitReached(false);
     setAnalysisResult(null);
-    setRawResponseForDebug(null);
     setFieldErrors({});
     setShowImprovedResume(false);
     setCurrentAnalysisId(null);
@@ -392,7 +417,6 @@ const AnalyzerToolContent = () => {
     if (sessionError || !sessionData?.session?.access_token) {
       setError("Could not retrieve user session. Please ensure you are logged in.");
       setIsLoadingAnalysis(false);
-      console.error("AnalyzeResume: Session error or no access token.", sessionError);
       return;
     }
     const jwtToken = sessionData.session.access_token;
@@ -428,14 +452,13 @@ const AnalyzerToolContent = () => {
         });
 
         const responseData = await response.json();
-        setRawResponseForDebug(JSON.stringify(responseData, null, 2));
 
         if (!response.ok) {
           const specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
           if (typeof specificError === 'string' && specificError.toLowerCase().includes("monthly limit")) {
             setLimitReached(true);
           } else {
-            setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+            setRoastError("Resume roast failed to generate. Please refresh the page and try again!");
           }
           setIsLoadingRoast(false);
           return;
@@ -448,9 +471,9 @@ const AnalyzerToolContent = () => {
                 if (parsedFeedbackPayload.roast && typeof parsedFeedbackPayload.roast === 'string') {
                     actualRoastText = parsedFeedbackPayload.roast;
                 }
-            } catch (e) {
-                console.error("Error parsing nested roast feedback JSON from responseData.feedback:", e);
-            }
+                          } catch (e) {
+                // Error parsing nested roast feedback JSON
+              }
         } else if (responseData.roast && typeof responseData.roast === 'string') {
             actualRoastText = responseData.roast;
         }
@@ -484,8 +507,7 @@ const AnalyzerToolContent = () => {
         setNewResumeFile(null);
 
       } catch (err: any) {
-        console.error("Roast Resume Submit Error:", err);
-        setRoastError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setRoastError("Resume roast encountered an error. Please refresh the page and try again!");
       } finally {
         setIsLoadingRoast(false);
       }
@@ -518,16 +540,14 @@ const AnalyzerToolContent = () => {
       });
 
       const responseData: RawApiResponse = await response.json();
-      setRawResponseForDebug(JSON.stringify(responseData, null, 2));
 
       if (!response.ok) {
-        console.error("AnalyzeResume Error Response:", responseData);
         const specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
         
         if (typeof specificError === 'string' && specificError.toLowerCase().includes("monthly limit")) {
             setLimitReached(true);
         } else {
-            setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+            setError("Resume analysis failed to generate. Please refresh the page and try again!");
         }
         setIsLoadingAnalysis(false);
         return;
@@ -562,14 +582,11 @@ const AnalyzerToolContent = () => {
         setNewResumeFile(null);
 
       } catch (parseError: any) {
-        console.error("Error parsing nested JSON from API response:", parseError);
-        console.error("Raw response was:", responseData);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Analysis results couldn't be processed. Please refresh the page and try again!");
       }
 
     } catch (err: any) {
-      console.error("AnalyzeResume Submit Error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("Analysis request failed. Please refresh the page and try again!");
     } finally {
       setIsLoadingAnalysis(false);
     }
@@ -1043,14 +1060,7 @@ const AnalyzerToolContent = () => {
                 )
               )}
             </Button>
-            {rawResponseForDebug && !analysisResult && !roastResult && (error || roastError) && (
-                <details className="w-full mt-2 text-xs text-gray-500">
-                    <summary>Show raw API response (for debugging)</summary>
-                    <pre className="bg-gray-100 p-2 rounded-md overflow-x-auto mt-1">
-                        {rawResponseForDebug}
-                    </pre>
-                </details>
-            )}
+
           </CardFooter>
         </form>
       </Card>

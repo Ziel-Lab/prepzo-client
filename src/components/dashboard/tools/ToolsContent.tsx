@@ -14,11 +14,11 @@ const careerTools = [
     route: "/dashboard/tools/linkedin-optimizer",
   },
   {
-    toolId: "resume-analyzer", 
-    name: "Resume Analyzer",
-    info: "Analyze your resume against job descriptions for tailored feedback.",
-    isActive: true,
-    route: "/dashboard/tools/analyze-resume",
+    id: "resume-generator",
+    title: "Resume Generator",
+    description: "Generate and optimize your resume with AI-powered suggestions.",
+    comingSoon: false,
+    path: "/dashboard/tools/resume-generator",
   },
   {
     toolId: "cover-letter-generator",

@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
+import { useSearchParams } from "next/navigation";
 
 const loadingMessages = [
     "Understanding the job role...",
@@ -118,6 +119,35 @@ const CoverLetterContent = () => {
   const supabase = createClient();
   const resultsRef = useRef<HTMLDivElement>(null);
   const loadingCardRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+
+  // Prefill job description & company website from URL query params
+  useEffect(() => {
+    const jobDescParam = searchParams.get("jobDescription");
+    const companyWebsiteParam = searchParams.get("companyWebsite");
+
+    if (jobDescParam) {
+      try {
+        setJobDescription(decodeURIComponent(jobDescParam));
+      } catch {
+        setJobDescription(jobDescParam);
+      }
+    }
+
+    if (companyWebsiteParam) {
+      try {
+        let url= decodeURIComponent(companyWebsiteParam);
+        if (!/^https?:\/\//i.test(url)) {
+          url = `https://${url}`;
+        }
+        setCompanyWebsite(url);
+      } catch {
+        setCompanyWebsite(companyWebsiteParam);
+      }
+    }
+    // Run only once on mount – searchParams is stable in App Router
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -166,8 +196,7 @@ const CoverLetterContent = () => {
           setResumeInputMethod("upload");
         }
       } catch (err: any) {
-        console.error("Error fetching user documents:", err);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Unable to load your documents right now. Please refresh the page and try again!");
         setResumeInputMethod("upload");
       } finally {
         setIsFetchingUserDocs(false);
@@ -194,8 +223,7 @@ const CoverLetterContent = () => {
         })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setHistory(formattedHistory);
       } catch (err: any) {
-        console.error("Error fetching cover letter history:", err);
-        setHistoryError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setHistoryError("Unable to load your cover letter history. Please refresh the page and try again!");
       } finally {
         setIsFetchingHistory(false);
       }
@@ -278,8 +306,7 @@ const CoverLetterContent = () => {
        setUserDocuments(prev => [newDocEntry, ...prev]);
       return result.file_url;
     } catch (err: any) {
-      console.error("New resume upload error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("Upload failed. Please refresh the page and try uploading your resume again!");
       return null;
     } finally {
       setIsUploadingNewResume(false);
@@ -361,7 +388,7 @@ const CoverLetterContent = () => {
         if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
           setLimitReached(true);
         } else {
-          setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+          setError("Cover letter generation failed. Please refresh the page and try again!");
         }
         return;
       }
@@ -388,12 +415,10 @@ const CoverLetterContent = () => {
             setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
             setNewResumeFile(null); 
         } else {
-            console.error("Parsed feedback from backend is missing cover_letter or additional_comments:", parsedFeedback);
-            setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+            setError("Cover letter results couldn't be processed. Please refresh the page and try again!");
         }
       } else if (responseData.cover_letter && responseData.additional_comments !== undefined) {
         // Fallback: if backend ALREADY parsed it and sent it as top-level (less likely based on new info)
-        console.warn("Backend sent parsed cover letter data directly, adapting...");
         setGeneratedResult({
           cover_letter: responseData.cover_letter,
           additional_comments: responseData.additional_comments,
@@ -412,15 +437,13 @@ const CoverLetterContent = () => {
         setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
         setNewResumeFile(null);
       } else if (responseData.message && responseData.details) { // Your existing specific error handling
-        console.error("Error processing cover letter from backend:", responseData.details);
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Cover letter generation encountered an issue. Please refresh the page and try again!");
       } else {
-        setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+        setError("Unexpected response from cover letter service. Please refresh the page and try again!");
       }
 
     } catch (err: any) {
-      console.error("Cover letter generation error:", err);
-      setError("Uh oh! Something went a bit sideways. Our tech wizards are on it!");
+      setError("Cover letter request failed. Please refresh the page and try again!");
     } finally {
       setIsLoading(false);
     }
@@ -428,9 +451,9 @@ const CoverLetterContent = () => {
 
   const handleCopyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-
+      // Copy successful
     }).catch(err => {
-      console.error("Failed to copy:", err);
+      // Copy failed - could show a user-friendly message if needed
     });
   };
   

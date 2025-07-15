@@ -36,10 +36,10 @@ const ResumeAnalyzer = () => {
 
   const handleAnalyzeResume = () => {
     if (isAuthenticated) {
-      router.push('/dashboard/tools/analyze-resume');
+      router.push('/dashboard/tools/resume-generator');
     } else {
       // Redirect to login with return URL
-      router.push('/auth/login?redirect=/dashboard/tools/analyze-resume');
+      router.push('/auth/login?redirect=/dashboard/tools/resume-generator');
     }
   };
 
@@ -72,7 +72,7 @@ const ResumeAnalyzer = () => {
               <CardHeader className="bg-primary/5 p-4 md:p-6">
                 <CardTitle className="flex items-center gap-2 md:gap-3 text-lg md:text-xl lg:text-2xl">
                   <FileText className="h-5 w-5 md:h-6 md:w-6 lg:h-8 lg:w-8 text-primary flex-shrink-0" />
-                  <span>Resume Analyzer - Polished & Powerful</span>
+                  <span>Resume Generator - Polished & Powerful</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6">
