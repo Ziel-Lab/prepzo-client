@@ -188,23 +188,6 @@ type GeneratedDocument = {
   created_at?: string;
 };
 
-type ResumeApiResponse = {
-  company_website: string;
-  current_resume: string;
-  created_at: string;
-  feedback_analysis?: {
-    feedback: string;
-    new_resume: string;
-  };
-};
-
-type CoverLetterApiResponse = {
-  company_website: string;
-  current_resume: string;
-  created_at: string;
-  feedback?: string;
-};
-
 const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
@@ -236,71 +219,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
-
-  // Fetch generated documents for jobs
-  useEffect(() => {
-    const fetchGeneratedDocuments = async () => {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session?.access_token) {
-          console.error("Could not retrieve user session for documents");
-          return;
-        }
-        const jwtToken = session.access_token;
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-        
-        // Fetch resumes
-        const resumeResponse = await fetch(`${backendUrl}/get-analyze-resume`, {
-          headers: { Authorization: `Bearer ${jwtToken}` }
-        });
-        
-        // Fetch cover letters
-        const coverLetterResponse = await fetch(`${backendUrl}/get-cover-letters`, {
-          headers: { Authorization: `Bearer ${jwtToken}` }
-        });
-
-        if (!resumeResponse.ok || !coverLetterResponse.ok) {
-          throw new Error("Failed to fetch documents");
-        }
-
-        const resumeData: ResumeApiResponse[] = await resumeResponse.json();
-        const coverLetterData: CoverLetterApiResponse[] = await coverLetterResponse.json();
-
-        // Combine documents by company website
-        const newDocuments = new Map<string, GeneratedDocument>();
-        
-        // Process resumes
-        resumeData.forEach((item: ResumeApiResponse) => {
-          if (item.company_website && item.current_resume) {
-            newDocuments.set(item.company_website, {
-              current_resume: item.current_resume,
-              company_website: item.company_website,
-              created_at: item.created_at
-            });
-          }
-        });
-
-        // Process cover letters
-        coverLetterData.forEach((item: CoverLetterApiResponse) => {
-          const existing = newDocuments.get(item.company_website) || {};
-          if (item.company_website && item.current_resume) {
-            newDocuments.set(item.company_website, {
-              ...existing,
-              current_resume: item.current_resume,
-              company_website: item.company_website,
-              created_at: item.created_at
-            });
-          }
-        });
-
-        setGeneratedDocuments(newDocuments);
-      } catch (error) {
-        console.error("Error fetching generated documents:", error);
-      }
-    };
-
-    fetchGeneratedDocuments();
-  }, [supabase]);
 
   // ---------------------------------------------------------------------------
   // Credit tracking via feature_usage.job_search_results_period_count
@@ -781,7 +699,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const MobileApplicationCard = ({ application }: { application: Job }) => {
     const isRevealed = revealedJobs.has(application.id);
     const isBlurred = application.has_blurred_data && !isRevealed;
-    const currentStatus = jobStatuses.get(application.id) || 'revealed';
     
     return (
       <Card className="mb-4">
@@ -810,9 +727,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 </div>
                 {!isBlurred && (
                 <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className={getStatusBadgeColor(currentStatus)}>
-                      {JOB_STATUSES[currentStatus]}
-                    </Badge>
+                  {/* <Badge variant="secondary" className={getStatusColor(application.status || "Applied")}>
+                    {application.status || "Applied"}
+                  </Badge> */}
                   <span className={getMatchScoreColor(application.match_score || 85)}>
                     {application.match_score || 85}% match
                   </span>
@@ -855,125 +772,70 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               )}
             </div>
             
-            {/* Status Update */}
-            {!isBlurred && (
-              <div className="w-full">
-                <Select
-                  value={currentStatus}
-                  onValueChange={(value: JobStatus) => updateJobStatus(application.id, value)}
-                  disabled={updatingStatus.has(application.id)}
-                >
-                  <SelectTrigger 
-                    className={`
-                      w-full h-9 text-sm 
-                      border-2 border-green-500 
-                      bg-green-50 
-                      hover:bg-green-100 
-                      transition-all 
-                      duration-200 
-                      focus:ring-2 
-                      focus:ring-green-200 
-                      focus:border-green-500
-                      ${updatingStatus.has(application.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    `}
-                  >
-                    <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                      <SelectItem 
-                        key={key} 
-                        value={key} 
-                        className="text-sm hover:bg-green-50 cursor-pointer"
-                      >
-                        {label}
-                      </SelectItem>
+            {/* Hiring team & Industry */}
+            {!isBlurred && application.hiring_team?.length && (
+              <div className="text-sm text-gray-600 flex items-center gap-2">
+                <span className="font-medium">Hiring:</span>
+                {application.hiring_team.map((m) => (
+                  <span key={m.first_name}>{m.first_name}</span>
                 ))}
-                  </SelectContent>
-                </Select>
               </div>
             )}
 
-            {/* Document Links */}
-            {!isBlurred && application.company_object?.domain && (
-              <div className="flex flex-col gap-2">
-                {generatedDocuments.has(application.company_object.domain) ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                    >
-                      <Link 
-                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        View Resume
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                    >
-                      <Link 
-                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        View Cover Letter
-                      </Link>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="w-full h-8 text-xs"
-                    >
-                      <Link 
-                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
-                          application.description || ""
-                        )}&companyWebsite=${encodeURIComponent(
-                          application.company_object.domain || ""
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        Generate Resume
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="w-full h-8 text-xs"
-                    >
-                      <Link
-                        href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
-                          application.description || ""
-                        )}&companyWebsite=${encodeURIComponent(
-                          application.company_object.domain || ""
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Generate Cover Letter
-                      </Link>
-                    </Button>
-                  </>
-                )}
+            {!isBlurred && application.company_object?.industry && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Industry:</span> {application.company_object?.industry}
+              </div>
+            )}
+
+            {/* Date and Salary */}
+            {!isBlurred && (
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <span>{application.salary_string || "Not disclosed"}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                
+                <span>{formatDate(application.date_posted)}</span>
+              </div>
             </div>
             )}
+
+             {/* Employment Statuses */}
+             {!isBlurred && application.employment_statuses && application.employment_statuses.length > 0 && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employment:</span> {application.employment_statuses.join(", ")}
+              </div>
+            )}
+
+            {/* Easy Apply */}
+            {!isBlurred && application.easy_apply && (
+              <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 mt-1">
+                Easy Apply
+              </Badge>
+            )}
+
+            {/* Employee Count Range */}
+            {!isBlurred && application.company_object?.employee_count_range && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Employees:</span> {application.company_object.employee_count_range}
+              </div>
+            )}
+
+            {/* Revenue */}
+            {!isBlurred && application.company_object?.annual_revenue_usd_readable && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Revenue:</span> {application.company_object.annual_revenue_usd_readable}
+              </div>
+            )}
+
+            {/* Founded Year */}
+            {!isBlurred && application.company_object?.founded_year && (
+              <div className="text-xs text-gray-500">
+                <span className="font-medium">Founded:</span> {application.company_object.founded_year}
+              </div>
+            )}
+
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2 border-t">
@@ -1014,14 +876,20 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-                  {application.url && (
-                    <DropdownMenuItem asChild>
-                      <Link href={application.url} target="_blank" rel="noopener noreferrer">
+                  {/* <DropdownMenuItem>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Status
+                  </DropdownMenuItem> */}
+                  {/* {isRevealed && (
+                    <DropdownMenuItem>
                       <ExternalLink className="h-4 w-4 mr-2" />
-                        Apply Now
-                      </Link>
+                      Open Job
                     </DropdownMenuItem>
-                  )}
+                  )} */}
+                  {/* <DropdownMenuItem className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem> */}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1042,63 +910,63 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
 
     return (
-    <Card className="mb-4">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center">
-            <History className="mr-2 h-5 w-5" />
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center">
+              <History className="mr-2 h-5 w-5" />
               Saved Jobs ({revealedJobsHistory.length})
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-          >
-            {showHistory ? "Hide" : "Show"} History
-          </Button>
-        </div>
-      </CardHeader>
-      {showHistory && (
-        <CardContent>
-          {historyLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Loading revealed jobs history...
-            </div>
-          ) : revealedJobsHistory.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No previously revealed jobs found.
-            </p>
-          ) : (
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              {showHistory ? "Hide" : "Show"} History
+            </Button>
+          </div>
+        </CardHeader>
+        {showHistory && (
+          <CardContent>
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Loading revealed jobs history...
+              </div>
+            ) : revealedJobsHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No previously revealed jobs found.
+              </p>
+            ) : (
               <>
-            <div className="space-y-4">
+                <div className="space-y-4">
                   {currentHistoryItems.map((item) => (
-                <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
-                  {/* Mobile-first layout */}
-                  <div className="space-y-3">
-                    {/* Job title and status - full width on mobile */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 mb-2">
-                          <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
-                            {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
-                          </h4>
-                          <Badge 
-                            variant="secondary" 
-                            className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
-                          >
-                            {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
-                          </Badge>
-                        </div>
-                      </div>
+                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                      {/* Mobile-first layout */}
+                      <div className="space-y-3">
+                        {/* Job title and status - full width on mobile */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2 mb-2">
+                              <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                                {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                              </h4>
+                              <Badge 
+                                variant="secondary" 
+                                className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                              >
+                                {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                              </Badge>
+                            </div>
+                          </div>
 
-                      {/* Status dropdown - takes full width on mobile */}
-                      <div className="w-full sm:w-auto">
-                        <Select
-                          value={jobStatuses.get(item.job_id) || 'revealed'}
-                          onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
-                          disabled={updatingStatus.has(item.job_id)}
-                        >
+                          {/* Status dropdown - takes full width on mobile */}
+                          <div className="w-full sm:w-auto">
+                            <Select
+                              value={jobStatuses.get(item.job_id) || 'revealed'}
+                              onValueChange={(value: JobStatus) => updateJobStatus(item.job_id, value)}
+                              disabled={updatingStatus.has(item.job_id)}
+                            >
                               <SelectTrigger 
                                 className={`
                                   w-full sm:w-36 h-9 text-sm 
@@ -1114,98 +982,98 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                 `}
                               >
                                 <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(JOB_STATUSES).map(([key, label]) => (
                                   <SelectItem 
                                     key={key} 
                                     value={key} 
                                     className="text-sm hover:bg-green-50 cursor-pointer"
                                   >
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Company and job details */}
-                    {item.job_details ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <span className="font-medium">{item.job_details.company}</span>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                          {item.job_details.location && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3 text-gray-400" />
-                              <span>{item.job_details.location}</span>
-                            </div>
-                          )}
-                          
-                          {item.job_details.seniority && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-400">•</span>
-                              <span>{getSeniorityLevel(item.job_details.seniority)}</span>
-                            </div>
-                          )}
-                          
-                          {item.job_details.remote && (
-                            <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
-                              Remote
-                            </Badge>
-                          )}
-                          
-                          {item.job_details.hybrid && (
-                            <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
-                              Hybrid
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500 italic">
-                        Job details not available
-                      </div>
-                    )}
 
-                    {/* Footer with date and actions */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Calendar className="h-3 w-3" />
-                        <span>Revealed on {formatDate(item.revealed_at)}</span>
-                      </div>
-                      
-                      {/* Action buttons - responsive layout */}
-                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
-                        {item.job_details && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openJobDetails(item.job_details!)}
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
+                        {/* Company and job details */}
+                        {item.job_details ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="font-medium">{item.job_details.company}</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                              {item.job_details.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-gray-400" />
+                                  <span>{item.job_details.location}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.seniority && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-400">•</span>
+                                  <span>{getSeniorityLevel(item.job_details.seniority)}</span>
+                                </div>
+                              )}
+                              
+                              {item.job_details.remote && (
+                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                                  Remote
+                                </Badge>
+                              )}
+                              
+                              {item.job_details.hybrid && (
+                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                                  Hybrid
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 italic">
+                            Job details not available
+                          </div>
                         )}
-                        {item.job_details?.url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              Apply
-                            </Link>
-                          </Button>
-                        )}
-                        {item.job_details && (
+
+                        {/* Footer with date and actions */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="h-3 w-3" />
+                            <span>Revealed on {formatDate(item.revealed_at)}</span>
+                          </div>
+                          
+                          {/* Action buttons - responsive layout */}
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                            {item.job_details && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openJobDetails(item.job_details!)}
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Button>
+                            )}
+                            {item.job_details?.url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="flex-1 sm:flex-none h-8 text-xs"
+                              >
+                                <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Apply
+                                </Link>
+                              </Button>
+                            )}
+                            {item.job_details && (
                               <>
                                 {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
                                   // Show View Resume button if document exists
@@ -1226,26 +1094,26 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   </Button>
                                 ) : (
                                   // Show Generate Resume button if no document exists
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                      <Link 
-                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
-                                item.job_details.description || ""
-                              )}&companyWebsite=${encodeURIComponent(
-                                item.job_details.company_object?.domain || ""
-                              )}`}
-                              target="_blank"
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs"
+                                  >
+                                    <Link 
+                                      href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                        item.job_details.description || ""
+                                      )}&companyWebsite=${encodeURIComponent(
+                                        item.job_details.company_object?.domain || ""
+                                      )}`}
+                                      target="_blank"
                                       rel="noopener noreferrer"
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              Generate Resume 
-                            </Link>
-                          </Button>
-                        )}
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Generate Resume
+                                    </Link>
+                                  </Button>
+                                )}
                                 
                                 {/* Similar pattern for Cover Letter */}
                                 {item.job_details.company_object?.domain && generatedDocuments.has(item.job_details.company_object.domain) ? (
@@ -1265,33 +1133,33 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     </Link>
                                   </Button>
                                 ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="flex-1 sm:flex-none h-8 text-xs"
-                          >
-                            <Link
-                              href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
-                                item.job_details.description || ""
-                              )}&companyWebsite=${encodeURIComponent(
-                                item.job_details.company_object?.domain || ""
-                              )}`}
-                              target="_blank"
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    className="flex-1 sm:flex-none h-8 text-xs"
+                                  >
+                                    <Link
+                                      href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
+                                        item.job_details.description || ""
+                                      )}&companyWebsite=${encodeURIComponent(
+                                        item.job_details.company_object?.domain || ""
+                                      )}`}
+                                      target="_blank"
                                       rel="noopener noreferrer"
-                            >
-                              <Sparkles className="h-3 w-3 mr-1" />
-                              Generate Cover Letter
-                            </Link>
-                          </Button>
+                                    >
+                                      <Sparkles className="h-3 w-3 mr-1" />
+                                      Generate Cover Letter
+                                    </Link>
+                                  </Button>
                                 )}
                               </>
-                        )}
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
                 </div>
 
                 {/* Pagination */}
@@ -1343,14 +1211,14 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                         Next
                       </Button>
                     </div>
-            </div>
+                  </div>
                 )}
               </>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  );
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
   };
 
   if (showFilters || !hasSearched) {
@@ -1550,22 +1418,25 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                     <TableRow className="bg-gray-50">
                       <TableHead className="w-[400px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
                       <TableHead className="w-[180px]">Company</TableHead>
-                      <TableHead className="w-[120px]">Status</TableHead>
                       <TableHead className="w-[120px]">Country</TableHead>
                       <TableHead className="w-[150px]">Location</TableHead>
                       <TableHead className="w-[140px]">Hiring Team</TableHead>
                       <TableHead className="w-[130px]">Posted</TableHead>
                       <TableHead className="w-[140px]">Salary</TableHead>
                       <TableHead className="w-[120px]">Match</TableHead>
-                      <TableHead className="w-[140px]">Documents</TableHead>
                       <TableHead className="w-[140px]">Actions</TableHead>
+                      <TableHead className="w-[140px]">Employment</TableHead>
+                      <TableHead className="w-[120px]">Easy Apply</TableHead>
+                      <TableHead className="w-[140px]">Revenue</TableHead>
+                      <TableHead className="w-[120px]">Founded</TableHead>
+                      <TableHead className="w-[140px]">Employees</TableHead>
+                      <TableHead className="w-[140px]">Industry</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredApplications.map((application) => {
                       const isRevealed = revealedJobs.has(application.id);
                       const isBlurred = application.has_blurred_data && !isRevealed;
-                      const currentStatus = jobStatuses.get(application.id) || 'revealed';
                       
                       return (
                         <TableRow key={application.id} className="hover:bg-gray-50">
@@ -1628,61 +1499,34 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   <span className="font-medium text-sm">
                                     {application.company}
                                   </span>
-                                  {application.company_object?.industry && (
+                                  {(() => {
+                                    const hasTeam = application.hiring_team && application.hiring_team.length > 0;
+                                    if (hasTeam) {
+                                      return (
                                         <span className="text-xs text-gray-500">
-                                      {application.company_object.industry}
+                                          {application.hiring_team![0].first_name}
                                         </span>
-                                  )}
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               </div>
                             )}
                           </TableCell>
                           <TableCell>
-                            {!isBlurred && (
-                              <Select
-                                value={currentStatus}
-                                onValueChange={(value: JobStatus) => updateJobStatus(application.id, value)}
-                                disabled={updatingStatus.has(application.id)}
-                              >
-                                <SelectTrigger 
-                                  className={`
-                                    w-full h-9 text-sm 
-                                    border-2 border-green-500 
-                                    bg-green-50 
-                                    hover:bg-green-100 
-                                    transition-all 
-                                    duration-200 
-                                    focus:ring-2 
-                                    focus:ring-green-200 
-                                    focus:border-green-500
-                                    ${updatingStatus.has(application.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                                  `}
-                                >
-                                  <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(JOB_STATUSES).map(([key, label]) => (
-                                    <SelectItem 
-                                      key={key} 
-                                      value={key} 
-                                      className="text-sm hover:bg-green-50 cursor-pointer"
-                                    >
-                                      {label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </TableCell>
-                          <TableCell>
+                            
                               <span className="text-sm flex items-center gap-1">
                                 {getFlagEmoji(application.country_code)}
                                 {getCountryName(application.country_code)}
                               </span>
+                            
                           </TableCell>
                           <TableCell>
+                            
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-1 text-sm">
+                                  
                                   {application.location}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
@@ -1694,6 +1538,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                   )}
                                 </div>
                               </div>
+                            
                           </TableCell>
                           <TableCell>
                             {application.hiring_team?.map((teamMember) => (
@@ -1721,87 +1566,6 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               <span className={getMatchScoreColor(application.match_score || 85)}>
                                 {application.match_score || 85}%
                               </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {!isBlurred && application.company_object?.domain && (
-                              <div className="flex flex-col gap-2">
-                                {generatedDocuments.has(application.company_object.domain) ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      asChild
-                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                                    >
-                                      <Link 
-                                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        View Resume
-                                      </Link>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      asChild
-                                      className="w-full h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                                    >
-                                      <Link 
-                                        href={generatedDocuments.get(application.company_object.domain)?.current_resume || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Sparkles className="h-3 w-3 mr-1" />
-                                        View Cover Letter
-                                      </Link>
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      asChild
-                                      className="w-full h-8 text-xs"
-                                    >
-                                      <Link 
-                                        href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
-                                          application.description || ""
-                                        )}&companyWebsite=${encodeURIComponent(
-                                          application.company_object.domain || ""
-                                        )}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        Generate Resume
-                                      </Link>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      asChild
-                                      className="w-full h-8 text-xs"
-                                    >
-                                      <Link
-                                        href={`/dashboard/tools/cover-letter?jobDescription=${encodeURIComponent(
-                                          application.description || ""
-                                        )}&companyWebsite=${encodeURIComponent(
-                                          application.company_object.domain || ""
-                                        )}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Sparkles className="h-3 w-3 mr-1" />
-                                        Generate Cover Letter
-                                      </Link>
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
                             )}
                           </TableCell>
                           <TableCell>
@@ -1843,17 +1607,41 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Details
                                   </DropdownMenuItem>
-                                  {application.url && (
-                                    <DropdownMenuItem asChild>
-                                      <Link href={application.url} target="_blank" rel="noopener noreferrer">
+                                  {/* <DropdownMenuItem>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Status
+                                  </DropdownMenuItem>
+                                  {isRevealed && (
+                                    <DropdownMenuItem>
                                       <ExternalLink className="h-4 w-4 mr-2" />
-                                        Apply Now
-                                      </Link>
+                                      Open Job
                                     </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuItem className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem> */}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {application.employment_statuses?.join(", ")}
+                          </TableCell>
+                          <TableCell>
+                            {application.easy_apply ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.founded_year || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.employee_count_range || "Not disclosed"}
+                          </TableCell>
+                          <TableCell>
+                            {application.company_object?.industry || "Not disclosed"}
                           </TableCell>
                         </TableRow>
                       );

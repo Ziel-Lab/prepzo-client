@@ -33,8 +33,8 @@ const Footer = () => {
             <h3 className="font-bold mb-4">Product</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/features/resume-builder" className="text-white/80 hover:text-white">
-                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Resume Generator</span>
+                <Link href="/features/resume-analyser" className="text-white/80 hover:text-white">
+                  <span className="flex items-center"><FileText className="w-5 h-5 mr-2" /> Resume Analyser</span>
                 </Link>
               </li>
               <li>
@@ -48,7 +48,7 @@ const Footer = () => {
               </Link>
               </li>
               <li>
-                <Link href="/features/job-search" className="text-white/80 hover:text-white">
+                <Link href="/features/job-search-engine" className="text-white/80 hover:text-white">
                   <span className="flex items-center"><Search className="w-5 h-5 mr-2" /> Job Search Engine</span>
               </Link>
               </li>
