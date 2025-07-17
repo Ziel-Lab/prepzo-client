@@ -55,9 +55,16 @@ export async function POST(request: NextRequest) {
     // Normalise shape for the frontend: it expects { success, data, ... }
     let normalised = responseData;
     if (!('data' in responseData) && responseData.profile_data) {
+      const p = responseData.profile_data;
       normalised = {
         success: remoteResponse.ok,
-        data: responseData.profile_data,
+        data: {
+          ...p,
+          skills: Array.isArray(p.skills) ? p.skills : [],
+          experience: Array.isArray(p.experience) ? p.experience : [],
+          education: Array.isArray(p.education) ? p.education : [],
+          certificates: Array.isArray(p.certificates) ? p.certificates : [],
+        },
         raw: responseData,
       };
     }

@@ -1,5 +1,6 @@
-"use client"
-import { useState } from "react";
+"use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from "react";
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,6 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  Linkedin, 
-  Github, 
-  Globe, 
   Share2,
   Edit,
   Save,
@@ -27,7 +25,6 @@ import {
   ExternalLink,
   Upload,
   Download,
-  FileText,
   Eye,
   Trophy,
   Target,
@@ -45,6 +42,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import LinkedInUpload from "@/components/dashboard/profile/LinkedInUpload";
+import Link from "next/link";
+import { Linkedin, Github, Globe, FileText } from "lucide-react";
 
 interface ProfileData {
   id: string;
@@ -182,172 +181,144 @@ interface LinkedInExtractedData {
 
 const Profile = () => {
   const { toast } = useToast();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const { session } = useAuth();
-  const currentUser = session?.user;
   const [isEditing, setIsEditing] = useState(false);
   const [showLinkedInUpload, setShowLinkedInUpload] = useState(false);
-  const [profile, setProfile] = useState<ProfileData>({
-    id: "123",
-    username: "johndoe",
-    name: "John Doe",
-    title: "Senior Software Engineer",
-    bio: "Passionate software engineer with 5+ years of experience building scalable web applications. I love solving complex problems and mentoring junior developers.",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    location: "San Francisco, CA",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
-    linkedin: "linkedin.com/in/johndoe",
-    github: "github.com/johndoe",
-    website: "johndoe.dev",
-    skills: [
-      { name: "JavaScript", level: 95, category: "Frontend" },
-      { name: "React", level: 92, category: "Frontend" },
-      { name: "TypeScript", level: 88, category: "Frontend" },
-      { name: "Node.js", level: 85, category: "Backend" },
-      { name: "Python", level: 90, category: "Backend" },
-      { name: "System Design", level: 82, category: "System" },
-      { name: "Algorithms", level: 87, category: "DSA" },
-      { name: "Data Structures", level: 89, category: "DSA" },
-      { name: "AWS", level: 80, category: "Cloud" },
-      { name: "Docker", level: 75, category: "DevOps" }
-    ],
-    experience: [
-      {
-        company: "Tech Corp",
-        role: "Senior Software Engineer",
-        duration: "2022 - Present",
-        description: "Lead development of microservices architecture serving 1M+ users. Mentored 3 junior developers and improved deployment speed by 40%."
-      },
-      {
-        company: "StartupXYZ",
-        role: "Full Stack Developer",
-        duration: "2020 - 2022",
-        description: "Built the entire frontend and backend infrastructure. Scaled the platform from 0 to 100k users."
-      }
-    ],
-    education: [
-      {
-        institution: "Stanford University",
-        degree: "Master of Science in Computer Science",
-        year: "2020",
-        description: "Specialized in Machine Learning and Distributed Systems. GPA: 3.8/4.0"
-      },
-      {
-        institution: "UC Berkeley",
-        degree: "Bachelor of Science in Computer Science",
-        year: "2018",
-        description: "Graduated Magna Cum Laude. Active in ACM and hackathons."
-      }
-    ],
-    projects: [
-      {
-        name: "PrepZo",
-        description: "AI-powered job application tracking and preparation platform",
-        technologies: ["React", "TypeScript", "Supabase"],
-        link: "prepzo.com"
-      },
-      {
-        name: "DevTools Pro",
-        description: "Developer productivity suite with 10k+ active users",
-        technologies: ["Vue.js", "Python", "PostgreSQL"],
-        link: "devtools.pro"
-      }
-    ],
-    achievements: [
-      {
-        title: "Employee of the Year 2023",
-        description: "Recognized for outstanding performance and leadership",
-        date: "2023"
-      },
-      {
-        title: "Best Innovation Award",
-        description: "Won company-wide innovation challenge",
-        date: "2022"
-      }
-    ],
-    certificates: [
-      {
-        name: "AWS Solutions Architect - Professional",
-        issuer: "Amazon Web Services",
-        issueDate: "2023-08-15",
-        expiryDate: "2026-08-15",
-        credentialId: "AWS-PSA-12345",
-        verificationUrl: "https://aws.amazon.com/verification/AWS-PSA-12345"
-      },
-      {
-        name: "Google Cloud Professional Cloud Architect",
-        issuer: "Google Cloud",
-        issueDate: "2023-06-20",
-        expiryDate: "2025-06-20",
-        credentialId: "GCP-PCA-67890"
-      },
-      {
-        name: "Certified Kubernetes Administrator (CKA)",
-        issuer: "Cloud Native Computing Foundation",
-        issueDate: "2023-03-10",
-        expiryDate: "2026-03-10",
-        credentialId: "CKA-123456"
-      },
-      {
-        name: "Meta React Advanced Certification",
-        issuer: "Meta",
-        issueDate: "2022-11-05",
-        credentialId: "META-REACT-789"
-      }
-    ],
+
+  // Empty initial profile & loading flag
+  const emptyProfile: ProfileData = {
+    id: '', username: '', name: '', title: '', bio: '', avatar: '', location: '', email: '', phone: '', linkedin: '', github: '', website: '',
+    skills: [], experience: [], education: [], projects: [], achievements: [], certificates: [],
     practiceStats: {
-      problemsSolved: {
-        total: 847,
-        easy: 423,
-        medium: 324,
-        hard: 100
-      },
-      dailyStreak: {
-        current: 45,
-        longest: 127,
-        lastPracticed: "2024-01-15"
-      },
-      weeklyGoal: {
-        target: 10,
-        completed: 7
-      },
-      languages: [
-        { name: "Python", problems: 354 },
-        { name: "JavaScript", problems: 298 },
-        { name: "Java", problems: 195 }
-      ],
-      topics: [
-        { name: "Arrays", solved: 89, accuracy: 78 },
-        { name: "Dynamic Programming", solved: 45, accuracy: 67 },
-        { name: "Trees", solved: 76, accuracy: 82 },
-        { name: "Graphs", solved: 34, accuracy: 71 },
-        { name: "Strings", solved: 67, accuracy: 85 }
-      ]
+      problemsSolved: { total: 0, easy: 0, medium: 0, hard: 0 },
+      dailyStreak: { current: 0, longest: 0, lastPracticed: '' },
+      weeklyGoal: { target: 0, completed: 0 },
+      languages: [], topics: [],
     },
-    interviewPractice: {
-      sessionsCompleted: 47,
-      totalHours: 94,
-      categories: [
-        { name: "Algorithms & Data Structures", sessionsCount: 18, averageScore: 85, lastSession: "2024-01-14", improvement: 12 },
-        { name: "System Design", sessionsCount: 12, averageScore: 78, lastSession: "2024-01-12", improvement: 8 },
-        { name: "Behavioral", sessionsCount: 10, averageScore: 92, lastSession: "2024-01-13", improvement: 5 },
-        { name: "Frontend Development", sessionsCount: 7, averageScore: 88, lastSession: "2024-01-11", improvement: 15 }
-      ],
-      recentSessions: [
-        { date: "2024-01-14", category: "Algorithms", score: 89, duration: 60 },
-        { date: "2024-01-13", category: "Behavioral", score: 94, duration: 45 },
-        { date: "2024-01-12", category: "System Design", score: 82, duration: 90 },
-        { date: "2024-01-11", category: "Frontend", score: 91, duration: 75 }
-      ]
-    },
-    resume: {
-      url: "/resume-john-doe.pdf",
-      fileName: "John_Doe_Resume.pdf",
-      uploadedAt: "2024-01-15"
-    }
-  });
+    interviewPractice: { sessionsCompleted: 0, totalHours: 0, categories: [], recentSessions: [] },
+    resume: undefined,
+  };
+
+  const [profile, setProfile] = useState<ProfileData>(emptyProfile);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   // const publicUrl = `${window.location.origin}/public/${profile.id}/${profile.username}`;
+
+  // Helper to strip undefined values so we don't overwrite good data with undefined
+  const stripUndefined = (obj: Record<string, unknown>) => {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([, v]) => v !== undefined && v !== null),
+    );
+  };
+
+  // Convert backend response shape into our local ProfileData partial
+  const mapRemoteProfile = (raw: any): Partial<ProfileData> => {
+    if (!raw) return {};
+    const {
+      id,
+      user_id,
+      name,
+      title,
+      bio,
+      location,
+      email,
+      phone,
+      linkedin_url,
+      linkedin,
+      github_url,
+      github,
+      website,
+      avatar_url,
+      avatar,
+      skills,
+      experience,
+      projects,
+      certifications,
+      resume_url,
+      updated_at,
+    } = raw;
+
+    return {
+      id: id || user_id || '',
+      name,
+      title,
+      bio,
+      location,
+      email,
+      phone,
+      linkedin: linkedin_url || linkedin || '',
+      github: github_url || github || '',
+      website,
+      avatar: avatar_url || avatar || '',
+      skills: Array.isArray(skills) ? skills : [],
+      experience: Array.isArray(experience) ? experience : [],
+      projects: Array.isArray(projects) ? projects : [],
+      certificates: Array.isArray(certifications) ? certifications : [],
+      resume: resume_url
+        ? {
+            url: resume_url,
+            fileName: resume_url.split('/').pop() || 'resume.pdf',
+            uploadedAt: updated_at || new Date().toISOString(),
+          }
+        : undefined,
+    };
+  };
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.access_token) return;
+      try {
+        setIsProfileLoading(true);
+        const response = await fetch('https://dev.prepzo.ai/profile', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          console.error('Failed to fetch profile:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+
+        let rawProfile: any = data;
+        if (data.profile_data) {
+          rawProfile = data.profile_data;
+        } else if (data.db_result) {
+          rawProfile = Array.isArray(data.db_result) ? data.db_result[0] : data.db_result;
+        }
+        const mapped = stripUndefined(mapRemoteProfile(rawProfile));
+        console.log('Remote profile raw', rawProfile);
+        console.log('Mapped profile', mapped);
+
+        setProfile(prev => ({
+          ...prev, // keep defaults for sections missing in mapped
+          ...mapped,
+        }));
+
+        setIsProfileLoading(false);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setIsProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [session]);
+  const currentUser = session?.user;
+
+  // Global loading screen while fetching profile
+  if (isProfileLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen text-prepzo-600">Loading profile...</div>
+      </DashboardLayout>
+    );
+  }
 
   const handleShare = async () => {
     const publicUrl = `${window.location.origin}/public/${profile.id}/${profile.username}`;
@@ -466,21 +437,45 @@ const Profile = () => {
                       <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-xl ring-4 ring-prepzo-100">
                         <AvatarImage src={profile.avatar} className="object-cover" />
                         <AvatarFallback className="text-2xl bg-gradient-to-br from-prepzo-200 to-prepzo-300 text-prepzo-800 font-bold">
-                          {profile.name.split(' ').map(n => n[0]).join('')}
+                          {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : ''}
                         </AvatarFallback>
                       </Avatar>
                       <div className="absolute -bottom-1 sm:-bottom-2 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
                     </div>
                     <div className="flex gap-2 sm:gap-3 flex-wrap justify-center lg:justify-start">
-                      <Button size="sm" variant="outline" className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
-                        <Linkedin className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
-                        <Github className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
-                        <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </Button>
+                      {profile.linkedin && (
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                          <Link
+                            href={profile.linkedin.startsWith('http') ? profile.linkedin : `https://${profile.linkedin}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Linkedin className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Link>
+                        </Button>
+                      )}
+                      {profile.github && (
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                          <Link
+                            href={profile.github.startsWith('http') ? profile.github : `https://${profile.github}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Github className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Link>
+                        </Button>
+                      )}
+                      {profile.website && (
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                          <Link
+                            href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                   
@@ -1101,12 +1096,26 @@ const Profile = () => {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="outline" className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50">
-                              <Download className="w-4 h-4" />
-                            </Button>
+                            {profile.resume && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
+                                  onClick={() => window.open(profile.resume?.url, '_blank')}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
+                                  onClick={() => window.open(profile.resume?.url, '_blank')}
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                         
@@ -1196,17 +1205,27 @@ const Profile = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6">
-                  <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-gray-500" />
-                      </div>
-                      <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
-                      <p className="text-sm text-gray-500">
-                        Generate a resume to see the preview here
-                      </p>
+                  {profile.resume?.url ? (
+                    <div className="rounded-lg overflow-hidden border border-prepzo-200 h-[600px]">
+                      <iframe
+                        src={profile.resume.url}
+                        title="Resume preview"
+                        className="w-full h-full"
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
+                          <FileText className="w-8 h-8 text-gray-500" />
+                        </div>
+                        <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
+                        <p className="text-sm text-gray-500">
+                          {isEditing ? 'Upload a resume file to preview it here' : 'Generate or upload a resume to see it here'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
