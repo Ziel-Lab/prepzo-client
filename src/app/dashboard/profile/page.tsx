@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -185,6 +185,7 @@ const Profile = () => {
   const { session } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showLinkedInUpload, setShowLinkedInUpload] = useState(false);
+  const fetchedTokenRef = useRef<string | null>(null);
 
   // Empty initial profile & loading flag
   const emptyProfile: ProfileData = {
@@ -268,6 +269,8 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       if (!session?.access_token) return;
+      if (fetchedTokenRef.current === session.access_token) return; // already fetched for this token
+      fetchedTokenRef.current = session.access_token;
       try {
         setIsProfileLoading(true);
         const response = await fetch('https://dev.prepzo.ai/profile', {
@@ -450,9 +453,9 @@ const Profile = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <Linkedin className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Linkedin className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Link>
-                        </Button>
+                      </Button>
                       )}
                       {profile.github && (
                         <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
@@ -461,9 +464,9 @@ const Profile = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <Github className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Github className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Link>
-                        </Button>
+                      </Button>
                       )}
                       {profile.website && (
                         <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
@@ -472,9 +475,9 @@ const Profile = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Link>
-                        </Button>
+                      </Button>
                       )}
                     </div>
                   </div>
@@ -1104,16 +1107,16 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
+                              <Eye className="w-4 h-4" />
+                            </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Download className="w-4 h-4" />
-                                </Button>
+                              <Download className="w-4 h-4" />
+                            </Button>
                               </>
                             )}
                           </div>
@@ -1214,17 +1217,17 @@ const Profile = () => {
                       />
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
-                          <FileText className="w-8 h-8 text-gray-500" />
-                        </div>
-                        <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
-                        <p className="text-sm text-gray-500">
-                          {isEditing ? 'Upload a resume file to preview it here' : 'Generate or upload a resume to see it here'}
-                        </p>
+                  <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-8 h-8 text-gray-500" />
                       </div>
+                      <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
+                      <p className="text-sm text-gray-500">
+                          {isEditing ? 'Upload a resume file to preview it here' : 'Generate or upload a resume to see it here'}
+                      </p>
                     </div>
+                  </div>
                   )}
                 </CardContent>
               </Card>
