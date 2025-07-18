@@ -246,16 +246,36 @@ const CoverLetterContent = () => {
         });
         if (!historyResponse.ok) throw new Error(`HTTP error fetching history: ${historyResponse.status}`);
         const historyDataRaw: RawCoverLetterHistoryItem[] = await historyResponse.json();
-        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item) => ({
-          id: item.id,
-          job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
-          company_website: item.company_website,
-          current_resume: item.current_resume,
-          resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop().split('?')[0]) : 'N/A',
-          user_additional_comments: item.additional_comments, // User's input comments for this generation
-          generated_outputs: item.feedback, // Corrected: Map from item.feedback
-          created_at: new Date(item.created_at).toLocaleDateString(),
-        })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw
+          .map((item): CoverLetterHistoryItem | null => {
+            let generated_outputs: CoverLetterResult;
+            try {
+              if (typeof item.feedback === 'string') {
+                generated_outputs = JSON.parse(item.feedback);
+              } else if (item.feedback && typeof item.feedback === 'object') {
+                generated_outputs = item.feedback;
+              } else {
+                return null;
+              }
+              if (typeof generated_outputs.cover_letter === 'undefined') return null;
+            } catch (e) {
+              console.error("Could not parse history item feedback:", item, e);
+              return null;
+            }
+            
+            return {
+              id: item.id,
+              job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
+              company_website: item.company_website,
+              current_resume: item.current_resume,
+              resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop()?.split('?')[0] || '') : 'N/A',
+              user_additional_comments: item.additional_comments,
+              generated_outputs,
+              created_at: new Date(item.created_at).toLocaleDateString(),
+            };
+          })
+          .filter((item): item is CoverLetterHistoryItem => item !== null)
+          .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setHistory(formattedHistory);
       } catch (err) {
         setHistoryError("Unable to load your cover letter history. Please refresh the page and try again!");
@@ -483,16 +503,36 @@ const CoverLetterContent = () => {
             }
 
             const historyDataRaw: RawCoverLetterHistoryItem[] = await historyResponse.json();
-            const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item) => ({
-                id: item.id,
-                job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
-                company_website: item.company_website,
-                current_resume: item.current_resume,
-                resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop().split('?')[0]) : 'N/A',
-                user_additional_comments: item.additional_comments,
-                generated_outputs: item.feedback,
-                created_at: new Date(item.created_at).toLocaleDateString(),
-            })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw
+              .map((item): CoverLetterHistoryItem | null => {
+                let generated_outputs: CoverLetterResult;
+                try {
+                  if (typeof item.feedback === 'string') {
+                    generated_outputs = JSON.parse(item.feedback);
+                  } else if (item.feedback && typeof item.feedback === 'object') {
+                    generated_outputs = item.feedback;
+                  } else {
+                    return null;
+                  }
+                  if (typeof generated_outputs.cover_letter === 'undefined') return null;
+                } catch (e) {
+                  console.error("Could not parse history item feedback:", item, e);
+                  return null;
+                }
+                
+                return {
+                    id: item.id,
+                    job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
+                    company_website: item.company_website,
+                    current_resume: item.current_resume,
+                    resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop()?.split('?')[0] || '') : 'N/A',
+                    user_additional_comments: item.additional_comments,
+                    generated_outputs,
+                    created_at: new Date(item.created_at).toLocaleDateString(),
+                };
+              })
+              .filter((item): item is CoverLetterHistoryItem => item !== null)
+              .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             
             const newLetter = formattedHistory.find(item => !initialHistoryIds.has(item.id));
 
