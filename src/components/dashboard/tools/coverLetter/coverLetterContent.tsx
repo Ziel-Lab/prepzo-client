@@ -52,7 +52,8 @@ const loadingMessages = [
     "Aligning your skills with the company's needs...",
     "Drafting a compelling opening paragraph...",
     "Weaving your experience into a narrative...",
-    "Adding the finishing touches to your letter..."
+    "Adding the finishing touches to your letter...",
+    "Checking for your generated letter...",
 ];
 
 // Interface for user documents (resumes)
@@ -74,6 +75,25 @@ interface BackendCoverLetterResponse {
     feedback: string; // This is a JSON string like "{\"cover_letter\": \"...\", \"additional_comments\": \"...\"}"
     // Include other potential top-level keys from your backend if any, e.g., an ID for the saved record
     id?: string | number; 
+}
+
+// For raw document from /get-documents
+interface RawUserDocument {
+    id: number | string;
+    document_name?: string;
+    display_name?: string;
+    document_url: string;
+}
+
+// For raw history item from /get-cover-letters
+interface RawCoverLetterHistoryItem {
+    id: string | number;
+    job_description?: string;
+    company_website?: string;
+    current_resume?: string;
+    additional_comments?: string; // User's input comments
+    feedback: CoverLetterResult | string; // Can be parsed object or string
+    created_at: string;
 }
 
 // Interface for history items
@@ -121,6 +141,16 @@ const CoverLetterContent = () => {
   const loadingCardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
   // Prefill job description & company website from URL query params
   useEffect(() => {
     const jobDescParam = searchParams.get("jobDescription");
@@ -147,6 +177,11 @@ const CoverLetterContent = () => {
     }
     // Run only once on mount – searchParams is stable in App Router
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Stop polling on component unmount
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {
@@ -185,8 +220,8 @@ const CoverLetterContent = () => {
           headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
         if (!docsResponse.ok) throw new Error(`HTTP error fetching documents: ${docsResponse.status}`);
-        const fetchedDocsRaw = await docsResponse.json();
-        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc: any) => ({
+        const fetchedDocsRaw: RawUserDocument[] = await docsResponse.json();
+        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc) => ({
           id: doc.id,
           title: doc.document_name || doc.display_name || "Untitled Document",
           url: doc.document_url,
@@ -195,7 +230,7 @@ const CoverLetterContent = () => {
         if (!(fetchedDocs.length > 0 && fetchedDocs[0].url)) {
           setResumeInputMethod("upload");
         }
-      } catch (err: any) {
+      } catch (err) {
         setError("Unable to load your documents right now. Please refresh the page and try again!");
         setResumeInputMethod("upload");
       } finally {
@@ -210,8 +245,8 @@ const CoverLetterContent = () => {
           headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
         if (!historyResponse.ok) throw new Error(`HTTP error fetching history: ${historyResponse.status}`);
-        const historyDataRaw: any[] = await historyResponse.json();
-        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item: any) => ({
+        const historyDataRaw: RawCoverLetterHistoryItem[] = await historyResponse.json();
+        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item) => ({
           id: item.id,
           job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
           company_website: item.company_website,
@@ -222,7 +257,7 @@ const CoverLetterContent = () => {
           created_at: new Date(item.created_at).toLocaleDateString(),
         })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setHistory(formattedHistory);
-      } catch (err: any) {
+      } catch (err) {
         setHistoryError("Unable to load your cover letter history. Please refresh the page and try again!");
       } finally {
         setIsFetchingHistory(false);
@@ -305,7 +340,7 @@ const CoverLetterContent = () => {
        const newDocEntry: UserDocument = { id: Date.now(), title: file.name, url: result.file_url };
        setUserDocuments(prev => [newDocEntry, ...prev]);
       return result.file_url;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Upload failed. Please refresh the page and try uploading your resume again!");
       return null;
     } finally {
@@ -334,119 +369,164 @@ const CoverLetterContent = () => {
     setLimitReached(false);
     setGeneratedResult(null);
 
+    let finalResumeUrl = selectedResumeUrl;
+
     try {
-      let finalResumeUrl = selectedResumeUrl;
-      if (resumeInputMethod === "upload" && newResumeFile) {
-        const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
-        if (uploadedUrl) {
-          finalResumeUrl = uploadedUrl;
-          setSelectedResumeUrl(uploadedUrl); // So it's selected if user re-submits without changing file
-        } else {
-          // Error is set by uploadNewResumeAndGetUrl, just exit.
-          return; 
-        }
-      }
-
-      if (!finalResumeUrl) {
-          setError("Resume URL could not be determined. Please select or upload a resume.");
+      const startGeneration = async (resumeUrl: string) => {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session?.access_token) {
+          setError("Could not retrieve user session.");
+          setIsLoading(false);
           return;
-      }
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.access_token) {
-        setError("Could not retrieve user session.");
-        return;
-      }
-      const jwtToken = sessionData.session.access_token;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-      if (!backendUrl) {
-          setError("Backend URL is not configured.");
-          return;
-      }
-
-      const payload = new FormData();
-      payload.append("current_resume", finalResumeUrl);
-      payload.append("job_description", jobDescription);
-      if (companyWebsite.trim()) payload.append("company_website", companyWebsite);
-      if (userComments.trim()) payload.append("additional_comments", userComments);
-
-      const response = await fetch(`${backendUrl.replace(/\/$/, '')}/create-cover-letter`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${jwtToken}` },
-        body: payload,
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        // Try to parse error from backend if it's structured, otherwise use raw text or status
-        let errorMessage = `HTTP Error: ${response.status}`;
-        if (responseData && (responseData.error || responseData.details)) {
-            errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
         }
-        
-        if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
-          setLimitReached(true);
-        } else {
-          setError("Cover letter generation failed. Please refresh the page and try again!");
+        const jwtToken = sessionData.session.access_token;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) {
+            setError("Backend URL is not configured.");
+            setIsLoading(false);
+            return;
         }
-        return;
-      }
-      
-      // EXPECTED: responseData = { feedback: "{\"cover_letter\":\"...\", \"additional_comments\":\"...\"}" }
-      if (responseData.feedback && typeof responseData.feedback === 'string') {
-        const parsedFeedback: CoverLetterResult = JSON.parse(responseData.feedback);
-
-        if (parsedFeedback.cover_letter && parsedFeedback.additional_comments !== undefined) {
-            setGeneratedResult(parsedFeedback);
-            
-            // Add to history
-            const historyItemId = responseData.id || Date.now(); // Use backend ID if provided
-            const newHistoryEntry: CoverLetterHistoryItem = {
-                id: historyItemId, 
-                job_description: jobDescription.substring(0,70) + '...',
-                company_website: companyWebsite,
-                current_resume: finalResumeUrl,
-                resume_title: newResumeFile?.name || userDocuments.find(d => d.url === finalResumeUrl)?.title || 'N/A',
-                user_additional_comments: userComments,
-                generated_outputs: parsedFeedback, // Store the parsed object directly
-                created_at: new Date().toLocaleDateString(),
-            };
-            setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-            setNewResumeFile(null); 
-        } else {
-            setError("Cover letter results couldn't be processed. Please refresh the page and try again!");
-        }
-      } else if (responseData.cover_letter && responseData.additional_comments !== undefined) {
-        // Fallback: if backend ALREADY parsed it and sent it as top-level (less likely based on new info)
-        setGeneratedResult({
-          cover_letter: responseData.cover_letter,
-          additional_comments: responseData.additional_comments,
-        });
-        const historyItemId = responseData.id || Date.now();
-        const newHistoryEntry: CoverLetterHistoryItem = {
-            id: historyItemId,
-            job_description: jobDescription.substring(0,70) + '...',
-            company_website: companyWebsite,
-            current_resume: finalResumeUrl,
-            resume_title: newResumeFile?.name || userDocuments.find(d => d.url === finalResumeUrl)?.title || 'N/A',
-            user_additional_comments: userComments,
-            generated_outputs: { cover_letter: responseData.cover_letter, additional_comments: responseData.additional_comments },
-            created_at: new Date().toLocaleDateString(),
+  
+        const payload = {
+            resume_url: resumeUrl,
+            company_url: companyWebsite,
+            job_description: jobDescription,
+            additional_comments: userComments.trim() ? userComments : undefined
         };
-        setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-        setNewResumeFile(null);
-      } else if (responseData.message && responseData.details) { // Your existing specific error handling
-        setError("Cover letter generation encountered an issue. Please refresh the page and try again!");
-      } else {
-        setError("Unexpected response from cover letter service. Please refresh the page and try again!");
-      }
+  
+        const response = await fetch(`${backendUrl.replace(/\/$/, '')}/create-cover-letter`, {
+          method: "POST",
+          headers: { 
+            Authorization: `Bearer ${jwtToken}`,
+            'Content-Type': 'application/json' 
+          },
+          body: JSON.stringify(payload),
+        });
+  
+        if (response.status === 202) {
+          startPolling(resumeUrl);
+          return;
+        }
+  
+        // Fallback for non-202 responses or errors
+        setIsLoading(false);
+        const responseData = await response.json();
+  
+        if (!response.ok) {
+          let errorMessage = `HTTP Error: ${response.status}`;
+          if (responseData && (responseData.error || responseData.details)) {
+              errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
+          }
+          
+          if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
+            setLimitReached(true);
+          } else {
+            setError("Cover letter generation failed. Please refresh the page and try again!");
+          }
+          return;
+        }
+      };
 
-    } catch (err: any) {
+      if (resumeInputMethod === "upload" && newResumeFile) {
+        uploadNewResumeAndGetUrl(newResumeFile).then(uploadedUrl => {
+            if (uploadedUrl) {
+                finalResumeUrl = uploadedUrl;
+                setSelectedResumeUrl(uploadedUrl);
+                startGeneration(uploadedUrl);
+            } else {
+                setIsLoading(false);
+            }
+        });
+      } else if(finalResumeUrl) {
+        startGeneration(finalResumeUrl);
+      } else {
+        setError("Resume URL could not be determined. Please select or upload a resume.");
+        setIsLoading(false);
+      }
+    } catch (err) {
       setError("Cover letter request failed. Please refresh the page and try again!");
-    } finally {
       setIsLoading(false);
     }
+  };
+
+  const startPolling = (submittedResumeUrl: string) => {
+    const initialHistoryIds = new Set(history.map(h => h.id));
+
+    setLoadingMessage("Checking for your generated letter...");
+
+    const poll = async () => {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session?.access_token) {
+            stopPolling();
+            setError("Session expired during polling. Please try again.");
+            setIsLoading(false);
+            return;
+        }
+        const jwtToken = sessionData.session.access_token;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) {
+            stopPolling();
+            setError("Backend URL is not configured.");
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const historyUrl = `${backendUrl.replace(/\/$/, '')}/get-cover-letters`;
+            const historyResponse = await fetch(historyUrl, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
+            });
+            if (!historyResponse.ok) {
+                 console.error(`Polling failed with status: ${historyResponse.status}`);
+                 return; 
+            }
+
+            const historyDataRaw: RawCoverLetterHistoryItem[] = await historyResponse.json();
+            const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item) => ({
+                id: item.id,
+                job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
+                company_website: item.company_website,
+                current_resume: item.current_resume,
+                resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop().split('?')[0]) : 'N/A',
+                user_additional_comments: item.additional_comments,
+                generated_outputs: item.feedback,
+                created_at: new Date(item.created_at).toLocaleDateString(),
+            })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            
+            const newLetter = formattedHistory.find(item => !initialHistoryIds.has(item.id));
+
+            if (newLetter && newLetter.current_resume === submittedResumeUrl) {
+                 stopPolling();
+                 setIsLoading(false);
+
+                 if (typeof newLetter.generated_outputs === 'string') {
+                    try {
+                        const parsedFeedback = JSON.parse(newLetter.generated_outputs);
+                        setGeneratedResult(parsedFeedback);
+                    } catch {
+                        setError("Failed to parse the generated cover letter. Please check the history.");
+                        return;
+                    }
+                 } else {
+                    setGeneratedResult(newLetter.generated_outputs);
+                 }
+
+                 setHistory(formattedHistory);
+                 setNewResumeFile(null);
+            }
+        } catch (e) {
+            console.error("Polling error:", e);
+        }
+    };
+
+    pollIntervalRef.current = setInterval(poll, 10000); // Poll every 10 seconds
+    
+    pollingTimeoutRef.current = setTimeout(() => {
+        stopPolling();
+        setError("Generation is taking longer than usual. You can check your history for the result in a few moments.");
+        setIsLoading(false);
+    }, 180000); // 3 minutes timeout
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -591,7 +671,7 @@ const CoverLetterContent = () => {
             {/* Resume Input */}
             <div className="space-y-3 p-4 border rounded-md bg-slate-50">
               <Label className="font-semibold text-lg">Your Resume <span className="text-red-500">*</span></Label>
-              <RadioGroup value={resumeInputMethod} onValueChange={(v: any) => { setResumeInputMethod(v); setError(null); if (v === 'select') setNewResumeFile(null);}} className="flex items-center gap-4 mb-3">
+              <RadioGroup value={resumeInputMethod} onValueChange={(v: "select" | "upload") => { setResumeInputMethod(v); setError(null); if (v === 'select') setNewResumeFile(null);}} className="flex items-center gap-4 mb-3">
                 <div className="flex items-center space-x-2"><RadioGroupItem value="select" id="selectExisting" disabled={isFetchingUserDocs || userDocuments.length === 0} /><Label htmlFor="selectExisting">Select Existing</Label></div>
                 <div className="flex items-center space-x-2"><RadioGroupItem value="upload" id="uploadNew" /><Label htmlFor="uploadNew">Upload New</Label></div>
               </RadioGroup>
@@ -669,7 +749,7 @@ const CoverLetterContent = () => {
         <Card className="mt-8 bg-blue-50 border-blue-200" ref={loadingCardRef}>
           <CardContent className="p-6 text-center">
             <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
-            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to 3 minutes.</p>
           </CardContent>
         </Card>
       )}
