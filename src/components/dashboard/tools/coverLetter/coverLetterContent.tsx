@@ -31,6 +31,7 @@ import {
   Lightbulb,
   History,
   Wand2,
+  Clock,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -94,6 +95,7 @@ interface RawCoverLetterHistoryItem {
     additional_comments?: string; // User's input comments
     feedback: CoverLetterResult | string; // Can be parsed object or string
     created_at: string;
+    status?: string; // Add status field
 }
 
 // Interface for history items
@@ -106,7 +108,26 @@ interface CoverLetterHistoryItem {
   user_additional_comments?: string; // User's input comments for this generation
   generated_outputs: CoverLetterResult; // The stored {cover_letter, additional_comments}
   created_at: string;
+  status: 'completed' | 'failed' | 'pending' | 'in_progress';
 }
+
+// Helper function to map API status to UI status
+const mapApiStatusToUiStatus = (apiStatus: string | undefined): 'completed' | 'failed' | 'pending' | 'in_progress' => {
+  if (!apiStatus) return 'completed';
+  
+  switch(apiStatus.toUpperCase()) {
+    case 'COMPLETED':
+      return 'completed';
+    case 'FAILED':
+      return 'failed';
+    case 'PENDING':
+      return 'pending';
+    case 'IN_PROGRESS':
+      return 'in_progress';
+    default:
+      return 'completed';
+  }
+};
 
 // Helper to safely parse feedback
 const parseFeedback = (feedback: string | CoverLetterResult): CoverLetterResult => {
@@ -122,6 +143,10 @@ const parseFeedback = (feedback: string | CoverLetterResult): CoverLetterResult 
 };
 
 const CoverLetterContent = () => {
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+
   // Form Inputs
   const [jobDescription, setJobDescription] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
@@ -270,6 +295,7 @@ const CoverLetterContent = () => {
             user_additional_comments: item.additional_comments,
             generated_outputs: parseFeedback(item.feedback),
             created_at: new Date(item.created_at).toLocaleDateString(),
+            status: mapApiStatusToUiStatus(item.status),
           };
         }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setHistory(formattedHistory);
@@ -296,6 +322,11 @@ const CoverLetterContent = () => {
     }
     return () => clearInterval(intervalId);
   }, [isLoading]);
+
+  // Reset pagination when history changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [history.length]);
 
   const handleResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -518,6 +549,7 @@ const CoverLetterContent = () => {
                 user_additional_comments: row.additional_comments,
                 generated_outputs: parseFeedback(row.feedback),
                 created_at: new Date(row.created_at).toLocaleDateString(),
+                status: mapApiStatusToUiStatus(row.status),
             };
 
             if (formatted.generated_outputs.cover_letter) {
@@ -595,79 +627,131 @@ const CoverLetterContent = () => {
           {historyError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{historyError}</AlertDescription></Alert>}
           {!isFetchingHistory && !historyError && history.length === 0 && <p className="text-sm text-gray-500">No history found.</p>}
           {!isFetchingHistory && !historyError && history.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Job Snippet</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Resume</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.created_at}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.job_description}>{item.job_description}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.company_website}>{item.company_website || 'N/A'}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.current_resume}>{item.resume_title || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
-                        </DialogTrigger>
-                        {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
-                        <DialogContent className="sm:max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Cover Letter Details ({new Date(selectedHistoryItemForDialog.created_at).toLocaleDateString()})</DialogTitle>
-                            <DialogDescription>
-                                Job: {selectedHistoryItemForDialog.job_description?.replace('... ','')}<br/>
-                                Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
-                                Resume: <a href={selectedHistoryItemForDialog.current_resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.current_resume}</a>
-                                {selectedHistoryItemForDialog.user_additional_comments && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.user_additional_comments}</em></>}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                            {selectedHistoryItemForDialog.generated_outputs ? (
-                              <>
-                                <div>
-                                    <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                        Generated Cover Letter
-                                        <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
-                                    </h4>
-                                    <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
-                                      </ReactMarkdown>
-                                    </div>
-                                </div>
-                                {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
-                                    <div>
-                                        <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
-                                        <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
-                            )}
-                          </div>
-                           <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="secondary">Close</Button>
-                                </DialogClose>
-                            </DialogFooter>
-                        </DialogContent>
-                        )}
-                      </Dialog>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Job Snippet</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Resume</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {history
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.created_at}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.job_description}>{item.job_description}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.company_website}>{item.company_website || 'N/A'}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.current_resume}>{item.resume_title || 'N/A'}</TableCell>
+                      <TableCell>
+                        {item.status === 'completed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+                          </span>
+                        ) : item.status === 'failed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <AlertCircle className="w-3 h-3 mr-1" /> Failed
+                          </span>
+                        ) : item.status === 'pending' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <Clock className="w-3 h-3 mr-1" /> Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" /> In Progress
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
+                          </DialogTrigger>
+                          {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
+                          <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Cover Letter Details ({new Date(selectedHistoryItemForDialog.created_at).toLocaleDateString()})</DialogTitle>
+                              <DialogDescription>
+                                  Job: {selectedHistoryItemForDialog.job_description?.replace('... ','')}<br/>
+                                  Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
+                                  Resume: <a href={selectedHistoryItemForDialog.current_resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.current_resume}</a>
+                                  {selectedHistoryItemForDialog.user_additional_comments && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.user_additional_comments}</em></>}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                              {selectedHistoryItemForDialog.generated_outputs ? (
+                                <>
+                                  <div>
+                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                          Generated Cover Letter
+                                          <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
+                                      </h4>
+                                      <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                          {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
+                                        </ReactMarkdown>
+                                      </div>
+                                  </div>
+                                  {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
+                                      <div>
+                                          <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
+                                          <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
+                                          </div>
+                                      </div>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
+                              )}
+                            </div>
+                             <DialogFooter>
+                                  <DialogClose asChild>
+                                      <Button type="button" variant="secondary">Close</Button>
+                                  </DialogClose>
+                              </DialogFooter>
+                          </DialogContent>
+                          )}
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, history.length)} to {Math.min(currentPage * itemsPerPage, history.length)} of {history.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="text-sm font-medium">
+                    Page {currentPage} of {Math.ceil(history.length / itemsPerPage)}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(history.length / itemsPerPage), prev + 1))}
+                    disabled={currentPage >= Math.ceil(history.length / itemsPerPage)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
