@@ -110,6 +110,17 @@ const AnalyzerToolContent = () => {
   const resultsCardRef = useRef<HTMLDivElement>(null);
   const loadingCardRef = useRef<HTMLDivElement>(null);
 
+  // Polling refs & helpers (for async analysis)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isLoadingAnalysis || isLoadingRoast) {
@@ -195,26 +206,31 @@ const AnalyzerToolContent = () => {
           let roastFeedbackTextFromApi: string | undefined = undefined;
 
           if (isRoastItem) {
-            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
-              try {
-                const parsedInnerJson: ParsedRoastPayload = JSON.parse(item.feedback_analysis.feedback);
-                if (parsedInnerJson && typeof parsedInnerJson.roast === 'string') {
+            // Roast payload shape can be string or object
+            if (item.feedback_analysis) {
+              const roastPayload = item.feedback_analysis.feedback ?? item.feedback_analysis.roast;
+              if (typeof roastPayload === 'string') {
+                try {
+                  const parsedInnerJson: ParsedRoastPayload = JSON.parse(roastPayload);
                   roastFeedbackTextFromApi = parsedInnerJson.roast;
+                } catch {
+                  roastFeedbackTextFromApi = roastPayload;
                 }
-              } catch (e) {
-                // Error parsing nested roast string
+              } else if (typeof roastPayload === 'object' && roastPayload !== null) {
+                roastFeedbackTextFromApi = (roastPayload as ParsedRoastPayload).roast;
               }
-            } else if (item.feedback_analysis && typeof item.feedback_analysis.roast === 'string') {
-                roastFeedbackTextFromApi = item.feedback_analysis.roast;
             }
-          } else {
-            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
+          } else if (item.feedback_analysis) {
+            // -------- Parse score --------
+            const feedbackPayload = item.feedback_analysis.feedback;
+            if (typeof feedbackPayload === 'string') {
               try {
-                const feedbackDetails: FeedbackDetails = JSON.parse(item.feedback_analysis.feedback);
-                parsedScore = feedbackDetails.score;
-              } catch (e) {
-                // Error parsing score from feedback JSON
-              }
+                const feedbackDetails: FeedbackDetails = JSON.parse(feedbackPayload);
+                parsedScore = Number(feedbackDetails.score); // ensure numeric
+              } catch { /* score parse error ignored */ void 0; }
+            } else if (typeof feedbackPayload === 'object' && feedbackPayload !== null) {
+              const scoreVal = (feedbackPayload as FeedbackDetails).score as unknown;
+              parsedScore = typeof scoreVal === 'string' ? Number(scoreVal) : (scoreVal as number | undefined);
             }
           }
           
@@ -243,14 +259,21 @@ const AnalyzerToolContent = () => {
             job_description: item.job_description,
             created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
             score: parsedScore,
-            new_score: !isRoastItem && item.feedback_analysis && typeof item.feedback_analysis.new_resume === 'string' ? (() => {
-                try {
-                    const newResumeDetails: NewResumeDetails = JSON.parse(item.feedback_analysis.new_resume);
-                    return newResumeDetails.new_score;
-                } catch { return undefined; }
+            new_score: !isRoastItem && item.feedback_analysis ? (() => {
+                const newResumePayload = item.feedback_analysis.new_resume;
+                if (typeof newResumePayload === 'string') {
+                  try {
+                    const newResumeDetails: NewResumeDetails = JSON.parse(newResumePayload);
+                    return Number(newResumeDetails.new_score);
+                  } catch { /* new_score parse error ignored */ return undefined; }
+                } else if (typeof newResumePayload === 'object' && newResumePayload !== null) {
+                  const ns = (newResumePayload as NewResumeDetails).new_score as unknown;
+                  return typeof ns === 'string' ? Number(ns) : (ns as number | undefined);
+                }
+                return undefined;
             })() : undefined,
-            feedback: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.feedback : undefined, 
-            new_resume: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.new_resume : undefined, 
+            feedback: !isRoastItem && item.feedback_analysis ? (typeof item.feedback_analysis.feedback === 'string' ? item.feedback_analysis.feedback : JSON.stringify(item.feedback_analysis.feedback)) : undefined,
+            new_resume: !isRoastItem && item.feedback_analysis ? (typeof item.feedback_analysis.new_resume === 'string' ? item.feedback_analysis.new_resume : JSON.stringify(item.feedback_analysis.new_resume)) : undefined,
             job_description_title: jobDescTitle,
             is_roast: isRoastItem,
             roast_feedback_text: roastFeedbackTextFromApi,
@@ -364,6 +387,104 @@ const AnalyzerToolContent = () => {
     }
   };
 
+  const startPolling = (
+    jobId: string | number,
+    resumeUrl: string,
+    resumeTitle: string
+  ) => {
+    setLoadingMessage("Checking for your analysis...");
+
+    const poll = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        stopPolling();
+        setError("Session expired during polling. Please try again.");
+        setIsLoadingAnalysis(false);
+        return;
+      }
+      const jwtToken = sessionData.session.access_token;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        stopPolling();
+        setError("Backend URL is not configured.");
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      try {
+        const pollingUrl = `${backendUrl.replace(/\/$/, '')}/get-analyze-resume?job_id=${jobId}`;
+        const pollingRes = await fetch(pollingUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${jwtToken}`, Accept: "application/json" },
+        });
+
+        if (!pollingRes.ok) {
+          console.error(`Polling failed with status: ${pollingRes.status}`);
+          return;
+        }
+
+        const raw = await pollingRes.json();
+        const row: any = Array.isArray(raw) ? raw[0] : raw;
+        if (!row) return;
+
+        const feedbackPayload = row.feedback_analysis?.feedback || row.feedback;
+        const newResumePayload = row.feedback_analysis?.new_resume || row.new_resume;
+
+        let parsedFeedback: FeedbackDetails | undefined = undefined;
+        let parsedNewResume: NewResumeDetails | undefined = undefined;
+
+        if (feedbackPayload && newResumePayload) {
+          // ---------- Parse feedback ----------
+          if (typeof feedbackPayload === 'string') {
+            try { parsedFeedback = JSON.parse(feedbackPayload); } catch { /* polling feedback parse error ignored */ void 0; }
+          } else if (typeof feedbackPayload === 'object') {
+            parsedFeedback = feedbackPayload as FeedbackDetails;
+          }
+
+          // ---------- Parse new resume ----------
+          if (typeof newResumePayload === 'string') {
+            try { parsedNewResume = JSON.parse(newResumePayload); } catch { /* polling newResume parse error ignored */ void 0; }
+          } else if (typeof newResumePayload === 'object') {
+            parsedNewResume = newResumePayload as NewResumeDetails;
+          }
+        }
+
+        if (parsedFeedback && parsedNewResume) {
+          stopPolling();
+          setIsLoadingAnalysis(false);
+
+          setAnalysisResult({ id: row.id || jobId, feedback: parsedFeedback, new_resume: parsedNewResume });
+
+          const newHistoryItem: AnalysisHistoryItem = {
+            id: row.id || jobId,
+            resume_url: resumeUrl,
+            resume_title: resumeTitle,
+            company_website: row.company_website || companyWebsite,
+            job_description: row.job_description || jobDescription,
+            created_at: new Date().toLocaleDateString(),
+            score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
+            feedback: typeof feedbackPayload === 'string' ? feedbackPayload : JSON.stringify(feedbackPayload),
+            new_resume: typeof newResumePayload === 'string' ? newResumePayload : JSON.stringify(newResumePayload),
+            new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
+            job_description_title: (row.job_description || jobDescription || '').substring(0, 70) + '...',
+            is_roast: false,
+          };
+          setAnalysisHistory(prev => [newHistoryItem, ...prev]);
+          setNewResumeFile(null);
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    };
+
+    pollIntervalRef.current = setInterval(poll, 10000);
+    pollingTimeoutRef.current = setTimeout(() => {
+      stopPolling();
+      setError("Analysis is taking longer than usual. You can check the history section later.");
+      setIsLoadingAnalysis(false);
+    }, 180000);
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoadingAnalysis(true);
@@ -378,7 +499,7 @@ const AnalyzerToolContent = () => {
     setRoastError(null);
 
     let finalResumeUrl = selectedDocumentUrl;
-    let currentFieldErrors: { jobDescription?: string; companyWebsite?: string } = {};
+    const currentFieldErrors: { jobDescription?: string; companyWebsite?: string } = {};
 
     if (resumeInputMethod === 'upload' && newResumeFile) {
       const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
@@ -395,6 +516,10 @@ const AnalyzerToolContent = () => {
       setError("Please select an existing resume or upload a new one.");
       setIsLoadingAnalysis(false);
       return;
+    }
+    // Some back-ends reject URLs with a trailing '?'. Sanitize if needed.
+    if (finalResumeUrl.endsWith('?')) {
+      finalResumeUrl = finalResumeUrl.slice(0, -1);
     }
     if (toolMode === 'analyze') {
         if (!jobDescription.trim()) {
@@ -517,14 +642,15 @@ const AnalyzerToolContent = () => {
     setIsLoadingAnalysis(true);
     setIsLoadingRoast(false);
 
-    const analysisPayload = new FormData();
-    analysisPayload.append("current_resume", finalResumeUrl);
-    analysisPayload.append("job_description", jobDescription);
-    analysisPayload.append("company_website", companyWebsite);
-    if (additionalComments.trim()) {
-      analysisPayload.append("additional_comments", additionalComments);
-    }
-    analysisPayload.append("resume_title", resumeTitleForBackend);
+    const analysisPayload = {
+      // Some back-ends expect `current_resume`, others `resume_url` – send both for compatibility
+      current_resume: finalResumeUrl,
+      job_description: jobDescription,
+      company_website: companyWebsite,
+      ...(additionalComments.trim() ? { additional_comments: additionalComments } : {}),
+      // Preserve the document title so the back-end can reference it if needed
+      resume_title: resumeTitleForBackend,
+    };
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL; 
@@ -535,9 +661,24 @@ const AnalyzerToolContent = () => {
       
       const response = await fetch(analyzeUrl, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${jwtToken}` },
-        body: analysisPayload,
+        headers: {
+          "Authorization": `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(analysisPayload),
       });
+
+      if (response.status === 202) {
+        const jobInfo: { job_id?: string | number } = await response.json().catch(() => ({}));
+        if (jobInfo.job_id) {
+          startPolling(jobInfo.job_id, finalResumeUrl, resumeTitleForBackend);
+        } else {
+          setError("Analysis job accepted but no job_id returned.");
+          setIsLoadingAnalysis(false);
+        }
+        return;
+      }
 
       const responseData: RawApiResponse = await response.json();
 
@@ -572,9 +713,10 @@ const AnalyzerToolContent = () => {
           company_website: companyWebsite,
           job_description: jobDescription,
           created_at: new Date().toLocaleDateString(),
-          score: parsedFeedback.score,
+          score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
           feedback: responseData.feedback, 
           new_resume: responseData.new_resume, 
+          new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
           job_description_title: jobDescription.substring(0,70) + '...',
           is_roast: false,
         };
