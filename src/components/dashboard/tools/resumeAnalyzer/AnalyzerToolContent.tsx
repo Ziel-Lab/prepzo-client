@@ -211,13 +211,24 @@ const AnalyzerToolContent = () => {
         const historyUrl = `${backendUrl.replace(/\/$/, '')}/get-analyze-resume`;
         const historyResponse = await fetch(historyUrl, {
           method: "GET",
-          headers: { "Authorization": `Bearer ${jwtToken}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
+        // If backend returns 404 (no records for this user), treat as empty history
+        if (historyResponse.status === 404) {
+          // No history yet for this user – this is not an error
+          setAnalysisHistory([]);
+          return;
+        }
         if (!historyResponse.ok) {
           const errorData = await historyResponse.json().catch(() => ({error: "Failed to parse history error"}));
           throw new Error(errorData.error || `HTTP error fetching history: ${historyResponse.status}`);
         }
         const historyDataFromApi: any[] = await historyResponse.json();
+        // If we received an empty array, just set empty history without error
+        if (!Array.isArray(historyDataFromApi) || historyDataFromApi.length === 0) {
+          setAnalysisHistory([]);
+          return;
+        }
 
         const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item: any) => {
           let parsedScore: number | undefined = undefined;
@@ -1086,7 +1097,7 @@ const AnalyzerToolContent = () => {
                                   )}
                                 </>
                               ) : (
-                                <p className="text-sm text-gray-500 text-center py-4">No analysis details available for this history item.</p>
+                                <p className="text-sm text-gray-500 text-center py-4">Your analysis is still in progress. Please check back later.</p>
                               )}
                             </div>
                              <DialogFooter>
