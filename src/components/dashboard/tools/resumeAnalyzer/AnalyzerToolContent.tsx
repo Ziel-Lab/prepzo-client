@@ -21,9 +21,11 @@ import { useSearchParams } from "next/navigation";
 const loadingMessages = [
   "Our AI is reading your resume closely...",
   "Comparing your skills to the job description...",
-  "Crafting personalized feedback just for you...",
+  "Analyzing your experience and achievements...",
   "Checking for keywords and best practices...",
-  "Almost there! Just polishing your results."
+  "Crafting personalized feedback just for you...",
+  "Preparing your improved resume version...",
+  "Checking for your analysis..."
 ];
 
 interface FeedbackDetails {
@@ -1236,11 +1238,12 @@ const AnalyzerToolContent = () => {
         </form>
       </Card>
       
+      {/* Loading Indicator Card */}
       {(isLoadingAnalysis || isLoadingRoast) && (
-        <Card ref={loadingCardRef} className="bg-blue-50 border-blue-200">
+        <Card className="mt-8 bg-blue-50 border-blue-200" ref={loadingCardRef}>
           <CardContent className="p-6 text-center">
             <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
-            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to 3 minutes.</p>
           </CardContent>
         </Card>
       )}
