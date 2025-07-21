@@ -453,7 +453,9 @@ const AnalyzerToolContent = () => {
           stopPolling();
           setIsLoadingAnalysis(false);
 
-          setAnalysisResult({ id: row.id || jobId, feedback: parsedFeedback, new_resume: parsedNewResume });
+          const analysisIdFound = row.id || jobId;
+          setAnalysisResult({ id: analysisIdFound, feedback: parsedFeedback, new_resume: parsedNewResume });
+          setCurrentAnalysisId(analysisIdFound);
 
           const newHistoryItem: AnalysisHistoryItem = {
             id: row.id || jobId,
@@ -477,7 +479,7 @@ const AnalyzerToolContent = () => {
       }
     };
 
-    pollIntervalRef.current = setInterval(poll, 10000);
+    pollIntervalRef.current = setInterval(poll, 60000);
     pollingTimeoutRef.current = setTimeout(() => {
       stopPolling();
       setError("Analysis is taking longer than usual. You can check the history section later.");
@@ -695,8 +697,34 @@ const AnalyzerToolContent = () => {
       }
       
       try {
-        const parsedFeedback: FeedbackDetails = JSON.parse(responseData.feedback);
-        const parsedNewResume: NewResumeDetails = JSON.parse(responseData.new_resume);
+        // Handle feedback (string JSON or already parsed object)
+        const feedbackPayload = responseData.feedback;
+        const newResumePayload = responseData.new_resume;
+
+        let parsedFeedback: FeedbackDetails;
+        if (typeof feedbackPayload === 'string') {
+          try {
+            parsedFeedback = JSON.parse(feedbackPayload);
+          } catch {
+            // If parsing fails, treat raw string as feedback text with score undefined
+            parsedFeedback = { score: NaN, feedback: feedbackPayload } as unknown as FeedbackDetails;
+          }
+        } else {
+          parsedFeedback = feedbackPayload as FeedbackDetails;
+        }
+
+        let parsedNewResume: NewResumeDetails;
+        if (typeof newResumePayload === 'string') {
+          try {
+            parsedNewResume = JSON.parse(newResumePayload);
+          } catch {
+            // If parsing fails, wrap raw string
+            parsedNewResume = { changes: '', new_resume: newResumePayload, new_score: NaN } as unknown as NewResumeDetails;
+          }
+        } else {
+          parsedNewResume = newResumePayload as NewResumeDetails;
+        }
+
         const analysisIdForCurrent = responseData.analysis_id || Date.now();
 
         setAnalysisResult({
@@ -707,23 +735,24 @@ const AnalyzerToolContent = () => {
         setCurrentAnalysisId(analysisIdForCurrent);
 
         const newHistoryItem: AnalysisHistoryItem = {
-          id: analysisIdForCurrent, 
+          id: analysisIdForCurrent,
           resume_url: finalResumeUrl,
-          resume_title: resumeTitleForBackend, 
+          resume_title: resumeTitleForBackend,
           company_website: companyWebsite,
           job_description: jobDescription,
           created_at: new Date().toLocaleDateString(),
           score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
-          feedback: responseData.feedback, 
-          new_resume: responseData.new_resume, 
+          feedback: typeof feedbackPayload === 'string' ? feedbackPayload : JSON.stringify(feedbackPayload),
+          new_resume: typeof newResumePayload === 'string' ? newResumePayload : JSON.stringify(newResumePayload),
           new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
-          job_description_title: jobDescription.substring(0,70) + '...',
+          job_description_title: jobDescription.substring(0, 70) + '...',
           is_roast: false,
         };
-        setAnalysisHistory(prevHistory => [newHistoryItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ));
+
+        setAnalysisHistory(prevHistory => [newHistoryItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
         setNewResumeFile(null);
 
-      } catch (parseError: any) {
+      } catch {
         setError("Analysis results couldn't be processed. Please refresh the page and try again!");
       }
 
