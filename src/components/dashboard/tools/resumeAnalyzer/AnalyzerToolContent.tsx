@@ -1053,14 +1053,7 @@ const AnalyzerToolContent = () => {
                                     <div>
                                       <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
                                           <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-green-600"/>Improved Resume (Score: {selectedHistoryItemForDialog.new_score || 'N/A'}/10)</span>
-                                          <Button variant="outline" size="sm" onClick={() => {
-                                            try {
-                                              const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                              navigator.clipboard.writeText(newResumeDetails.new_resume || '');
-                                            } catch {
-                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.new_resume || '');
-                                            }
-                                          }}><Copy size={12} className="mr-1"/>Copy Resume</Button>
+                                          
                                       </h4>
                                       
                                       {/* Changes Summary */}
@@ -1082,6 +1075,16 @@ const AnalyzerToolContent = () => {
                                       
                                       {/* Improved Resume Text */}
                                       <div className="prose prose-sm max-w-none p-4 bg-green-50 rounded-md border border-green-200 min-h-[400px] max-h-[600px] overflow-y-auto">
+                                        <div className="flex justify-end items-center">
+                                      <Button variant="outline" size="sm" onClick={() => {
+                                            try {
+                                              const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
+                                              navigator.clipboard.writeText(newResumeDetails.new_resume || '');
+                                            } catch {
+                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.new_resume || '');
+                                            }
+                                          }}><Copy size={12} className="mr-1"/>Copy Resume</Button>
+                                        </div>
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                           {(() => {
                                             try {

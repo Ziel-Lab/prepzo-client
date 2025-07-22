@@ -47,6 +47,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
 import { useSearchParams } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
 
 const loadingMessages = [
     "Understanding the job role...",
@@ -115,22 +116,34 @@ interface CoverLetterHistoryItem {
 const mapApiStatusToUiStatus = (apiStatus: string | undefined): 'completed' | 'failed' | 'pending' | 'in_progress' => {
   if (!apiStatus) return 'completed';
   
-  switch(apiStatus.toUpperCase()) {
+  const status = apiStatus.toUpperCase();
+  
+  // If we have SUCCESS status and content, treat as completed
+  if (status === 'SUCCESS') {
+    return 'completed';
+  }
+  
+  switch(status) {
     case 'COMPLETED':
       return 'completed';
     case 'FAILED':
+    case 'FAILURE':
       return 'failed';
     case 'PENDING':
       return 'pending';
     case 'IN_PROGRESS':
       return 'in_progress';
     default:
-      return 'completed';
+      // If status is unknown but we have SUCCESS, treat as completed
+      return status === 'SUCCESS' ? 'completed' : 'pending';
   }
 };
 
 // Helper to safely parse feedback
-const parseFeedback = (feedback: string | CoverLetterResult): CoverLetterResult => {
+const parseFeedback = (feedback: string | CoverLetterResult | null): CoverLetterResult => {
+  if (!feedback) {
+    return { cover_letter: '', additional_comments: '' };
+  }
   if (typeof feedback === 'string') {
     try {
       return JSON.parse(feedback) as CoverLetterResult;
@@ -143,6 +156,7 @@ const parseFeedback = (feedback: string | CoverLetterResult): CoverLetterResult 
 };
 
 const CoverLetterContent = () => {
+  const { toast } = useToast();
   // Add pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
@@ -283,22 +297,24 @@ const CoverLetterContent = () => {
           headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
         if (!historyResponse.ok) throw new Error(`HTTP error fetching history: ${historyResponse.status}`);
-        const historyDataRaw: RawCoverLetterHistoryItem[] = await historyResponse.json();
-        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item) => {
-          const resumeTitle = item.current_resume ? decodeURIComponent(item.current_resume.substring(item.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A';
-          return {
-            id: item.id,
-            job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
-            company_website: item.company_website,
-            current_resume: item.current_resume,
-            resume_title: resumeTitle,
-            user_additional_comments: item.additional_comments,
-            generated_outputs: parseFeedback(item.feedback),
-            created_at: new Date(item.created_at).toLocaleDateString(),
-            status: mapApiStatusToUiStatus(item.status),
-          };
-        }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setHistory(formattedHistory);
+        const historyResponseData: RawCoverLetterHistoryItem[] = await historyResponse.json() || [];
+        const processedHistory: CoverLetterHistoryItem[] = (Array.isArray(historyResponseData) ? historyResponseData : [])
+          .filter(item => item) // Filter out null/undefined items
+          .map((item) => {
+            const resumeTitle = item.current_resume ? decodeURIComponent(item.current_resume.substring(item.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A';
+            return {
+              id: item.id,
+              job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
+              company_website: item.company_website,
+              current_resume: item.current_resume,
+              resume_title: resumeTitle,
+              user_additional_comments: item.additional_comments,
+              generated_outputs: parseFeedback(item.feedback),
+              created_at: new Date(item.created_at).toLocaleDateString(),
+              status: mapApiStatusToUiStatus(item.status),
+            };
+          }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setHistory(processedHistory);
       } catch (err) {
         setHistoryError("Unable to load your cover letter history. Please refresh the page and try again!");
       } finally {
@@ -416,7 +432,7 @@ const CoverLetterContent = () => {
     setLimitReached(false);
     setGeneratedResult(null);
 
-    let finalResumeUrl = selectedResumeUrl;
+    let currentResumeUrl = selectedResumeUrl;
 
     try {
       const startGeneration = async (resumeUrl: string) => {
@@ -452,10 +468,9 @@ const CoverLetterContent = () => {
         });
   
         if (response.status === 202) {
-          // Expecting JSON body: { job_id: "..." }
           const jobInfo: { job_id?: string | number } = await response.json().catch(() => ({}));
           if (jobInfo.job_id) {
-            startPolling(jobInfo.job_id);
+            startPolling(jobInfo.job_id, resumeUrl);
           } else {
             setError("Cover letter job accepted but no job_id returned.");
             setIsLoading(false);
@@ -485,15 +500,15 @@ const CoverLetterContent = () => {
       if (resumeInputMethod === "upload" && newResumeFile) {
         uploadNewResumeAndGetUrl(newResumeFile).then(uploadedUrl => {
             if (uploadedUrl) {
-                finalResumeUrl = uploadedUrl;
+                currentResumeUrl = uploadedUrl;
                 setSelectedResumeUrl(uploadedUrl);
                 startGeneration(uploadedUrl);
             } else {
                 setIsLoading(false);
             }
         });
-      } else if(finalResumeUrl) {
-        startGeneration(finalResumeUrl);
+      } else if(currentResumeUrl) {
+        startGeneration(currentResumeUrl);
       } else {
         setError("Resume URL could not be determined. Please select or upload a resume.");
         setIsLoading(false);
@@ -504,8 +519,36 @@ const CoverLetterContent = () => {
     }
   };
 
-  const startPolling = (jobId: string | number) => {
-    setLoadingMessage("Checking for your generated letter...");
+  const startPolling = (jobId: string | number, resumeUrl: string) => {
+    toast({
+      title: "Generation Started",
+      description: "Your cover letter will show in the history section shortly.",
+      duration: 5000,
+    });
+
+    // Add initial pending item to history, ensuring no duplicates
+    const pendingHistoryItem: CoverLetterHistoryItem = {
+      id: jobId,
+      job_description: jobDescription ? (jobDescription.substring(0, 70) + '...') : "N/A",
+      company_website: companyWebsite,
+      current_resume: resumeUrl,
+      resume_title: resumeUrl ? decodeURIComponent(resumeUrl.substring(resumeUrl.lastIndexOf('/') + 1).split('?')[0]) : 'N/A',
+      user_additional_comments: userComments,
+      generated_outputs: { cover_letter: '', additional_comments: '' },
+      created_at: new Date().toLocaleDateString(),
+      status: 'pending'
+    };
+
+    // Remove any existing entries with the same job ID or same company website
+    setHistory(prev => {
+      const filtered = prev.filter(item => 
+        item.id !== jobId && 
+        !(item.company_website === companyWebsite && 
+          item.current_resume === resumeUrl && 
+          item.status === 'pending')
+      );
+      return [pendingHistoryItem, ...filtered];
+    });
 
     const poll = async () => {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -536,9 +579,27 @@ const CoverLetterContent = () => {
             }
 
             const raw = await historyResponse.json();
+            // console.log('API Response:', raw); // Debug log
             const row: RawCoverLetterHistoryItem | undefined = Array.isArray(raw) ? raw[0] : raw;
 
             if (!row) return;
+
+            // console.log('Row status:', row.status); // Debug log
+            // console.log('Row feedback:', row.feedback); // Debug log
+
+            // Parse feedback first to check if we have content
+            const parsedFeedback = parseFeedback(row.feedback);
+            const hasCoverLetter = Boolean(parsedFeedback?.cover_letter && parsedFeedback.cover_letter.length > 0);
+
+            // Determine the actual status
+            let actualStatus = row.status;
+            // Only consider it complete if we have both SUCCESS status and actual content
+            if (hasCoverLetter && actualStatus?.toUpperCase() === 'SUCCESS') {
+                actualStatus = 'COMPLETED';
+            } else if (actualStatus?.toUpperCase() === 'SUCCESS' && !hasCoverLetter) {
+                // If we have SUCCESS but no content, keep polling
+                actualStatus = 'IN_PROGRESS';
+            }
 
             const formatted: CoverLetterHistoryItem = {
                 id: row.id,
@@ -547,19 +608,55 @@ const CoverLetterContent = () => {
                 current_resume: row.current_resume,
                 resume_title: row.current_resume ? decodeURIComponent(row.current_resume.substring(row.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A',
                 user_additional_comments: row.additional_comments,
-                generated_outputs: parseFeedback(row.feedback),
+                generated_outputs: parsedFeedback,
                 created_at: new Date(row.created_at).toLocaleDateString(),
-                status: mapApiStatusToUiStatus(row.status),
+                status: mapApiStatusToUiStatus(actualStatus),
             };
 
-            if (formatted.generated_outputs.cover_letter) {
-                 stopPolling();
-                 setIsLoading(false);
+            // console.log('Mapped status:', formatted.status); // Debug log
 
-                 setGeneratedResult(formatted.generated_outputs);
- 
-                 setHistory(prev => [formatted, ...prev]);
-                 setNewResumeFile(null);
+            // Update history ensuring no duplicates by job ID or company website
+            setHistory(prev => {
+                const filtered = prev.filter(item => 
+                  item.id !== formatted.id && 
+                  !(item.company_website === formatted.company_website && 
+                    item.current_resume === formatted.current_resume && 
+                    item.status === 'pending')
+                );
+                return [formatted, ...filtered];
+            });
+
+            // Check if generation is complete based on both status and content
+            if (hasCoverLetter && formatted.status === 'completed') {
+                stopPolling();
+                setIsLoading(false);
+                setGeneratedResult(parsedFeedback);
+                setNewResumeFile(null);
+
+                toast({
+                  title: "Cover Letter Complete",
+                  description: "Your cover letter is now available in the history section.",
+                  duration: 5000,
+                });
+            } else if (formatted.status === 'failed') {
+                // Handle failed status
+                stopPolling();
+                setIsLoading(false);
+                setError("Cover letter generation failed. Please try again.");
+                
+                toast({
+                    variant: "destructive",
+                    title: "Generation Failed",
+                    description: "The cover letter generation failed. Please try again.",
+                    duration: 5000,
+                });
+            } else {
+                // Update status message based on current status
+                setLoadingMessage(
+                    formatted.status === 'in_progress' 
+                        ? "Generating your cover letter..."
+                        : "Checking for your generated letter..."
+                );
             }
         } catch (e) {
             console.error("Polling error:", e);
@@ -572,6 +669,23 @@ const CoverLetterContent = () => {
         stopPolling();
         setError("Generation is taking longer than usual. You can check your history for the result in a few moments.");
         setIsLoading(false);
+
+        // Update status to failed if timeout, ensuring no duplicates
+        setHistory(prev => {
+            const filtered = prev.filter(item => item.id !== jobId);
+            const failedItem = prev.find(item => item.id === jobId);
+            if (failedItem) {
+                return [{ ...failedItem, status: 'failed' }, ...filtered];
+            }
+            return prev;
+        });
+
+        toast({
+          variant: "destructive",
+          title: "Generation Timeout",
+          description: "The generation is taking longer than expected. Please check back later.",
+          duration: 5000,
+        });
     }, 180000); // 3 minutes timeout
   };
 
