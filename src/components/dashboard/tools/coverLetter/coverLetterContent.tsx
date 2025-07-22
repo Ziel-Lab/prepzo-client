@@ -31,6 +31,7 @@ import {
   Lightbulb,
   History,
   Wand2,
+  Clock,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -46,13 +47,15 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
 import { useSearchParams } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
 
 const loadingMessages = [
     "Understanding the job role...",
     "Aligning your skills with the company's needs...",
     "Drafting a compelling opening paragraph...",
     "Weaving your experience into a narrative...",
-    "Adding the finishing touches to your letter..."
+    "Adding the finishing touches to your letter...",
+    "Checking for your generated letter...",
 ];
 
 // Interface for user documents (resumes)
@@ -76,6 +79,26 @@ interface BackendCoverLetterResponse {
     id?: string | number; 
 }
 
+// For raw document from /get-documents
+interface RawUserDocument {
+    id: number | string;
+    document_name?: string;
+    display_name?: string;
+    document_url: string;
+}
+
+// For raw history item from /get-cover-letters
+interface RawCoverLetterHistoryItem {
+    id: string | number;
+    job_description?: string;
+    company_website?: string;
+    current_resume?: string;
+    additional_comments?: string; // User's input comments
+    feedback: CoverLetterResult | string; // Can be parsed object or string
+    created_at: string;
+    status?: string; // Add status field
+}
+
 // Interface for history items
 interface CoverLetterHistoryItem {
   id: string | number;
@@ -86,9 +109,58 @@ interface CoverLetterHistoryItem {
   user_additional_comments?: string; // User's input comments for this generation
   generated_outputs: CoverLetterResult; // The stored {cover_letter, additional_comments}
   created_at: string;
+  status: 'completed' | 'failed' | 'pending' | 'in_progress';
 }
 
+// Helper function to map API status to UI status
+const mapApiStatusToUiStatus = (apiStatus: string | undefined): 'completed' | 'failed' | 'pending' | 'in_progress' => {
+  if (!apiStatus) return 'completed';
+  
+  const status = apiStatus.toUpperCase();
+  
+  // If we have SUCCESS status and content, treat as completed
+  if (status === 'SUCCESS') {
+    return 'completed';
+  }
+  
+  switch(status) {
+    case 'COMPLETED':
+      return 'completed';
+    case 'FAILED':
+    case 'FAILURE':
+      return 'failed';
+    case 'PENDING':
+      return 'pending';
+    case 'IN_PROGRESS':
+      return 'in_progress';
+    default:
+      // If status is unknown but we have SUCCESS, treat as completed
+      return status === 'SUCCESS' ? 'completed' : 'pending';
+  }
+};
+
+// Helper to safely parse feedback
+const parseFeedback = (feedback: string | CoverLetterResult | null): CoverLetterResult => {
+  if (!feedback) {
+    return { cover_letter: '', additional_comments: '' };
+  }
+  if (typeof feedback === 'string') {
+    try {
+      return JSON.parse(feedback) as CoverLetterResult;
+    } catch {
+      // Fallback: return empty structure to satisfy types
+      return { cover_letter: '', additional_comments: '' };
+    }
+  }
+  return feedback;
+};
+
 const CoverLetterContent = () => {
+  const { toast } = useToast();
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+
   // Form Inputs
   const [jobDescription, setJobDescription] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
@@ -121,6 +193,16 @@ const CoverLetterContent = () => {
   const loadingCardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
   // Prefill job description & company website from URL query params
   useEffect(() => {
     const jobDescParam = searchParams.get("jobDescription");
@@ -147,6 +229,11 @@ const CoverLetterContent = () => {
     }
     // Run only once on mount – searchParams is stable in App Router
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Stop polling on component unmount
+    return () => stopPolling();
   }, []);
 
   useEffect(() => {
@@ -185,8 +272,8 @@ const CoverLetterContent = () => {
           headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
         if (!docsResponse.ok) throw new Error(`HTTP error fetching documents: ${docsResponse.status}`);
-        const fetchedDocsRaw = await docsResponse.json();
-        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc: any) => ({
+        const fetchedDocsRaw: RawUserDocument[] = await docsResponse.json();
+        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc) => ({
           id: doc.id,
           title: doc.document_name || doc.display_name || "Untitled Document",
           url: doc.document_url,
@@ -195,7 +282,7 @@ const CoverLetterContent = () => {
         if (!(fetchedDocs.length > 0 && fetchedDocs[0].url)) {
           setResumeInputMethod("upload");
         }
-      } catch (err: any) {
+      } catch (err) {
         setError("Unable to load your documents right now. Please refresh the page and try again!");
         setResumeInputMethod("upload");
       } finally {
@@ -210,19 +297,25 @@ const CoverLetterContent = () => {
           headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
         if (!historyResponse.ok) throw new Error(`HTTP error fetching history: ${historyResponse.status}`);
-        const historyDataRaw: any[] = await historyResponse.json();
-        const formattedHistory: CoverLetterHistoryItem[] = historyDataRaw.map((item: any) => ({
-          id: item.id,
-          job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
-          company_website: item.company_website,
-          current_resume: item.current_resume,
-          resume_title: item.current_resume ? decodeURIComponent(item.current_resume.split('/').pop().split('?')[0]) : 'N/A',
-          user_additional_comments: item.additional_comments, // User's input comments for this generation
-          generated_outputs: item.feedback, // Corrected: Map from item.feedback
-          created_at: new Date(item.created_at).toLocaleDateString(),
-        })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setHistory(formattedHistory);
-      } catch (err: any) {
+        const historyResponseData: RawCoverLetterHistoryItem[] = await historyResponse.json() || [];
+        const processedHistory: CoverLetterHistoryItem[] = (Array.isArray(historyResponseData) ? historyResponseData : [])
+          .filter(item => item) // Filter out null/undefined items
+          .map((item) => {
+            const resumeTitle = item.current_resume ? decodeURIComponent(item.current_resume.substring(item.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A';
+            return {
+              id: item.id,
+              job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
+              company_website: item.company_website,
+              current_resume: item.current_resume,
+              resume_title: resumeTitle,
+              user_additional_comments: item.additional_comments,
+              generated_outputs: parseFeedback(item.feedback),
+              created_at: new Date(item.created_at).toLocaleDateString(),
+              status: mapApiStatusToUiStatus(item.status),
+            };
+          }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setHistory(processedHistory);
+      } catch (err) {
         setHistoryError("Unable to load your cover letter history. Please refresh the page and try again!");
       } finally {
         setIsFetchingHistory(false);
@@ -245,6 +338,11 @@ const CoverLetterContent = () => {
     }
     return () => clearInterval(intervalId);
   }, [isLoading]);
+
+  // Reset pagination when history changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [history.length]);
 
   const handleResumeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -305,7 +403,7 @@ const CoverLetterContent = () => {
        const newDocEntry: UserDocument = { id: Date.now(), title: file.name, url: result.file_url };
        setUserDocuments(prev => [newDocEntry, ...prev]);
       return result.file_url;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Upload failed. Please refresh the page and try uploading your resume again!");
       return null;
     } finally {
@@ -334,119 +432,261 @@ const CoverLetterContent = () => {
     setLimitReached(false);
     setGeneratedResult(null);
 
+    let currentResumeUrl = selectedResumeUrl;
+
     try {
-      let finalResumeUrl = selectedResumeUrl;
-      if (resumeInputMethod === "upload" && newResumeFile) {
-        const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
-        if (uploadedUrl) {
-          finalResumeUrl = uploadedUrl;
-          setSelectedResumeUrl(uploadedUrl); // So it's selected if user re-submits without changing file
-        } else {
-          // Error is set by uploadNewResumeAndGetUrl, just exit.
-          return; 
-        }
-      }
-
-      if (!finalResumeUrl) {
-          setError("Resume URL could not be determined. Please select or upload a resume.");
+      const startGeneration = async (resumeUrl: string) => {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session?.access_token) {
+          setError("Could not retrieve user session.");
+          setIsLoading(false);
           return;
-      }
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.access_token) {
-        setError("Could not retrieve user session.");
-        return;
-      }
-      const jwtToken = sessionData.session.access_token;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-      if (!backendUrl) {
-          setError("Backend URL is not configured.");
-          return;
-      }
-
-      const payload = new FormData();
-      payload.append("current_resume", finalResumeUrl);
-      payload.append("job_description", jobDescription);
-      if (companyWebsite.trim()) payload.append("company_website", companyWebsite);
-      if (userComments.trim()) payload.append("additional_comments", userComments);
-
-      const response = await fetch(`${backendUrl.replace(/\/$/, '')}/create-cover-letter`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${jwtToken}` },
-        body: payload,
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        // Try to parse error from backend if it's structured, otherwise use raw text or status
-        let errorMessage = `HTTP Error: ${response.status}`;
-        if (responseData && (responseData.error || responseData.details)) {
-            errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
         }
-        
-        if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
-          setLimitReached(true);
-        } else {
-          setError("Cover letter generation failed. Please refresh the page and try again!");
+        const jwtToken = sessionData.session.access_token;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) {
+            setError("Backend URL is not configured.");
+            setIsLoading(false);
+            return;
         }
-        return;
-      }
-      
-      // EXPECTED: responseData = { feedback: "{\"cover_letter\":\"...\", \"additional_comments\":\"...\"}" }
-      if (responseData.feedback && typeof responseData.feedback === 'string') {
-        const parsedFeedback: CoverLetterResult = JSON.parse(responseData.feedback);
-
-        if (parsedFeedback.cover_letter && parsedFeedback.additional_comments !== undefined) {
-            setGeneratedResult(parsedFeedback);
-            
-            // Add to history
-            const historyItemId = responseData.id || Date.now(); // Use backend ID if provided
-            const newHistoryEntry: CoverLetterHistoryItem = {
-                id: historyItemId, 
-                job_description: jobDescription.substring(0,70) + '...',
-                company_website: companyWebsite,
-                current_resume: finalResumeUrl,
-                resume_title: newResumeFile?.name || userDocuments.find(d => d.url === finalResumeUrl)?.title || 'N/A',
-                user_additional_comments: userComments,
-                generated_outputs: parsedFeedback, // Store the parsed object directly
-                created_at: new Date().toLocaleDateString(),
-            };
-            setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-            setNewResumeFile(null); 
-        } else {
-            setError("Cover letter results couldn't be processed. Please refresh the page and try again!");
-        }
-      } else if (responseData.cover_letter && responseData.additional_comments !== undefined) {
-        // Fallback: if backend ALREADY parsed it and sent it as top-level (less likely based on new info)
-        setGeneratedResult({
-          cover_letter: responseData.cover_letter,
-          additional_comments: responseData.additional_comments,
-        });
-        const historyItemId = responseData.id || Date.now();
-        const newHistoryEntry: CoverLetterHistoryItem = {
-            id: historyItemId,
-            job_description: jobDescription.substring(0,70) + '...',
-            company_website: companyWebsite,
-            current_resume: finalResumeUrl,
-            resume_title: newResumeFile?.name || userDocuments.find(d => d.url === finalResumeUrl)?.title || 'N/A',
-            user_additional_comments: userComments,
-            generated_outputs: { cover_letter: responseData.cover_letter, additional_comments: responseData.additional_comments },
-            created_at: new Date().toLocaleDateString(),
+  
+        const payload = {
+            resume_url: resumeUrl,
+            company_url: companyWebsite,
+            job_description: jobDescription,
+            additional_comments: userComments.trim() ? userComments : undefined
         };
-        setHistory(prev => [newHistoryEntry, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-        setNewResumeFile(null);
-      } else if (responseData.message && responseData.details) { // Your existing specific error handling
-        setError("Cover letter generation encountered an issue. Please refresh the page and try again!");
-      } else {
-        setError("Unexpected response from cover letter service. Please refresh the page and try again!");
-      }
+  
+        const response = await fetch(`${backendUrl.replace(/\/$/, '')}/create-cover-letter`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+  
+        if (response.status === 202) {
+          const jobInfo: { job_id?: string | number } = await response.json().catch(() => ({}));
+          if (jobInfo.job_id) {
+            startPolling(jobInfo.job_id, resumeUrl);
+          } else {
+            setError("Cover letter job accepted but no job_id returned.");
+            setIsLoading(false);
+          }
+          return;
+        }
+  
+        // Fallback for non-202 responses or errors
+        setIsLoading(false);
+        const responseData = await response.json();
+  
+        if (!response.ok) {
+          let errorMessage = `HTTP Error: ${response.status}`;
+          if (responseData && (responseData.error || responseData.details)) {
+              errorMessage = responseData.error || (typeof responseData.details === 'string' ? responseData.details : JSON.stringify(responseData.details));
+          }
+          
+          if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("limit")) {
+            setLimitReached(true);
+          } else {
+            setError("Cover letter generation failed. Please refresh the page and try again!");
+          }
+          return;
+        }
+      };
 
-    } catch (err: any) {
+      if (resumeInputMethod === "upload" && newResumeFile) {
+        uploadNewResumeAndGetUrl(newResumeFile).then(uploadedUrl => {
+            if (uploadedUrl) {
+                currentResumeUrl = uploadedUrl;
+                setSelectedResumeUrl(uploadedUrl);
+                startGeneration(uploadedUrl);
+            } else {
+                setIsLoading(false);
+            }
+        });
+      } else if(currentResumeUrl) {
+        startGeneration(currentResumeUrl);
+      } else {
+        setError("Resume URL could not be determined. Please select or upload a resume.");
+        setIsLoading(false);
+      }
+    } catch (err) {
       setError("Cover letter request failed. Please refresh the page and try again!");
-    } finally {
       setIsLoading(false);
     }
+  };
+
+  const startPolling = (jobId: string | number, resumeUrl: string) => {
+    toast({
+      title: "Generation Started",
+      description: "Your cover letter will show in the history section shortly.",
+      duration: 5000,
+    });
+
+    // Add initial pending item to history, ensuring no duplicates
+    const pendingHistoryItem: CoverLetterHistoryItem = {
+      id: jobId,
+      job_description: jobDescription ? (jobDescription.substring(0, 70) + '...') : "N/A",
+      company_website: companyWebsite,
+      current_resume: resumeUrl,
+      resume_title: resumeUrl ? decodeURIComponent(resumeUrl.substring(resumeUrl.lastIndexOf('/') + 1).split('?')[0]) : 'N/A',
+      user_additional_comments: userComments,
+      generated_outputs: { cover_letter: '', additional_comments: '' },
+      created_at: new Date().toLocaleDateString(),
+      status: 'pending'
+    };
+
+    // Remove any existing entries with the same job ID or same company website
+    setHistory(prev => {
+      const filtered = prev.filter(item => 
+        item.id !== jobId && 
+        !(item.company_website === companyWebsite && 
+          item.current_resume === resumeUrl && 
+          item.status === 'pending')
+      );
+      return [pendingHistoryItem, ...filtered];
+    });
+
+    const poll = async () => {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session?.access_token) {
+            stopPolling();
+            setError("Session expired during polling. Please try again.");
+            setIsLoading(false);
+            return;
+        }
+        const jwtToken = sessionData.session.access_token;
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+        if (!backendUrl) {
+            stopPolling();
+            setError("Backend URL is not configured.");
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const historyUrl = `${backendUrl.replace(/\/$/, '')}/get-cover-letters?job_id=${jobId}`;
+            const historyResponse = await fetch(historyUrl, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${jwtToken}`, "Accept": "application/json" },
+            });
+            if (!historyResponse.ok) {
+                 console.error(`Polling failed with status: ${historyResponse.status}`);
+                 return; 
+            }
+
+            const raw = await historyResponse.json();
+            // console.log('API Response:', raw); // Debug log
+            const row: RawCoverLetterHistoryItem | undefined = Array.isArray(raw) ? raw[0] : raw;
+
+            if (!row) return;
+
+            // console.log('Row status:', row.status); // Debug log
+            // console.log('Row feedback:', row.feedback); // Debug log
+
+            // Parse feedback first to check if we have content
+            const parsedFeedback = parseFeedback(row.feedback);
+            const hasCoverLetter = Boolean(parsedFeedback?.cover_letter && parsedFeedback.cover_letter.length > 0);
+
+            // Determine the actual status
+            let actualStatus = row.status;
+            // Only consider it complete if we have both SUCCESS status and actual content
+            if (hasCoverLetter && actualStatus?.toUpperCase() === 'SUCCESS') {
+                actualStatus = 'COMPLETED';
+            } else if (actualStatus?.toUpperCase() === 'SUCCESS' && !hasCoverLetter) {
+                // If we have SUCCESS but no content, keep polling
+                actualStatus = 'IN_PROGRESS';
+            }
+
+            const formatted: CoverLetterHistoryItem = {
+                id: row.id,
+                job_description: row.job_description ? (row.job_description.substring(0, 70) + '...') : "N/A",
+                company_website: row.company_website,
+                current_resume: row.current_resume,
+                resume_title: row.current_resume ? decodeURIComponent(row.current_resume.substring(row.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A',
+                user_additional_comments: row.additional_comments,
+                generated_outputs: parsedFeedback,
+                created_at: new Date(row.created_at).toLocaleDateString(),
+                status: mapApiStatusToUiStatus(actualStatus),
+            };
+
+            // console.log('Mapped status:', formatted.status); // Debug log
+
+            // Update history ensuring no duplicates by job ID or company website
+            setHistory(prev => {
+                const filtered = prev.filter(item => 
+                  item.id !== formatted.id && 
+                  !(item.company_website === formatted.company_website && 
+                    item.current_resume === formatted.current_resume && 
+                    item.status === 'pending')
+                );
+                return [formatted, ...filtered];
+            });
+
+            // Check if generation is complete based on both status and content
+            if (hasCoverLetter && formatted.status === 'completed') {
+                stopPolling();
+                setIsLoading(false);
+                setGeneratedResult(parsedFeedback);
+                setNewResumeFile(null);
+
+                toast({
+                  title: "Cover Letter Complete",
+                  description: "Your cover letter is now available in the history section.",
+                  duration: 5000,
+                });
+            } else if (formatted.status === 'failed') {
+                // Handle failed status
+                stopPolling();
+                setIsLoading(false);
+                setError("Cover letter generation failed. Please try again.");
+                
+                toast({
+                    variant: "destructive",
+                    title: "Generation Failed",
+                    description: "The cover letter generation failed. Please try again.",
+                    duration: 5000,
+                });
+            } else {
+                // Update status message based on current status
+                setLoadingMessage(
+                    formatted.status === 'in_progress' 
+                        ? "Generating your cover letter..."
+                        : "Checking for your generated letter..."
+                );
+            }
+        } catch (e) {
+            console.error("Polling error:", e);
+        }
+    };
+
+    pollIntervalRef.current = setInterval(poll, 10000); // Poll every 10 seconds
+    
+    pollingTimeoutRef.current = setTimeout(() => {
+        stopPolling();
+        setError("Generation is taking longer than usual. You can check your history for the result in a few moments.");
+        setIsLoading(false);
+
+        // Update status to failed if timeout, ensuring no duplicates
+        setHistory(prev => {
+            const filtered = prev.filter(item => item.id !== jobId);
+            const failedItem = prev.find(item => item.id === jobId);
+            if (failedItem) {
+                return [{ ...failedItem, status: 'failed' }, ...filtered];
+            }
+            return prev;
+        });
+
+        toast({
+          variant: "destructive",
+          title: "Generation Timeout",
+          description: "The generation is taking longer than expected. Please check back later.",
+          duration: 5000,
+        });
+    }, 180000); // 3 minutes timeout
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -501,79 +741,131 @@ const CoverLetterContent = () => {
           {historyError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{historyError}</AlertDescription></Alert>}
           {!isFetchingHistory && !historyError && history.length === 0 && <p className="text-sm text-gray-500">No history found.</p>}
           {!isFetchingHistory && !historyError && history.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Job Snippet</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Resume</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.created_at}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.job_description}>{item.job_description}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.company_website}>{item.company_website || 'N/A'}</TableCell>
-                    <TableCell className="truncate max-w-xs" title={item.current_resume}>{item.resume_title || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
-                        </DialogTrigger>
-                        {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
-                        <DialogContent className="sm:max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Cover Letter Details ({new Date(selectedHistoryItemForDialog.created_at).toLocaleDateString()})</DialogTitle>
-                            <DialogDescription>
-                                Job: {selectedHistoryItemForDialog.job_description?.replace('... ','')}<br/>
-                                Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
-                                Resume: <a href={selectedHistoryItemForDialog.current_resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.current_resume}</a>
-                                {selectedHistoryItemForDialog.user_additional_comments && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.user_additional_comments}</em></>}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                            {selectedHistoryItemForDialog.generated_outputs ? (
-                              <>
-                                <div>
-                                    <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                        Generated Cover Letter
-                                        <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
-                                    </h4>
-                                    <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
-                                      </ReactMarkdown>
-                                    </div>
-                                </div>
-                                {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
-                                    <div>
-                                        <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
-                                        <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
-                            )}
-                          </div>
-                           <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="secondary">Close</Button>
-                                </DialogClose>
-                            </DialogFooter>
-                        </DialogContent>
-                        )}
-                      </Dialog>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Job Snippet</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Resume</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {history
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.created_at}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.job_description}>{item.job_description}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.company_website}>{item.company_website || 'N/A'}</TableCell>
+                      <TableCell className="truncate max-w-xs" title={item.current_resume}>{item.resume_title || 'N/A'}</TableCell>
+                      <TableCell>
+                        {item.status === 'completed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+                          </span>
+                        ) : item.status === 'failed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <AlertCircle className="w-3 h-3 mr-1" /> Failed
+                          </span>
+                        ) : item.status === 'pending' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <Clock className="w-3 h-3 mr-1" /> Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" /> In Progress
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
+                          </DialogTrigger>
+                          {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
+                          <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Cover Letter Details ({new Date(selectedHistoryItemForDialog.created_at).toLocaleDateString()})</DialogTitle>
+                              <DialogDescription>
+                                  Job: {selectedHistoryItemForDialog.job_description?.replace('... ','')}<br/>
+                                  Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
+                                  Resume: <a href={selectedHistoryItemForDialog.current_resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.current_resume}</a>
+                                  {selectedHistoryItemForDialog.user_additional_comments && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.user_additional_comments}</em></>}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                              {selectedHistoryItemForDialog.generated_outputs ? (
+                                <>
+                                  <div>
+                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                          Generated Cover Letter
+                                          <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
+                                      </h4>
+                                      <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                          {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
+                                        </ReactMarkdown>
+                                      </div>
+                                  </div>
+                                  {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
+                                      <div>
+                                          <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
+                                          <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
+                                          </div>
+                                      </div>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
+                              )}
+                            </div>
+                             <DialogFooter>
+                                  <DialogClose asChild>
+                                      <Button type="button" variant="secondary">Close</Button>
+                                  </DialogClose>
+                              </DialogFooter>
+                          </DialogContent>
+                          )}
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, history.length)} to {Math.min(currentPage * itemsPerPage, history.length)} of {history.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="text-sm font-medium">
+                    Page {currentPage} of {Math.ceil(history.length / itemsPerPage)}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(history.length / itemsPerPage), prev + 1))}
+                    disabled={currentPage >= Math.ceil(history.length / itemsPerPage)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -591,7 +883,7 @@ const CoverLetterContent = () => {
             {/* Resume Input */}
             <div className="space-y-3 p-4 border rounded-md bg-slate-50">
               <Label className="font-semibold text-lg">Your Resume <span className="text-red-500">*</span></Label>
-              <RadioGroup value={resumeInputMethod} onValueChange={(v: any) => { setResumeInputMethod(v); setError(null); if (v === 'select') setNewResumeFile(null);}} className="flex items-center gap-4 mb-3">
+              <RadioGroup value={resumeInputMethod} onValueChange={(v: "select" | "upload") => { setResumeInputMethod(v); setError(null); if (v === 'select') setNewResumeFile(null);}} className="flex items-center gap-4 mb-3">
                 <div className="flex items-center space-x-2"><RadioGroupItem value="select" id="selectExisting" disabled={isFetchingUserDocs || userDocuments.length === 0} /><Label htmlFor="selectExisting">Select Existing</Label></div>
                 <div className="flex items-center space-x-2"><RadioGroupItem value="upload" id="uploadNew" /><Label htmlFor="uploadNew">Upload New</Label></div>
               </RadioGroup>
@@ -669,7 +961,7 @@ const CoverLetterContent = () => {
         <Card className="mt-8 bg-blue-50 border-blue-200" ref={loadingCardRef}>
           <CardContent className="p-6 text-center">
             <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
-            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
+            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to 3 minutes.</p>
           </CardContent>
         </Card>
       )}

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertCircle, CheckCircle2, Copy, UploadCloud, FileText as FileIcon, Sparkles, Smile, Flame, History, Lightbulb } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Copy, UploadCloud, FileText as FileIcon, Sparkles, Smile, Flame, History, Lightbulb, Clock } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from "@/utils/supabase/client";
@@ -17,14 +17,7 @@ import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
 import { useSearchParams } from "next/navigation";
-
-const loadingMessages = [
-  "Our AI is reading your resume closely...",
-  "Comparing your skills to the job description...",
-  "Crafting personalized feedback just for you...",
-  "Checking for keywords and best practices...",
-  "Almost there! Just polishing your results."
-];
+import { useToast } from "@/components/ui/use-toast";
 
 interface FeedbackDetails {
   score: number;
@@ -76,9 +69,31 @@ interface AnalysisHistoryItem {
   is_roast?: boolean;
   roast_feedback_text?: string;
   additional_comment?: string;
+  status: 'completed' | 'failed' | 'pending' | 'in_progress';
 }
 
+// Helper function to map API status to UI status
+const mapApiStatusToUiStatus = (apiStatus: string | undefined): 'completed' | 'failed' | 'pending' | 'in_progress' => {
+  if (!apiStatus) return 'completed';
+  
+  switch(apiStatus.toUpperCase()) {
+    case 'COMPLETED':
+      return 'completed';
+    case 'FAILED':
+      return 'failed';
+    case 'PENDING':
+      return 'pending';
+    case 'IN_PROGRESS':
+      return 'in_progress';
+    default:
+      return 'completed';
+  }
+};
+
 const AnalyzerToolContent = () => {
+  const { toast } = useToast();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
   const [jobDescription, setJobDescription] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [additionalComments, setAdditionalComments] = useState("");
@@ -101,7 +116,6 @@ const AnalyzerToolContent = () => {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [showImprovedResume, setShowImprovedResume] = useState(false);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | number | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
   const [limitReached, setLimitReached] = useState(false);
   const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<AnalysisHistoryItem | null>(null);
   const searchParams = useSearchParams();
@@ -110,19 +124,35 @@ const AnalyzerToolContent = () => {
   const resultsCardRef = useRef<HTMLDivElement>(null);
   const loadingCardRef = useRef<HTMLDivElement>(null);
 
+  // Polling refs & helpers (for async analysis)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isLoadingAnalysis || isLoadingRoast) {
-        setLoadingMessage(loadingMessages[0]);
+        // setLoadingMessage(loadingMessages[0]); // Removed loading messages
         intervalId = setInterval(() => {
-            setLoadingMessage(prev => {
-                const currentIndex = loadingMessages.indexOf(prev);
-                return loadingMessages[(currentIndex + 1) % loadingMessages.length];
-            });
+            // setLoadingMessage(prev => { // Removed loading messages
+            //     const currentIndex = loadingMessages.indexOf(prev);
+            //     return loadingMessages[(currentIndex + 1) % loadingMessages.length];
+            // });
         }, 3500);
     }
     return () => clearInterval(intervalId);
   }, [isLoadingAnalysis, isLoadingRoast]);
+
+  // Reset pagination when history changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [analysisHistory.length]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -181,13 +211,24 @@ const AnalyzerToolContent = () => {
         const historyUrl = `${backendUrl.replace(/\/$/, '')}/get-analyze-resume`;
         const historyResponse = await fetch(historyUrl, {
           method: "GET",
-          headers: { "Authorization": `Bearer ${jwtToken}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${jwtToken}`, "Content-Type": "application/json" },
         });
+        // If backend returns 404 (no records for this user), treat as empty history
+        if (historyResponse.status === 404) {
+          // No history yet for this user – this is not an error
+          setAnalysisHistory([]);
+          return;
+        }
         if (!historyResponse.ok) {
           const errorData = await historyResponse.json().catch(() => ({error: "Failed to parse history error"}));
           throw new Error(errorData.error || `HTTP error fetching history: ${historyResponse.status}`);
         }
         const historyDataFromApi: any[] = await historyResponse.json();
+        // If we received an empty array, just set empty history without error
+        if (!Array.isArray(historyDataFromApi) || historyDataFromApi.length === 0) {
+          setAnalysisHistory([]);
+          return;
+        }
 
         const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item: any) => {
           let parsedScore: number | undefined = undefined;
@@ -195,26 +236,31 @@ const AnalyzerToolContent = () => {
           let roastFeedbackTextFromApi: string | undefined = undefined;
 
           if (isRoastItem) {
-            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
-              try {
-                const parsedInnerJson: ParsedRoastPayload = JSON.parse(item.feedback_analysis.feedback);
-                if (parsedInnerJson && typeof parsedInnerJson.roast === 'string') {
+            // Roast payload shape can be string or object
+            if (item.feedback_analysis) {
+              const roastPayload = item.feedback_analysis.feedback ?? item.feedback_analysis.roast;
+              if (typeof roastPayload === 'string') {
+                try {
+                  const parsedInnerJson: ParsedRoastPayload = JSON.parse(roastPayload);
                   roastFeedbackTextFromApi = parsedInnerJson.roast;
+                } catch {
+                  roastFeedbackTextFromApi = roastPayload;
                 }
-              } catch (e) {
-                // Error parsing nested roast string
+              } else if (typeof roastPayload === 'object' && roastPayload !== null) {
+                roastFeedbackTextFromApi = (roastPayload as ParsedRoastPayload).roast;
               }
-            } else if (item.feedback_analysis && typeof item.feedback_analysis.roast === 'string') {
-                roastFeedbackTextFromApi = item.feedback_analysis.roast;
             }
-          } else {
-            if (item.feedback_analysis && typeof item.feedback_analysis.feedback === 'string') {
+          } else if (item.feedback_analysis) {
+            // -------- Parse score --------
+            const feedbackPayload = item.feedback_analysis.feedback;
+            if (typeof feedbackPayload === 'string') {
               try {
-                const feedbackDetails: FeedbackDetails = JSON.parse(item.feedback_analysis.feedback);
-                parsedScore = feedbackDetails.score;
-              } catch (e) {
-                // Error parsing score from feedback JSON
-              }
+                const feedbackDetails: FeedbackDetails = JSON.parse(feedbackPayload);
+                parsedScore = Number(feedbackDetails.score); // ensure numeric
+              } catch { /* score parse error ignored */ void 0; }
+            } else if (typeof feedbackPayload === 'object' && feedbackPayload !== null) {
+              const scoreVal = (feedbackPayload as FeedbackDetails).score as unknown;
+              parsedScore = typeof scoreVal === 'string' ? Number(scoreVal) : (scoreVal as number | undefined);
             }
           }
           
@@ -243,18 +289,26 @@ const AnalyzerToolContent = () => {
             job_description: item.job_description,
             created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
             score: parsedScore,
-            new_score: !isRoastItem && item.feedback_analysis && typeof item.feedback_analysis.new_resume === 'string' ? (() => {
-                try {
-                    const newResumeDetails: NewResumeDetails = JSON.parse(item.feedback_analysis.new_resume);
-                    return newResumeDetails.new_score;
-                } catch { return undefined; }
+            new_score: !isRoastItem && item.feedback_analysis ? (() => {
+                const newResumePayload = item.feedback_analysis.new_resume;
+                if (typeof newResumePayload === 'string') {
+                  try {
+                    const newResumeDetails: NewResumeDetails = JSON.parse(newResumePayload);
+                    return Number(newResumeDetails.new_score);
+                  } catch { /* new_score parse error ignored */ return undefined; }
+                } else if (typeof newResumePayload === 'object' && newResumePayload !== null) {
+                  const ns = (newResumePayload as NewResumeDetails).new_score as unknown;
+                  return typeof ns === 'string' ? Number(ns) : (ns as number | undefined);
+                }
+                return undefined;
             })() : undefined,
-            feedback: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.feedback : undefined, 
-            new_resume: !isRoastItem && item.feedback_analysis ? item.feedback_analysis.new_resume : undefined, 
+            feedback: !isRoastItem && item.feedback_analysis ? (typeof item.feedback_analysis.feedback === 'string' ? item.feedback_analysis.feedback : JSON.stringify(item.feedback_analysis.feedback)) : undefined,
+            new_resume: !isRoastItem && item.feedback_analysis ? (typeof item.feedback_analysis.new_resume === 'string' ? item.feedback_analysis.new_resume : JSON.stringify(item.feedback_analysis.new_resume)) : undefined,
             job_description_title: jobDescTitle,
             is_roast: isRoastItem,
             roast_feedback_text: roastFeedbackTextFromApi,
             additional_comment: item.additional_comment,
+            status: mapApiStatusToUiStatus(item.status)
           };
         });
         setAnalysisHistory(formattedHistory);
@@ -364,6 +418,160 @@ const AnalyzerToolContent = () => {
     }
   };
 
+  const startPolling = (
+    jobId: string | number,
+    resumeUrl: string,
+    resumeTitle: string
+  ) => {
+    toast({
+      title: "Analysis Started",
+      description: "Your resume analysis will show in the history section shortly.",
+      duration: 5000,
+    });
+
+    // Add initial pending item to history
+    const pendingHistoryItem: AnalysisHistoryItem = {
+      id: jobId,
+      resume_url: resumeUrl,
+      resume_title: resumeTitle,
+      company_website: companyWebsite,
+      job_description: jobDescription,
+      created_at: new Date().toLocaleDateString(),
+      job_description_title: jobDescription.substring(0, 70) + '...',
+      is_roast: false,
+      status: 'pending'
+    };
+    setAnalysisHistory(prev => [pendingHistoryItem, ...prev]);
+
+    const poll = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        stopPolling();
+        setError("Session expired during polling. Please try again.");
+        setIsLoadingAnalysis(false);
+        return;
+      }
+      const jwtToken = sessionData.session.access_token;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        stopPolling();
+        setError("Backend URL is not configured.");
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      try {
+        const pollingUrl = `${backendUrl.replace(/\/$/, '')}/get-analyze-resume?job_id=${jobId}`;
+        const pollingRes = await fetch(pollingUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${jwtToken}`, Accept: "application/json" },
+        });
+
+        if (!pollingRes.ok) {
+          console.error(`Polling failed with status: ${pollingRes.status}`);
+          return;
+        }
+
+        const raw = await pollingRes.json();
+        const row: any = Array.isArray(raw) ? raw[0] : raw;
+        if (!row) return;
+
+        const feedbackPayload = row.feedback_analysis?.feedback || row.feedback;
+        const newResumePayload = row.feedback_analysis?.new_resume || row.new_resume;
+
+        let parsedFeedback: FeedbackDetails | undefined = undefined;
+        let parsedNewResume: NewResumeDetails | undefined = undefined;
+
+        if (feedbackPayload && newResumePayload) {
+          // Parse feedback and new resume
+          if (typeof feedbackPayload === 'string') {
+            try { parsedFeedback = JSON.parse(feedbackPayload); } catch { /* polling feedback parse error ignored */ void 0; }
+          } else if (typeof feedbackPayload === 'object') {
+            parsedFeedback = feedbackPayload as FeedbackDetails;
+          }
+
+          if (typeof newResumePayload === 'string') {
+            try { parsedNewResume = JSON.parse(newResumePayload); } catch { /* polling newResume parse error ignored */ void 0; }
+          } else if (typeof newResumePayload === 'object') {
+            parsedNewResume = newResumePayload as NewResumeDetails;
+          }
+
+          if (parsedFeedback && parsedNewResume) {
+            stopPolling();
+            setIsLoadingAnalysis(false);
+
+            const analysisIdFound = row.id || jobId;
+            setAnalysisResult({ id: analysisIdFound, feedback: parsedFeedback, new_resume: parsedNewResume });
+            setCurrentAnalysisId(analysisIdFound);
+
+            const newHistoryItem: AnalysisHistoryItem = {
+              id: analysisIdFound,
+              resume_url: resumeUrl,
+              resume_title: resumeTitle,
+              company_website: row.company_website || companyWebsite,
+              job_description: row.job_description || jobDescription,
+              created_at: new Date().toLocaleDateString(),
+              score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
+              feedback: typeof feedbackPayload === 'string' ? feedbackPayload : JSON.stringify(feedbackPayload),
+              new_resume: typeof newResumePayload === 'string' ? newResumePayload : JSON.stringify(newResumePayload),
+              new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
+              job_description_title: (row.job_description || jobDescription || '').substring(0, 70) + '...',
+              is_roast: false,
+              status: mapApiStatusToUiStatus(row.status)
+            };
+
+            // Update history by replacing the pending item with the completed one
+            setAnalysisHistory(prev => [
+              newHistoryItem,
+              ...prev.filter(item => item.id !== jobId)
+            ]);
+
+            toast({
+              title: "Analysis Complete",
+              description: "Your resume analysis is now available in the history section.",
+              duration: 5000,
+            });
+
+            setNewResumeFile(null);
+          }
+        } else {
+          // Update status of pending item if available
+          if (row.status) {
+            setAnalysisHistory(prev => prev.map(item => 
+              item.id === jobId 
+                ? { ...item, status: mapApiStatusToUiStatus(row.status) }
+                : item
+            ));
+          }
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    };
+
+    pollIntervalRef.current = setInterval(poll, 10000); // Poll every 10 seconds
+    
+    pollingTimeoutRef.current = setTimeout(() => {
+      stopPolling();
+      setError("Analysis is taking longer than usual. You can check the history section later.");
+      setIsLoadingAnalysis(false);
+      
+      // Update status to failed if timeout
+      setAnalysisHistory(prev => prev.map(item => 
+        item.id === jobId 
+          ? { ...item, status: 'failed' }
+          : item
+      ));
+
+      toast({
+        variant: "destructive",
+        title: "Analysis Timeout",
+        description: "The analysis is taking longer than expected. Please check back later.",
+        duration: 5000,
+      });
+    }, 180000); // 3 minutes timeout
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoadingAnalysis(true);
@@ -378,7 +586,7 @@ const AnalyzerToolContent = () => {
     setRoastError(null);
 
     let finalResumeUrl = selectedDocumentUrl;
-    let currentFieldErrors: { jobDescription?: string; companyWebsite?: string } = {};
+    const currentFieldErrors: { jobDescription?: string; companyWebsite?: string } = {};
 
     if (resumeInputMethod === 'upload' && newResumeFile) {
       const uploadedUrl = await uploadNewResumeAndGetUrl(newResumeFile);
@@ -395,6 +603,10 @@ const AnalyzerToolContent = () => {
       setError("Please select an existing resume or upload a new one.");
       setIsLoadingAnalysis(false);
       return;
+    }
+    // Some back-ends reject URLs with a trailing '?'. Sanitize if needed.
+    if (finalResumeUrl.endsWith('?')) {
+      finalResumeUrl = finalResumeUrl.slice(0, -1);
     }
     if (toolMode === 'analyze') {
         if (!jobDescription.trim()) {
@@ -490,6 +702,7 @@ const AnalyzerToolContent = () => {
             is_roast: true,
             roast_feedback_text: actualRoastText,
             additional_comment: "Resume Roast Feedback",
+            status: mapApiStatusToUiStatus(responseData.status)
         };
         if (newResumeFile && responseData.document_url) {
             const newDoc: UserDocument = {
@@ -517,14 +730,15 @@ const AnalyzerToolContent = () => {
     setIsLoadingAnalysis(true);
     setIsLoadingRoast(false);
 
-    const analysisPayload = new FormData();
-    analysisPayload.append("current_resume", finalResumeUrl);
-    analysisPayload.append("job_description", jobDescription);
-    analysisPayload.append("company_website", companyWebsite);
-    if (additionalComments.trim()) {
-      analysisPayload.append("additional_comments", additionalComments);
-    }
-    analysisPayload.append("resume_title", resumeTitleForBackend);
+    const analysisPayload = {
+      // Some back-ends expect `current_resume`, others `resume_url` – send both for compatibility
+      current_resume: finalResumeUrl,
+      job_description: jobDescription,
+      company_website: companyWebsite,
+      ...(additionalComments.trim() ? { additional_comments: additionalComments } : {}),
+      // Preserve the document title so the back-end can reference it if needed
+      resume_title: resumeTitleForBackend,
+    };
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL; 
@@ -535,9 +749,24 @@ const AnalyzerToolContent = () => {
       
       const response = await fetch(analyzeUrl, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${jwtToken}` },
-        body: analysisPayload,
+        headers: {
+          "Authorization": `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(analysisPayload),
       });
+
+      if (response.status === 202) {
+        const jobInfo: { job_id?: string | number } = await response.json().catch(() => ({}));
+        if (jobInfo.job_id) {
+          startPolling(jobInfo.job_id, finalResumeUrl, resumeTitleForBackend);
+        } else {
+          setError("Analysis job accepted but no job_id returned.");
+          setIsLoadingAnalysis(false);
+        }
+        return;
+      }
 
       const responseData: RawApiResponse = await response.json();
 
@@ -554,8 +783,34 @@ const AnalyzerToolContent = () => {
       }
       
       try {
-        const parsedFeedback: FeedbackDetails = JSON.parse(responseData.feedback);
-        const parsedNewResume: NewResumeDetails = JSON.parse(responseData.new_resume);
+        // Handle feedback (string JSON or already parsed object)
+        const feedbackPayload = responseData.feedback;
+        const newResumePayload = responseData.new_resume;
+
+        let parsedFeedback: FeedbackDetails;
+        if (typeof feedbackPayload === 'string') {
+          try {
+            parsedFeedback = JSON.parse(feedbackPayload);
+          } catch {
+            // If parsing fails, treat raw string as feedback text with score undefined
+            parsedFeedback = { score: NaN, feedback: feedbackPayload } as unknown as FeedbackDetails;
+          }
+        } else {
+          parsedFeedback = feedbackPayload as FeedbackDetails;
+        }
+
+        let parsedNewResume: NewResumeDetails;
+        if (typeof newResumePayload === 'string') {
+          try {
+            parsedNewResume = JSON.parse(newResumePayload);
+          } catch {
+            // If parsing fails, wrap raw string
+            parsedNewResume = { changes: '', new_resume: newResumePayload, new_score: NaN } as unknown as NewResumeDetails;
+          }
+        } else {
+          parsedNewResume = newResumePayload as NewResumeDetails;
+        }
+
         const analysisIdForCurrent = responseData.analysis_id || Date.now();
 
         setAnalysisResult({
@@ -566,22 +821,25 @@ const AnalyzerToolContent = () => {
         setCurrentAnalysisId(analysisIdForCurrent);
 
         const newHistoryItem: AnalysisHistoryItem = {
-          id: analysisIdForCurrent, 
+          id: analysisIdForCurrent,
           resume_url: finalResumeUrl,
-          resume_title: resumeTitleForBackend, 
+          resume_title: resumeTitleForBackend,
           company_website: companyWebsite,
           job_description: jobDescription,
           created_at: new Date().toLocaleDateString(),
-          score: parsedFeedback.score,
-          feedback: responseData.feedback, 
-          new_resume: responseData.new_resume, 
-          job_description_title: jobDescription.substring(0,70) + '...',
+          score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
+          feedback: typeof feedbackPayload === 'string' ? feedbackPayload : JSON.stringify(feedbackPayload),
+          new_resume: typeof newResumePayload === 'string' ? newResumePayload : JSON.stringify(newResumePayload),
+          new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
+          job_description_title: jobDescription.substring(0, 70) + '...',
           is_roast: false,
+          status: mapApiStatusToUiStatus(responseData.status)
         };
-        setAnalysisHistory(prevHistory => [newHistoryItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ));
+
+        setAnalysisHistory(prevHistory => [newHistoryItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
         setNewResumeFile(null);
 
-      } catch (parseError: any) {
+      } catch {
         setError("Analysis results couldn't be processed. Please refresh the page and try again!");
       }
 
@@ -658,180 +916,235 @@ const AnalyzerToolContent = () => {
             <p className="text-sm text-gray-500 text-center p-4">No analysis history found.</p>
           )}
           {!isFetchingHistory && !historyError && analysisHistory.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[25%]">Job Info</TableHead>
-                  <TableHead className="w-[25%]">Resume Used</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Score / Type</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {analysisHistory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[20%]">Job Info</TableHead>
+                    <TableHead className="w-[20%]">Resume Used</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Score/Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analysisHistory
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">
                         <div className="truncate font-semibold" title={item.job_description || item.job_description_title}>
-                            {item.job_description_title}
+                          {item.job_description_title}
                         </div>
                         {item.company_website && !item.is_roast && <div className="text-xs text-gray-500 truncate" title={item.company_website}>{item.company_website}</div>}
-                    </TableCell>
-                    <TableCell className="text-xs truncate">
+                      </TableCell>
+                      <TableCell className="text-xs truncate">
                         {item.resume_url ? (
-                            <a href={item.resume_url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600" title={item.resume_url}>
-                                {item.resume_title || 'View Resume'}
-                            </a>
+                          <a href={item.resume_url} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600" title={item.resume_url}>
+                            {item.resume_title || 'View Resume'}
+                          </a>
                         ) : (
-                            <span>{item.resume_title || 'N/A'}</span>
+                          <span>{item.resume_title || 'N/A'}</span>
                         )}
-                    </TableCell>
-                    <TableCell>{item.created_at}</TableCell>
-                    <TableCell>
-                      {item.is_roast ? (
-                        <span className="text-purple-600 font-semibold">Roast</span>
-                      ) : typeof item.new_score === 'number' ? (
-                        <span className="text-green-600 font-semibold">{`${item.new_score}/10 (Improved)`}</span>
-                      ) : typeof item.score === 'number' ? (
-                        `${item.score}/10`
-                      ) : (
-                        'N/A'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
-                        </DialogTrigger>
-                        {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
-                        <DialogContent className="sm:max-w-4xl">
-                          <DialogHeader>
-                            <DialogTitle>
+                      </TableCell>
+                      <TableCell>{item.created_at}</TableCell>
+                      <TableCell>
+                        {item.is_roast ? (
+                          <span className="text-purple-600 font-semibold">Roast</span>
+                        ) : typeof item.new_score === 'number' ? (
+                          <span className="text-green-600 font-semibold">{`${item.new_score}/10`}</span>
+                        ) : typeof item.score === 'number' ? (
+                          <span className="text-gray-600">{`${item.score}/10`}</span>
+                        ) : (
+                          'N/A'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.status === 'completed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+                          </span>
+                        ) : item.status === 'failed' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <AlertCircle className="w-3 h-3 mr-1" /> Failed
+                          </span>
+                        ) : item.status === 'pending' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <Clock className="w-3 h-3 mr-1" /> Pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" /> In Progress
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
+                          </DialogTrigger>
+                          {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
+                          <DialogContent className="sm:max-w-4xl">
+                            <DialogHeader>
+                              <DialogTitle>
+                                {selectedHistoryItemForDialog.is_roast ? (
+                                  <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast Details ({selectedHistoryItemForDialog.created_at})</span>
+                                ) : (
+                                  <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-blue-600"/>Analysis Details ({selectedHistoryItemForDialog.created_at})</span>
+                                )}
+                              </DialogTitle>
+                              <DialogDescription>
+                                  {!selectedHistoryItemForDialog.is_roast && (
+                                    <>
+                                      Job: {selectedHistoryItemForDialog.job_description_title?.replace('...','')}<br/>
+                                      Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
+                                    </>
+                                  )}
+                                  Resume: <a href={selectedHistoryItemForDialog.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.resume_url}</a>
+                                  {selectedHistoryItemForDialog.additional_comment && selectedHistoryItemForDialog.additional_comment !== "Resume Roast Feedback" && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.additional_comment}</em></>}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
                               {selectedHistoryItemForDialog.is_roast ? (
-                                <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast Details ({selectedHistoryItemForDialog.created_at})</span>
-                              ) : (
-                                <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-blue-600"/>Analysis Details ({selectedHistoryItemForDialog.created_at})</span>
-                              )}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {!selectedHistoryItemForDialog.is_roast && (
-                                  <>
-                                    Job: {selectedHistoryItemForDialog.job_description_title?.replace('...','')}<br/>
-                                    Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
-                                  </>
-                                )}
-                                Resume: <a href={selectedHistoryItemForDialog.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.resume_url}</a>
-                                {selectedHistoryItemForDialog.additional_comment && selectedHistoryItemForDialog.additional_comment !== "Resume Roast Feedback" && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.additional_comment}</em></>}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                            {selectedHistoryItemForDialog.is_roast ? (
-                              // Roast Content
-                              <div>
-                                <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                    <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast</span>
-                                    <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(selectedHistoryItemForDialog.roast_feedback_text || '')}><Copy size={12} className="mr-1"/>Copy</Button>
-                                </h4>
-                                <div className="prose prose-sm max-w-none p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 rounded-md border min-h-[400px] max-h-[700px] overflow-y-auto">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {selectedHistoryItemForDialog.roast_feedback_text || "No roast content available"}
-                                  </ReactMarkdown>
-                                </div>
-                              </div>
-                            ) : selectedHistoryItemForDialog.feedback || selectedHistoryItemForDialog.new_resume ? (
-                              // Analysis Content
-                              <>
-                                {selectedHistoryItemForDialog.feedback && (
-                                  <div>
-                                    <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                        <span>Original Analysis (Score: {selectedHistoryItemForDialog.score || 'N/A'}/10)</span>
-                                        <Button variant="outline" size="sm" onClick={() => {
-                                          try {
-                                            const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
-                                            navigator.clipboard.writeText(feedbackDetails.feedback || '');
-                                          } catch {
-                                            navigator.clipboard.writeText(selectedHistoryItemForDialog.feedback || '');
-                                          }
-                                        }}><Copy size={12} className="mr-1"/>Copy</Button>
-                                    </h4>
-                                                                    <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[300px] max-h-[500px] overflow-y-auto">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {(() => {
-                                      try {
-                                        const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
-                                        return feedbackDetails.feedback || selectedHistoryItemForDialog.feedback || '';
-                                      } catch {
-                                        return selectedHistoryItemForDialog.feedback || '';
-                                      }
-                                    })()}
-                                  </ReactMarkdown>
-                                </div>
+                                // Roast Content
+                                <div>
+                                  <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                      <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast</span>
+                                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(selectedHistoryItemForDialog.roast_feedback_text || '')}><Copy size={12} className="mr-1"/>Copy</Button>
+                                  </h4>
+                                  <div className="prose prose-sm max-w-none p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 rounded-md border min-h-[400px] max-h-[700px] overflow-y-auto">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {selectedHistoryItemForDialog.roast_feedback_text || "No roast content available"}
+                                    </ReactMarkdown>
                                   </div>
-                                )}
-                                {selectedHistoryItemForDialog.new_resume && (
-                                  <div>
-                                    <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                        <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-green-600"/>Improved Resume (Score: {selectedHistoryItemForDialog.new_score || 'N/A'}/10)</span>
-                                        <Button variant="outline" size="sm" onClick={() => {
-                                          try {
-                                            const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                            navigator.clipboard.writeText(newResumeDetails.new_resume || '');
-                                          } catch {
-                                            navigator.clipboard.writeText(selectedHistoryItemForDialog.new_resume || '');
-                                          }
-                                        }}><Copy size={12} className="mr-1"/>Copy Resume</Button>
-                                    </h4>
-                                    
-                                    {/* Changes Summary */}
-                                    <div className="mb-3">
-                                      <h5 className="font-medium text-sm mb-1 flex items-center"><Lightbulb className="mr-1 h-4 w-4 text-yellow-500"/>Summary of Changes:</h5>
-                                      <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md min-h-[120px] max-h-[250px] overflow-y-auto">
+                                </div>
+                              ) : selectedHistoryItemForDialog.feedback || selectedHistoryItemForDialog.new_resume ? (
+                                // Analysis Content
+                                <>
+                                  {selectedHistoryItemForDialog.feedback && (
+                                    <div>
+                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                          <span>Original Analysis (Score: {selectedHistoryItemForDialog.score || 'N/A'}/10)</span>
+                                          <Button variant="outline" size="sm" onClick={() => {
+                                            try {
+                                              const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
+                                              navigator.clipboard.writeText(feedbackDetails.feedback || '');
+                                            } catch {
+                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.feedback || '');
+                                            }
+                                          }}><Copy size={12} className="mr-1"/>Copy</Button>
+                                      </h4>
+                                                                          <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[300px] max-h-[500px] overflow-y-auto">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {(() => {
+                                        try {
+                                          const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
+                                          return feedbackDetails.feedback || selectedHistoryItemForDialog.feedback || '';
+                                        } catch {
+                                          return selectedHistoryItemForDialog.feedback || '';
+                                        }
+                                      })()}
+                                    </ReactMarkdown>
+                                  </div>
+                                    </div>
+                                  )}
+                                  {selectedHistoryItemForDialog.new_resume && (
+                                    <div>
+                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
+                                          <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-green-600"/>Improved Resume (Score: {selectedHistoryItemForDialog.new_score || 'N/A'}/10)</span>
+                                          
+                                      </h4>
+                                      
+                                      {/* Changes Summary */}
+                                      <div className="mb-3">
+                                        <h5 className="font-medium text-sm mb-1 flex items-center"><Lightbulb className="mr-1 h-4 w-4 text-yellow-500"/>Summary of Changes:</h5>
+                                        <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md min-h-[120px] max-h-[250px] overflow-y-auto">
+                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {(() => {
+                                              try {
+                                                const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
+                                                return newResumeDetails.changes || 'No changes summary available';
+                                              } catch {
+                                                return 'No changes summary available';
+                                              }
+                                            })()}
+                                          </ReactMarkdown>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Improved Resume Text */}
+                                      <div className="prose prose-sm max-w-none p-4 bg-green-50 rounded-md border border-green-200 min-h-[400px] max-h-[600px] overflow-y-auto">
+                                        <div className="flex justify-end items-center">
+                                      <Button variant="outline" size="sm" onClick={() => {
+                                            try {
+                                              const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
+                                              navigator.clipboard.writeText(newResumeDetails.new_resume || '');
+                                            } catch {
+                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.new_resume || '');
+                                            }
+                                          }}><Copy size={12} className="mr-1"/>Copy Resume</Button>
+                                        </div>
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                           {(() => {
                                             try {
                                               const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                              return newResumeDetails.changes || 'No changes summary available';
+                                              return newResumeDetails.new_resume || selectedHistoryItemForDialog.new_resume || '';
                                             } catch {
-                                              return 'No changes summary available';
+                                              return selectedHistoryItemForDialog.new_resume || '';
                                             }
                                           })()}
                                         </ReactMarkdown>
                                       </div>
                                     </div>
-                                    
-                                    {/* Improved Resume Text */}
-                                    <div className="prose prose-sm max-w-none p-4 bg-green-50 rounded-md border border-green-200 min-h-[400px] max-h-[600px] overflow-y-auto">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {(() => {
-                                          try {
-                                            const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                            return newResumeDetails.new_resume || selectedHistoryItemForDialog.new_resume || '';
-                                          } catch {
-                                            return selectedHistoryItemForDialog.new_resume || '';
-                                          }
-                                        })()}
-                                      </ReactMarkdown>
-                                    </div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm text-gray-500 text-center py-4">No analysis details available for this history item.</p>
-                            )}
-                          </div>
-                           <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button type="button" variant="secondary">Close</Button>
-                                </DialogClose>
-                            </DialogFooter>
-                        </DialogContent>
-                        )}
-                      </Dialog>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-sm text-gray-500 text-center py-4">Your analysis is still in progress. Please check back later.</p>
+                              )}
+                            </div>
+                             <DialogFooter>
+                                  <DialogClose asChild>
+                                      <Button type="button" variant="secondary">Close</Button>
+                                  </DialogClose>
+                              </DialogFooter>
+                          </DialogContent>
+                          )}
+                        </Dialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-gray-500">
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, analysisHistory.length)} to {Math.min(currentPage * itemsPerPage, analysisHistory.length)} of {analysisHistory.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="text-sm font-medium">
+                    Page {currentPage} of {Math.ceil(analysisHistory.length / itemsPerPage)}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(analysisHistory.length / itemsPerPage), prev + 1))}
+                    disabled={currentPage >= Math.ceil(analysisHistory.length / itemsPerPage)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -1065,14 +1378,7 @@ const AnalyzerToolContent = () => {
         </form>
       </Card>
       
-      {(isLoadingAnalysis || isLoadingRoast) && (
-        <Card ref={loadingCardRef} className="bg-blue-50 border-blue-200">
-          <CardContent className="p-6 text-center">
-            <p className="font-semibold text-lg text-blue-800 animate-pulse">{loadingMessage}</p>
-            <p className="text-sm text-blue-600 mt-2">Hang tight, this can take up to a minute.</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Remove loading indicator card */}
 
       {toolMode === 'analyze' && analysisResult && !isLoadingAnalysis && (
         <Card className="mt-8" ref={resultsCardRef}>
