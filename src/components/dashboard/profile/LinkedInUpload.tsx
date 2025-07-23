@@ -113,7 +113,8 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
 
     try {
       const formData = new FormData();
-      formData.append('linkedin_pdf', selectedFile);
+      // The backend expects the uploaded PDF under the key "file"
+      formData.append('file', selectedFile);
 
       // Simulate progress
       const progressInterval = setInterval(() => {

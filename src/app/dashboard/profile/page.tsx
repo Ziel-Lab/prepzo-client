@@ -213,6 +213,30 @@ const Profile = () => {
     );
   };
 
+  /**
+   * Convert various skill formats (array of strings or objects) coming from
+   * the backend / LinkedIn extractor into the uniform `ProfileData` shape.
+   */
+  const normaliseSkills = (rawSkills: unknown): ProfileData['skills'] => {
+    if (!Array.isArray(rawSkills)) return [];
+
+    // Array of simple strings → map to objects with defaults
+    if (rawSkills.length > 0 && typeof rawSkills[0] === 'string') {
+      return (rawSkills as string[]).map(name => ({
+        name,
+        level: 50, // default proficiency
+        category: 'General',
+      }));
+    }
+
+    // Array of objects – ensure each has required props
+    return (rawSkills as any[]).map(s => ({
+      name: s.name ?? (typeof s === 'string' ? s : 'Skill'),
+      level: s.level ?? 50,
+      category: s.category ?? 'General',
+    }));
+  };
+
   // Convert backend response shape into our local ProfileData partial
   const mapRemoteProfile = (raw: any): Partial<ProfileData> => {
     if (!raw) return {};
@@ -252,14 +276,14 @@ const Profile = () => {
       github: github_url || github || '',
       website,
       avatar: avatar_url || avatar || '',
-      skills: Array.isArray(skills) ? skills : [],
+      skills: normaliseSkills(skills),
       experience: Array.isArray(experience) ? experience : [],
       projects: Array.isArray(projects) ? projects : [],
       certificates: Array.isArray(certifications) ? certifications : [],
       resume: resume_url
         ? {
             url: resume_url,
-            fileName: resume_url.split('/').pop() || 'resume.pdf',
+            fileName: resume_url.split('/')?.pop() || 'resume.pdf',
             uploadedAt: updated_at || new Date().toISOString(),
           }
         : undefined,
@@ -363,7 +387,7 @@ const Profile = () => {
       ...(linkedInData.phone && { phone: linkedInData.phone }),
       ...(linkedInData.linkedin && { linkedin: linkedInData.linkedin }),
       ...(linkedInData.website && { website: linkedInData.website }),
-      ...(linkedInData.skills && linkedInData.skills.length > 0 && { skills: linkedInData.skills }),
+      ...(linkedInData.skills && linkedInData.skills.length > 0 && { skills: normaliseSkills(linkedInData.skills) }),
       ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: linkedInData.experience }),
       ...(linkedInData.education && linkedInData.education.length > 0 && { education: linkedInData.education }),
       ...(linkedInData.certificates && linkedInData.certificates.length > 0 && { certificates: linkedInData.certificates }),
