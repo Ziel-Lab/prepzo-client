@@ -542,7 +542,15 @@ const Profile = () => {
   };
   
   const handleEditCertificate = (index: number) => {
-    setNewCertificate(profile.certificates[index]);
+    const cert = profile.certificates[index];
+    setNewCertificate({
+      name: cert.name,
+      issuer: cert.issuer,
+      issueDate: cert.issueDate,
+      expiryDate: cert.expiryDate || '',
+      credentialId: cert.credentialId || '',
+      verificationUrl: cert.verificationUrl || ''
+    });
     setEditingCertIndex(index);
     setShowCertDialog(true);
   };
@@ -576,7 +584,12 @@ const Profile = () => {
   };
   
   const handleEditAchievement = (index: number) => {
-    setNewAchievement(profile.achievements[index]);
+    const achievement = profile.achievements[index];
+    setNewAchievement({
+      title: achievement.title,
+      description: achievement.description,
+      date: achievement.date
+    });
     setEditingAchievementIndex(index);
     setShowAchievementDialog(true);
   };
