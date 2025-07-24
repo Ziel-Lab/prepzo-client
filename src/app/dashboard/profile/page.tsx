@@ -444,7 +444,7 @@ const Profile = () => {
     }
 
     try {
-      const endpoint = 'https://dev.prepzo.ai/api/save-linkedin-profile';
+      const endpoint = 'https://dev.prepzo.ai/profile/save-linkedin-profile';
       
       const payload = {
         user_id: session.user.id,
