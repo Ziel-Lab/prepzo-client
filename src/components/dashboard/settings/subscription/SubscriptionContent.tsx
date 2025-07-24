@@ -34,6 +34,7 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { createClient } from "@/utils/supabase/client";
 import SubscriptionHistory from "./subscriptionHistory";
 import SubscriptionPricing from "./subscriptionPricing";
+import PricingBar from "./PricingBar";
 
 // --- Interfaces based on your backend schema ---
 
@@ -348,7 +349,7 @@ const SubscriptionContent = () => {
         </Alert>
       )}
 
-      <SubscriptionPricing
+      <PricingBar
         currentPlanId={subscription.subscription_plans?.id}
         isProcessingAction={isProcessingAction}
         handleUpgrade={handleUpgrade}
