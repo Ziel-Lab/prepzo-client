@@ -41,7 +41,8 @@ import {
   Clock,
   CheckCircle,
   BarChart3,
-  PlusCircle
+  PlusCircle,
+  Briefcase
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -366,7 +367,7 @@ const Profile = () => {
       fetchedTokenRef.current = session.access_token;
       try {
         setIsProfileLoading(true);
-        const response = await fetch('https://dev.prepzo.ai/profile', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -444,7 +445,7 @@ const Profile = () => {
     }
 
     try {
-      const endpoint = 'https://dev.prepzo.ai/profile/save-linkedin-profile';
+      const endpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/save-linkedin-profile`;
       
       const payload = {
         user_id: session.user.id,
@@ -630,6 +631,23 @@ const Profile = () => {
     setShowExperienceDialog(false);
   };
 
+  const handleEditExperience = (index: number) => {
+    const exp = profile.experience[index];
+    setNewExperience({
+      company: exp.company,
+      role: exp.role,
+      duration: exp.duration,
+      description: exp.description,
+    });
+    setEditingExperienceIndex(index);
+    setShowExperienceDialog(true);
+  };
+
+  const handleDeleteExperience = (index: number) => {
+    const updatedExp = profile.experience.filter((_, i) => i !== index);
+    setProfile({ ...profile, experience: updatedExp });
+  };
+
   // ... existing code ...
 
   return (
@@ -637,191 +655,191 @@ const Profile = () => {
       <div className="min-h-screen bg-gradient-to-br from-prepzo-50 via-white to-prepzo-100/30">
         <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 sm:justify-between sm:items-center mb-8 sm:mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 sm:justify-between sm:items-center mb-6 sm:mb-8 lg:mb-12">
             <div>
-              <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-prepzo-800 to-prepzo-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-prepzo-800 to-prepzo-600 bg-clip-text text-transparent mb-1 sm:mb-2">
                 My Profile
               </h1>
-              <p className="text-sm sm:text-base text-muted-foreground">Manage your professional profile and share it with the world</p>
+              <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">Manage your professional profile and share it with the world</p>
             </div>
-            <div className="flex gap-2 sm:gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button 
                 variant="outline" 
                 onClick={() => setShowLinkedInUpload(true)}
-                className="group border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 text-xs sm:text-sm"
+                className="group border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 text-xs"
                 size="sm"
               >
-                <span className="hidden sm:inline">Import from</span>
+                <span className="hidden md:inline">Import from</span>
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                 </svg>
-                <span className="hidden sm:inline">LinkedIn</span>
-                <span className="sm:hidden">LI</span>
+                <span className="hidden md:inline">LinkedIn</span>
+                <span className="md:hidden">LI</span>
               </Button>
               <Button 
                 variant="outline" 
                 onClick={handleShare}
-                className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 text-xs sm:text-sm"
+                className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 text-xs"
                 size="sm"
               >
-                <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline">Share Profile</span>
-                <span className="sm:hidden">Share</span>
+                <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 group-hover:scale-110 transition-transform" />
+                <span className="hidden md:inline">Share Profile</span>
+                <span className="md:hidden">Share</span>
               </Button>
               <Button 
                 onClick={isEditing ? handleSave : () => setIsEditing(true)}
-                className="bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 text-xs sm:text-sm"
+                className="bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 text-xs"
                 size="sm"
               >
-                {isEditing ? <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> : <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                <span className="hidden sm:inline">{isEditing ? "Save Changes" : "Edit Profile"}</span>
-                <span className="sm:hidden">{isEditing ? "Save" : "Edit"}</span>
+                {isEditing ? <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> : <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
+                <span className="hidden md:inline">{isEditing ? "Save Changes" : "Edit Profile"}</span>
+                <span className="md:hidden">{isEditing ? "Save" : "Edit"}</span>
               </Button>
             </div>
           </div>
 
           {/* Profile Header */}
-          <Card className="mb-6 sm:mb-8 border-0 shadow-2xl bg-gradient-to-br from-white to-prepzo-50/30 backdrop-blur-sm">
+          <Card className="mb-4 sm:mb-6 lg:mb-8 border-0 shadow-lg sm:shadow-2xl bg-gradient-to-br from-white to-prepzo-50/30 backdrop-blur-sm">
             <CardContent className="p-0">
               {/* Cover Section */}
-              <div className="h-24 sm:h-32 bg-gradient-to-r from-prepzo-600 via-prepzo-500 to-prepzo-600 relative overflow-hidden">
+              <div className="h-20 sm:h-24 lg:h-32 bg-gradient-to-r from-prepzo-600 via-prepzo-500 to-prepzo-600 relative overflow-hidden">
                 <div className="absolute inset-0 bg-pattern opacity-30"></div>
               </div>
               
-              <div className="px-4 sm:px-8 pb-6 sm:pb-8 -mt-12 sm:-mt-16 relative">
-                <div className="flex flex-col lg:flex-row gap-4 sm:gap-8">
+              <div className="px-3 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 -mt-10 sm:-mt-12 lg:-mt-16 relative">
+                <div className="flex flex-col md:flex-row gap-3 sm:gap-6 lg:gap-8">
                   <div className="flex flex-col items-center lg:items-start">
                     <div className="relative mb-4 sm:mb-6">
-                      <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-white shadow-xl ring-4 ring-prepzo-100">
+                      <Avatar className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 border-3 sm:border-4 border-white shadow-lg sm:shadow-xl ring-2 sm:ring-4 ring-prepzo-100">
                         <AvatarImage src={profile.avatar} className="object-cover" />
-                        <AvatarFallback className="text-2xl bg-gradient-to-br from-prepzo-200 to-prepzo-300 text-prepzo-800 font-bold">
+                        <AvatarFallback className="text-lg sm:text-xl lg:text-2xl bg-gradient-to-br from-prepzo-200 to-prepzo-300 text-prepzo-800 font-bold">
                           {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : ''}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="absolute -bottom-1 sm:-bottom-2 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
                     </div>
-                    <div className="flex gap-2 sm:gap-3 flex-wrap justify-center lg:justify-start">
+                    <div className="flex gap-2 flex-wrap justify-center md:justify-start">
                       {profile.linkedin && (
-                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 p-0">
                           <Link
                             href={profile.linkedin.startsWith('http') ? profile.linkedin : `https://${profile.linkedin}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                        <Linkedin className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Linkedin className="w-4 h-4" />
                           </Link>
                       </Button>
                       )}
                       {profile.github && (
-                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 p-0">
                           <Link
                             href={profile.github.startsWith('http') ? profile.github : `https://${profile.github}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                        <Github className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Github className="w-4 h-4" />
                           </Link>
                       </Button>
                       )}
                       {profile.website && (
-                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 sm:w-10 sm:h-10 p-0">
+                        <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 p-0">
                           <Link
                             href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                        <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Globe className="w-4 h-4" />
                           </Link>
                       </Button>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex-1 mt-2 sm:mt-4">
-                    <div className="mb-4 sm:mb-6 text-center lg:text-left">
+                  <div className="flex-1 mt-2 sm:mt-0">
+                    <div className="mb-3 sm:mb-4 lg:mb-6 text-center md:text-left">
                       {isEditing ? (
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           <Input 
                             value={profile.name} 
                             onChange={(e) => setProfile({...profile, name: e.target.value})}
-                            className="text-xl sm:text-3xl font-bold border-prepzo-200 bg-white/50 backdrop-blur-sm"
+                            className="text-lg sm:text-xl lg:text-3xl font-bold border-prepzo-200 bg-white/50 backdrop-blur-sm"
                             placeholder="Full Name"
                           />
                           <Input 
                             value={profile.title} 
                             onChange={(e) => setProfile({...profile, title: e.target.value})}
-                            className="text-base sm:text-lg border-prepzo-200 bg-white/50 backdrop-blur-sm"
+                            className="text-sm sm:text-base lg:text-lg border-prepzo-200 bg-white/50 backdrop-blur-sm"
                             placeholder="Professional Title"
                           />
                         </div>
                       ) : (
                         <>
-                          <h2 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-prepzo-900 to-prepzo-700 bg-clip-text text-transparent mb-2 sm:mb-3">
+                          <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-prepzo-900 to-prepzo-700 bg-clip-text text-transparent mb-1 sm:mb-2 lg:mb-3">
                             {profile.name}
                           </h2>
-                          <p className="text-lg sm:text-xl text-prepzo-600 font-medium mb-3 sm:mb-4">{profile.title}</p>
+                          <p className="text-base sm:text-lg lg:text-xl text-prepzo-600 font-medium mb-2 sm:mb-3 md:mt-6 lg:mb-4">{profile.title}</p>
                         </>
                       )}
                     </div>
                     
-                    <div className="mb-4 sm:mb-6">
+                    <div className="mb-3 sm:mb-4 lg:mb-6">
                       {isEditing ? (
                         <Textarea 
                           value={profile.bio} 
                           onChange={(e) => setProfile({...profile, bio: e.target.value})}
-                          className="border-prepzo-200 bg-white/50 backdrop-blur-sm resize-none text-sm sm:text-base"
-                          rows={3}
+                          className="border-prepzo-200 bg-white/50 backdrop-blur-sm resize-none text-xs sm:text-sm lg:text-base"
+                          rows={2}
                           placeholder="Tell us about yourself..."
                         />
                       ) : (
-                        <p className="text-prepzo-700 leading-relaxed text-sm sm:text-lg">{profile.bio}</p>
+                        <p className="text-prepzo-700 leading-relaxed text-xs sm:text-sm lg:text-lg">{profile.bio}</p>
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
                           <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
                         </div>
                         {isEditing ? (
                           <Input 
                             value={profile.location} 
                             onChange={(e) => setProfile({...profile, location: e.target.value})}
-                            className="border-0 bg-transparent text-xs sm:text-sm"
+                            className="border-0 bg-transparent text-xs"
                             placeholder="Location"
                           />
                         ) : (
-                          <span className="text-prepzo-700 font-medium text-xs sm:text-sm truncate">{profile.location}</span>
+                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.location}</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
                           <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
                         </div>
                         {isEditing ? (
                           <Input 
                             value={profile.email} 
                             onChange={(e) => setProfile({...profile, email: e.target.value})}
-                            className="border-0 bg-transparent text-xs sm:text-sm"
+                            className="border-0 bg-transparent text-xs"
                             placeholder="Email"
                           />
                         ) : (
-                          <span className="text-prepzo-700 font-medium text-xs sm:text-sm truncate">{profile.email}</span>
+                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.email}</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 sm:col-span-2 lg:col-span-1">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 md:col-span-2 lg:col-span-1">
+                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
                           <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
                         </div>
                         {isEditing ? (
                           <Input 
                             value={profile.phone} 
                             onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                            className="border-0 bg-transparent text-xs sm:text-sm"
+                            className="border-0 bg-transparent text-xs"
                             placeholder="Phone"
                           />
                         ) : (
-                          <span className="text-prepzo-700 font-medium text-xs sm:text-sm truncate">{profile.phone}</span>
+                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.phone}</span>
                         )}
                       </div>
                     </div>
@@ -832,57 +850,57 @@ const Profile = () => {
           </Card>
 
           {/* Content Tabs */}
-          <Tabs defaultValue="practice" className="space-y-6 sm:space-y-8">
-            <div className="overflow-x-auto scrollbar-hide">
-              <TabsList className="flex w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1.5 h-12 sm:h-14 overflow-x-auto scrollbar-hide">
+          <Tabs defaultValue="practice" className="space-y-4 sm:space-y-6 lg:space-y-8">
+            <div className="overflow-x-auto scrollbar-hide pb-2">
+              <TabsList className="inline-flex w-auto min-w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1 sm:p-1.5 h-10 sm:h-12 lg:h-14">
               <TabsTrigger 
                 value="practice" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
                 Practice
               </TabsTrigger>
               <TabsTrigger 
                 value="interviews" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
                 Interviews
               </TabsTrigger>
               <TabsTrigger 
                 value="skills" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
                 Skills
               </TabsTrigger>
               <TabsTrigger 
                 value="certificates" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
-                <span className="hidden sm:inline">Certificates</span>
-                <span className="sm:hidden">Certs</span>
+                <span className="hidden md:inline">Certificates</span>
+                <span className="md:hidden">Certs</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="experience" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
-                <span className="hidden sm:inline">Experience</span>
-                <span className="sm:hidden">Exp</span>
+                <span className="hidden md:inline">Experience</span>
+                <span className="md:hidden">Exp</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="projects" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
                 Projects
               </TabsTrigger>
               <TabsTrigger 
                 value="achievements" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
-                <span className="hidden sm:inline">Achievements</span>
-                <span className="sm:hidden">Awards</span>
+                <span className="hidden md:inline">Achievements</span>
+                <span className="md:hidden">Awards</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="resume" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
               >
                 Resume
               </TabsTrigger>
@@ -890,31 +908,31 @@ const Profile = () => {
             </div>
 
             {/* Practice Stats Tab */}
-            <TabsContent value="practice" className="space-y-4 sm:space-y-6">
+            <TabsContent value="practice" className="space-y-3 sm:space-y-4 lg:space-y-6">
               {/* Stats Overview */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-green-100/80 backdrop-blur-sm">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <CardContent className="p-3 sm:p-4 lg:p-6">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-green-700">{profile.practiceStats.problemsSolved.total}</p>
-                        <p className="text-xs sm:text-sm text-green-600 font-medium">Problems Solved</p>
+                        <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-green-700">{profile.practiceStats.problemsSolved.total}</p>
+                        <p className="text-xs text-green-600 font-medium">Problems Solved</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-1 sm:gap-2 text-center">
-                      <div className="bg-white/60 rounded-lg p-1 sm:p-2">
-                        <p className="text-sm sm:text-lg font-bold text-green-700">{profile.practiceStats.problemsSolved.easy}</p>
+                      <div className="bg-white/60 rounded-md sm:rounded-lg p-1 sm:p-2">
+                        <p className="text-xs sm:text-sm lg:text-lg font-bold text-green-700">{profile.practiceStats.problemsSolved.easy}</p>
                         <p className="text-xs text-green-600">Easy</p>
                       </div>
-                      <div className="bg-white/60 rounded-lg p-1 sm:p-2">
-                        <p className="text-sm sm:text-lg font-bold text-orange-700">{profile.practiceStats.problemsSolved.medium}</p>
+                      <div className="bg-white/60 rounded-md sm:rounded-lg p-1 sm:p-2">
+                        <p className="text-xs sm:text-sm lg:text-lg font-bold text-orange-700">{profile.practiceStats.problemsSolved.medium}</p>
                         <p className="text-xs text-orange-600">Medium</p>
                       </div>
-                      <div className="bg-white/60 rounded-lg p-1 sm:p-2">
-                        <p className="text-sm sm:text-lg font-bold text-red-700">{profile.practiceStats.problemsSolved.hard}</p>
+                      <div className="bg-white/60 rounded-md sm:rounded-lg p-1 sm:p-2">
+                        <p className="text-xs sm:text-sm lg:text-lg font-bold text-red-700">{profile.practiceStats.problemsSolved.hard}</p>
                         <p className="text-xs text-red-600">Hard</p>
                       </div>
                     </div>
@@ -922,37 +940,37 @@ const Profile = () => {
                 </Card>
 
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-orange-50 to-orange-100/80 backdrop-blur-sm">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <CardContent className="p-3 sm:p-4 lg:p-6">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Zap className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-orange-700">{profile.practiceStats.dailyStreak.current}</p>
-                        <p className="text-xs sm:text-sm text-orange-600 font-medium">Day Streak</p>
+                        <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-orange-700">{profile.practiceStats.dailyStreak.current}</p>
+                        <p className="text-xs text-orange-600 font-medium">Day Streak</p>
                       </div>
                     </div>
-                    <div className="text-center bg-white/60 rounded-lg p-1 sm:p-2">
-                      <p className="text-sm sm:text-lg font-bold text-orange-700">{profile.practiceStats.dailyStreak.longest}</p>
+                    <div className="text-center bg-white/60 rounded-md sm:rounded-lg p-1 sm:p-2">
+                      <p className="text-xs sm:text-sm lg:text-lg font-bold text-orange-700">{profile.practiceStats.dailyStreak.longest}</p>
                       <p className="text-xs text-orange-600">Longest Streak</p>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-50 to-blue-100/80 backdrop-blur-sm sm:col-span-2 lg:col-span-1">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Target className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-50 to-blue-100/80 backdrop-blur-sm col-span-1 sm:col-span-2 lg:col-span-1">
+                  <CardContent className="p-3 sm:p-4 lg:p-6">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Target className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl sm:text-3xl font-bold text-blue-700">{profile.practiceStats.weeklyGoal.completed}/{profile.practiceStats.weeklyGoal.target}</p>
-                        <p className="text-xs sm:text-sm text-blue-600 font-medium">Weekly Goal</p>
+                        <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-blue-700">{profile.practiceStats.weeklyGoal.completed}/{profile.practiceStats.weeklyGoal.target}</p>
+                        <p className="text-xs text-blue-600 font-medium">Weekly Goal</p>
                       </div>
                     </div>
                     <Progress 
-                      value={(profile.practiceStats.weeklyGoal.completed / profile.practiceStats.weeklyGoal.target) * 100} 
-                      className="h-2" 
+                      value={(profile.practiceStats.weeklyGoal.completed / profile.practiceStats.weeklyGoal.target) * 100}
+                      className="h-1.5 sm:h-2"
                     />
                   </CardContent>
                 </Card>
@@ -1353,32 +1371,100 @@ const Profile = () => {
 
             {/* Experience Tab */}
             <TabsContent value="experience" className="space-y-6">
-              {profile.experience.map((exp, index) => (
-                <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                  <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2">
-                        <CardTitle className="text-xl text-prepzo-900 font-bold">{exp.role}</CardTitle>
-                        <div className="flex items-center gap-2 text-prepzo-600">
-                          <span className="font-semibold">{exp.company}</span>
-                          <span className="w-1 h-1 bg-prepzo-400 rounded-full"></span>
-                          <span className="text-sm">{exp.duration}</span>
+              {profile.experience && profile.experience.length > 0 ? (
+                <>
+                  {profile.experience.map((exp, index) => (
+                    <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                      <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <CardTitle className="text-xl text-prepzo-900 font-bold">{exp.role}</CardTitle>
+                            <div className="flex items-center gap-2 text-prepzo-600">
+                              <span className="font-semibold">{exp.company}</span>
+                              <span className="w-1 h-1 bg-prepzo-400 rounded-full"></span>
+                              <span className="text-sm">{exp.duration}</span>
+                            </div>
+                          </div>
+                          {isEditing && (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="ghost" className="text-prepzo-600 hover:bg-prepzo-100 rounded-full" onClick={() => handleEditExperience(index)}>
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-100 rounded-full" onClick={() => handleDeleteExperience(index)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      {isEditing && (
-                        <Button size="sm" variant="ghost" className="text-prepzo-600 hover:bg-prepzo-100 rounded-full">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      )}
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        <p className="text-prepzo-700 leading-relaxed">{exp.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {isEditing && (
+                    <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowExperienceDialog(true)}>
+                      <CardContent className="p-6 sm:p-8 text-center">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                        </div>
+                        <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Experience</h3>
+                        <p className="text-sm text-prepzo-600">Add details about your work history</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <Briefcase className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
                     </div>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <p className="text-prepzo-700 leading-relaxed">{exp.description}</p>
+                    <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add Experience</h3>
+                    <p className="text-sm text-prepzo-600 mb-4">Showcase your work history</p>
+                    <Button variant="outline" onClick={() => setShowExperienceDialog(true)} className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200">
+                      <PlusCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                      Add Experience
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </TabsContent>
 
+            {/* Experience Dialog */}
+            <Dialog open={showExperienceDialog} onOpenChange={setShowExperienceDialog}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-prepzo-600" />
+                    {editingExperienceIndex !== null ? 'Edit Experience' : 'Add New Experience'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="exp-role">Role / Title *</Label>
+                    <Input id="exp-role" value={newExperience.role} onChange={(e) => setNewExperience({...newExperience, role: e.target.value})} placeholder="e.g. Software Engineer" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="exp-company">Company *</Label>
+                    <Input id="exp-company" value={newExperience.company} onChange={(e) => setNewExperience({...newExperience, company: e.target.value})} placeholder="e.g. Prepzo" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="exp-duration">Duration *</Label>
+                    <Input id="exp-duration" value={newExperience.duration} onChange={(e) => setNewExperience({...newExperience, duration: e.target.value})} placeholder="e.g. Jan 2024 - Present" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="exp-desc">Description *</Label>
+                    <Textarea id="exp-desc" rows={3} value={newExperience.description} onChange={(e) => setNewExperience({...newExperience, description: e.target.value})} placeholder="Describe your responsibilities and achievements" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={resetExperienceForm}>Cancel</Button>
+                  <Button onClick={handleSaveExperience} disabled={!newExperience.role || !newExperience.company || !newExperience.duration || !newExperience.description} className="bg-prepzo-600 hover:bg-prepzo-700">{editingExperienceIndex !== null ? 'Update Experience' : 'Add Experience'}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <TabsContent value="education" className="space-y-6">
               {profile.education.map((edu, index) => (

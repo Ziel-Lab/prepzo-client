@@ -136,8 +136,8 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
     setError(null);
 
     // Remote endpoints
-    const REMOTE_UPLOAD_ENDPOINT = 'https://dev.prepzo.ai/profile/upload-linkedin-pdf';
-    const REMOTE_PROFILE_ENDPOINT = 'https://dev.prepzo.ai/profile';
+    const REMOTE_UPLOAD_ENDPOINT = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/upload-linkedin-pdf`;
+    const REMOTE_PROFILE_ENDPOINT = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile`;
 
     try {
       // Ensure we have an auth token to forward
