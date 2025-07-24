@@ -444,28 +444,33 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch('https://dev.prepzo.ai/profile', {
-        method: 'PATCH',
+      const endpoint = 'https://dev.prepzo.ai/api/save-linkedin-profile';
+      
+      const payload = {
+        user_id: session.user.id,
+        name: profile.name,
+        title: profile.title,
+        bio: profile.bio,
+        location: profile.location,
+        email: profile.email,
+        phone: profile.phone,
+        linkedin_url: profile.linkedin,
+        website: profile.website,
+        skills: profile.skills,
+        achievements: profile.achievements,
+        certifications: profile.certificates,
+        experience: profile.experience,
+        projects: profile.projects,
+        resume_url: profile.resume?.url
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: profile.name,
-          title: profile.title,
-          bio: profile.bio,
-          location: profile.location,
-          email: profile.email,
-          phone: profile.phone,
-          linkedin_url: profile.linkedin,
-          github_url: profile.github,
-          website: profile.website,
-          skills: profile.skills,
-          experience: profile.experience,
-          projects: profile.projects,
-          certifications: profile.certificates,
-          // achievements: profile.achievements, // Add if supported by backend
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -475,12 +480,14 @@ const Profile = () => {
           description: "Your changes have been saved successfully",
         });
       } else {
-        throw new Error('Failed to save profile');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save profile');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       toast({
         title: "Error",
-        description: "Failed to save changes. Please try again.",
+        description: `Failed to save changes: ${errorMessage}`,
         variant: "destructive",
       });
     }
