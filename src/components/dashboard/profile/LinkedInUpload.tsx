@@ -1,12 +1,16 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useRef } from "react";
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { 
   Upload, 
   FileText, 
@@ -19,7 +23,12 @@ import {
   Briefcase,
   GraduationCap,
   Award,
-  Globe
+  Globe,
+  Trophy,
+  Plus,
+  PlusCircle,
+  Calendar,
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -56,6 +65,11 @@ interface LinkedInExtractedData {
     expiryDate?: string;
     credentialId?: string;
   }>;
+  achievements?: Array<{
+    title: string;
+    description: string;
+    date: string;
+  }>;
 }
 
 interface LinkedInUploadProps {
@@ -70,11 +84,21 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
   onClose 
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Access the current Supabase session for the Bearer token
+  const { session } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<LinkedInExtractedData | null>(null);
   const [currentStep, setCurrentStep] = useState<'upload' | 'processing' | 'preview' | 'complete'>('upload');
+  const [showCertDialog, setShowCertDialog] = useState(false);
+  const [newCertificate, setNewCertificate] = useState({
+    name: '',
+    issuer: '',
+    issueDate: '',
+    expiryDate: '',
+    credentialId: ''
+  });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -111,12 +135,20 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
     setUploadProgress(0);
     setError(null);
 
+    // Remote endpoints
+    const REMOTE_UPLOAD_ENDPOINT = 'https://dev.prepzo.ai/profile/upload-linkedin-pdf';
+    const REMOTE_PROFILE_ENDPOINT = 'https://dev.prepzo.ai/profile';
+
     try {
+      // Ensure we have an auth token to forward
+      if (!session?.access_token) {
+        throw new Error('You must be logged in to import LinkedIn data.');
+      }
+
       const formData = new FormData();
-      // The backend expects the uploaded PDF under the key "file"
       formData.append('file', selectedFile);
 
-      // Simulate progress
+      // Simulate progress while we upload / poll
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -127,40 +159,109 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
         });
       }, 300);
 
-      const response = await fetch('/api/linkedin-pdf-extract', {
+      // 1. Upload PDF to remote backend
+      const uploadRes = await fetch(REMOTE_UPLOAD_ENDPOINT, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: formData,
       });
+
+      if (!uploadRes.ok) {
+        clearInterval(progressInterval);
+        const errJson = await uploadRes.json();
+        throw new Error(errJson.error || 'Failed to upload PDF to extraction service');
+      }
+
+      // 2. Poll for processed profile data
+      const MAX_ATTEMPTS = 10;
+      const DELAY_MS = 1500;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let extracted: any = null;
+
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        // eslint-disable-next-line no-await-in-loop
+        const profRes = await fetch(REMOTE_PROFILE_ENDPOINT, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (profRes.ok) {
+          // eslint-disable-next-line no-await-in-loop
+          const profJson = await profRes.json() as any;
+          const rawProfile = profJson?.db_result || profJson?.profile_data || null;
+
+          if (rawProfile) {
+            extracted = rawProfile;
+            break;
+          }
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(res => setTimeout(res, DELAY_MS));
+      }
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to extract data from LinkedIn PDF');
-      }
+      // Normalisation (mirrors previous API route logic)
+      const normaliseData = (raw: any): LinkedInExtractedData => {
+        const {
+          name,
+          title,
+          bio,
+          location,
+          email,
+          phone,
+          linkedin_url,
+          linkedin,
+          website,
+          skills,
+          experience,
+          education,
+          certifications,
+          achievements,
+        } = raw;
 
-      const result = await response.json();
-      
-      if (result.data) {
-        setExtractedData(result.data);
+        return {
+          name,
+          title,
+          bio,
+          location,
+          email,
+          phone,
+          linkedin: linkedin_url || linkedin || '',
+          website,
+          skills: Array.isArray(skills) ? skills : [],
+          experience: Array.isArray(experience) ? experience : [],
+          education: Array.isArray(education) ? education : [],
+          certificates: Array.isArray(certifications) ? certifications : [],
+          achievements: Array.isArray(achievements) ? achievements : [],
+        };
+      };
+
+      if (extracted) {
+        const normalised = normaliseData(extracted);
+        setExtractedData(normalised);
         setCurrentStep('preview');
-        
-        if (result.success) {
-          toast({
-            title: "LinkedIn Data Extracted!",
-            description: "Review the extracted data before applying to your profile.",
-          });
-        } else {
-          // PDF extraction failed but we have empty structure for manual input
-          toast({
-            title: "PDF Processing Failed",
-            description: result.note || "Could not extract data from PDF. You can fill in the information manually.",
-            variant: "destructive",
-          });
-        }
+
+        toast({
+          title: 'LinkedIn Data Extracted!',
+          description: 'Review the extracted data before applying to your profile.',
+        });
       } else {
-        throw new Error('No data structure returned from the server');
+        // Timed out – allow manual input
+        setExtractedData({} as LinkedInExtractedData);
+        setCurrentStep('preview');
+
+        toast({
+          title: 'PDF Processing Delayed',
+          description: 'Extraction is still in progress. You can fill the info manually for now.',
+          variant: 'destructive',
+        });
       }
 
     } catch (error) {
@@ -213,11 +314,33 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
     onClose();
   };
 
+  const handleAddCertificate = () => {
+    if (!extractedData) return;
+    
+    const updatedData = {
+      ...extractedData,
+      certificates: [
+        ...(extractedData.certificates || []),
+        newCertificate
+      ]
+    };
+    
+    setExtractedData(updatedData);
+    setNewCertificate({
+      name: '',
+      issuer: '',
+      issueDate: '',
+      expiryDate: '',
+      credentialId: ''
+    });
+    setShowCertDialog(false);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto mx-4">
         <CardHeader className="border-b bg-gradient-to-r from-prepzo-50 to-prepzo-100/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -237,11 +360,11 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
 
         <CardContent className="pt-6">
           {/* Step Indicator */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-center mb-6 sm:mb-8 overflow-x-auto px-2 sm:px-4">
+            <div className="flex items-center gap-1.5 sm:gap-3 min-w-max">
               {['Upload', 'Process', 'Preview', 'Complete'].map((step, index) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  <div className={`w-5 h-5 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-medium ${
                     index <= ['upload', 'processing', 'preview', 'complete'].indexOf(currentStep)
                       ? 'bg-prepzo-600 text-white'
                       : 'bg-gray-200 text-gray-600'
@@ -249,7 +372,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                     {index + 1}
                   </div>
                   {index < 3 && (
-                    <div className={`w-16 h-1 mx-2 ${
+                    <div className={`w-6 sm:w-12 md:w-16 h-0.5 sm:h-1 mx-1 sm:mx-2 ${
                       index < ['upload', 'processing', 'preview', 'complete'].indexOf(currentStep)
                         ? 'bg-prepzo-600'
                         : 'bg-gray-200'
@@ -275,7 +398,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                 </p>
               </div>
 
-              <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-8 text-center hover:border-prepzo-400 transition-colors">
+              <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-8 text-center hover:border-prepzo-400 transition-colors">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -323,9 +446,9 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
               </div>
 
               {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <h4 className="font-medium text-blue-900 mb-2">How to export from LinkedIn:</h4>
-                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
                   <li>Go to your LinkedIn profile page</li>
                   <li>Click "More" button near your profile picture</li>
                   <li>Select "Save to PDF" option</li>
@@ -389,7 +512,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 max-h-[60vh] overflow-y-auto px-2">
                 {/* Basic Info */}
                 {(extractedData.name || extractedData.title || extractedData.location) && (
                   <Card>
@@ -499,6 +622,196 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                             +{extractedData.skills.length - 8} more
                           </Badge>
                         )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Certificates */}
+                {extractedData.certificates && extractedData.certificates.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Award className="w-4 h-4" />
+                        Certificates ({extractedData.certificates.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {extractedData.certificates.slice(0, 2).map((cert, index) => (
+                          <div key={index} className="border-l-2 border-prepzo-200 pl-3">
+                            <p className="font-medium text-sm">{cert.name}</p>
+                            <p className="text-xs text-gray-600">{cert.issuer}</p>
+                            <p className="text-xs text-gray-500">{cert.issueDate}</p>
+                          </div>
+                        ))}
+                        {extractedData.certificates.length > 2 && (
+                          <p className="text-xs text-gray-500">
+                            +{extractedData.certificates.length - 2} more...
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Achievements */}
+                {extractedData.achievements && extractedData.achievements.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Trophy className="w-4 h-4" />
+                        Achievements ({extractedData.achievements.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {extractedData.achievements.slice(0, 2).map((achievement, index) => (
+                          <div key={index} className="border-l-2 border-prepzo-200 pl-3">
+                            <p className="font-medium text-sm">{achievement.title}</p>
+                            <p className="text-xs text-gray-600">{achievement.description}</p>
+                            <p className="text-xs text-gray-500">{achievement.date}</p>
+                          </div>
+                        ))}
+                        {extractedData.achievements.length > 2 && (
+                          <p className="text-xs text-gray-500">
+                            +{extractedData.achievements.length - 2} more...
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Add Certificate Dialog */}
+                <Dialog open={showCertDialog} onOpenChange={setShowCertDialog}>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Award className="w-5 h-5 text-prepzo-600" />
+                        Add New Certificate
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="cert-name">Certificate Name *</Label>
+                        <Input
+                          id="cert-name"
+                          value={newCertificate.name}
+                          onChange={(e) => setNewCertificate({...newCertificate, name: e.target.value})}
+                          placeholder="e.g. AWS Solutions Architect"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="cert-issuer">Issuing Organization *</Label>
+                        <Input
+                          id="cert-issuer"
+                          value={newCertificate.issuer}
+                          onChange={(e) => setNewCertificate({...newCertificate, issuer: e.target.value})}
+                          placeholder="e.g. Amazon Web Services"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="cert-date">Issue Date *</Label>
+                        <Input
+                          id="cert-date"
+                          type="date"
+                          value={newCertificate.issueDate}
+                          onChange={(e) => setNewCertificate({...newCertificate, issueDate: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="cert-expiry">Expiry Date (Optional)</Label>
+                        <Input
+                          id="cert-expiry"
+                          type="date"
+                          value={newCertificate.expiryDate}
+                          onChange={(e) => setNewCertificate({...newCertificate, expiryDate: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="cert-id">Credential ID (Optional)</Label>
+                        <Input
+                          id="cert-id"
+                          value={newCertificate.credentialId}
+                          onChange={(e) => setNewCertificate({...newCertificate, credentialId: e.target.value})}
+                          placeholder="e.g. ABC123XYZ"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowCertDialog(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleAddCertificate}
+                        disabled={!newCertificate.name || !newCertificate.issuer || !newCertificate.issueDate}
+                        className="bg-prepzo-600 hover:bg-prepzo-700"
+                      >
+                        Add Certificate
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Empty State Cards for Missing Sections */}
+                {(!extractedData.certificates || extractedData.certificates.length === 0) && (
+                  <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center justify-between text-base">
+                        <div className="flex items-center gap-2">
+                          <Award className="w-4 h-4 text-prepzo-600" />
+                          <span>Certificates</span>
+                        </div>
+                        <PlusCircle className="w-5 h-5 text-prepzo-600" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-4">
+                        <p className="text-sm text-prepzo-600 mb-2">No certificates found in your LinkedIn PDF</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => setShowCertDialog(true)}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Manually
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {(!extractedData.achievements || extractedData.achievements.length === 0) && (
+                  <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center justify-between text-base">
+                        <div className="flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-prepzo-600" />
+                          <span>Achievements</span>
+                        </div>
+                        <PlusCircle className="w-5 h-5 text-prepzo-600" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-4">
+                        <p className="text-sm text-prepzo-600 mb-2">No achievements found in your LinkedIn PDF</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            // Apply empty data first, then switch to edit mode
+                            handleApplyData();
+                          }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Manually
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>

@@ -11,6 +11,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   User, 
   Mail, 
@@ -37,7 +40,8 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
-  BarChart3
+  BarChart3,
+  PlusCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -187,6 +191,55 @@ const Profile = () => {
   const [showLinkedInUpload, setShowLinkedInUpload] = useState(false);
   const fetchedTokenRef = useRef<string | null>(null);
 
+  // Dialog states for editing different sections
+  const [showCertDialog, setShowCertDialog] = useState(false);
+  const [showAchievementDialog, setShowAchievementDialog] = useState(false);
+  const [showExperienceDialog, setShowExperienceDialog] = useState(false);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [showSkillDialog, setShowSkillDialog] = useState(false);
+  
+  // Form states for different items
+  const [editingCertIndex, setEditingCertIndex] = useState<number | null>(null);
+  const [editingAchievementIndex, setEditingAchievementIndex] = useState<number | null>(null);
+  const [editingExperienceIndex, setEditingExperienceIndex] = useState<number | null>(null);
+  const [editingProjectIndex, setEditingProjectIndex] = useState<number | null>(null);
+  const [editingSkillIndex, setEditingSkillIndex] = useState<number | null>(null);
+  
+  const [newCertificate, setNewCertificate] = useState({
+    name: '',
+    issuer: '',
+    issueDate: '',
+    expiryDate: '',
+    credentialId: '',
+    verificationUrl: ''
+  });
+  
+  const [newAchievement, setNewAchievement] = useState({
+    title: '',
+    description: '',
+    date: ''
+  });
+  
+  const [newExperience, setNewExperience] = useState({
+    company: '',
+    role: '',
+    duration: '',
+    description: ''
+  });
+  
+  const [newProject, setNewProject] = useState({
+    name: '',
+    description: '',
+    technologies: [] as string[],
+    link: ''
+  });
+  
+  const [newSkill, setNewSkill] = useState({
+    name: '',
+    level: 50,
+    category: 'General'
+  });
+
   // Empty initial profile & loading flag
   const emptyProfile: ProfileData = {
     id: '', username: '', name: '', title: '', bio: '', avatar: '', location: '', email: '', phone: '', linkedin: '', github: '', website: '',
@@ -237,6 +290,22 @@ const Profile = () => {
     }));
   };
 
+  /**
+   * Convert backend project objects (which may include `impact`, `links`, etc.)
+   * into the simpler shape expected by the UI.
+   */
+  const normaliseProjects = (rawProjects: unknown): ProfileData['projects'] => {
+    if (!Array.isArray(rawProjects)) return [];
+
+    return (rawProjects as any[]).map(p => ({
+      name: p.name ?? 'Project',
+      description: p.description ?? '',
+      technologies: Array.isArray(p.technologies) ? p.technologies : [],
+      // Use repo link first, fall back to demo link if available
+      link: p.links?.repo || p.links?.demo || undefined,
+    }));
+  };
+
   // Convert backend response shape into our local ProfileData partial
   const mapRemoteProfile = (raw: any): Partial<ProfileData> => {
     if (!raw) return {};
@@ -278,7 +347,7 @@ const Profile = () => {
       avatar: avatar_url || avatar || '',
       skills: normaliseSkills(skills),
       experience: Array.isArray(experience) ? experience : [],
-      projects: Array.isArray(projects) ? projects : [],
+      projects: normaliseProjects(projects),
       certificates: Array.isArray(certifications) ? certifications : [],
       resume: resume_url
         ? {
@@ -364,12 +433,57 @@ const Profile = () => {
     }
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile updated!",
-      description: "Your changes have been saved successfully",
-    });
+  const handleSave = async () => {
+    if (!session?.access_token) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save changes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('https://dev.prepzo.ai/profile', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: profile.name,
+          title: profile.title,
+          bio: profile.bio,
+          location: profile.location,
+          email: profile.email,
+          phone: profile.phone,
+          linkedin_url: profile.linkedin,
+          github_url: profile.github,
+          website: profile.website,
+          skills: profile.skills,
+          experience: profile.experience,
+          projects: profile.projects,
+          certifications: profile.certificates,
+          // achievements: profile.achievements, // Add if supported by backend
+        }),
+      });
+
+      if (response.ok) {
+        setIsEditing(false);
+        toast({
+          title: "Profile updated!",
+          description: "Your changes have been saved successfully",
+        });
+      } else {
+        throw new Error('Failed to save profile');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save changes. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLinkedInDataExtracted = (linkedInData: LinkedInExtractedData) => {
@@ -400,6 +514,103 @@ const Profile = () => {
       duration: 5000,
     });
   };
+
+  // Handler for adding/editing certificates
+  const handleSaveCertificate = () => {
+    const updatedCerts = [...profile.certificates];
+    if (editingCertIndex !== null) {
+      updatedCerts[editingCertIndex] = newCertificate;
+    } else {
+      updatedCerts.push(newCertificate);
+    }
+    
+    setProfile({ ...profile, certificates: updatedCerts });
+    resetCertificateForm();
+  };
+  
+  const resetCertificateForm = () => {
+    setNewCertificate({
+      name: '',
+      issuer: '',
+      issueDate: '',
+      expiryDate: '',
+      credentialId: '',
+      verificationUrl: ''
+    });
+    setEditingCertIndex(null);
+    setShowCertDialog(false);
+  };
+  
+  const handleEditCertificate = (index: number) => {
+    setNewCertificate(profile.certificates[index]);
+    setEditingCertIndex(index);
+    setShowCertDialog(true);
+  };
+  
+  const handleDeleteCertificate = (index: number) => {
+    const updatedCerts = profile.certificates.filter((_, i) => i !== index);
+    setProfile({ ...profile, certificates: updatedCerts });
+  };
+  
+  // Handler for adding/editing achievements
+  const handleSaveAchievement = () => {
+    const updatedAchievements = [...profile.achievements];
+    if (editingAchievementIndex !== null) {
+      updatedAchievements[editingAchievementIndex] = newAchievement;
+    } else {
+      updatedAchievements.push(newAchievement);
+    }
+    
+    setProfile({ ...profile, achievements: updatedAchievements });
+    resetAchievementForm();
+  };
+  
+  const resetAchievementForm = () => {
+    setNewAchievement({
+      title: '',
+      description: '',
+      date: ''
+    });
+    setEditingAchievementIndex(null);
+    setShowAchievementDialog(false);
+  };
+  
+  const handleEditAchievement = (index: number) => {
+    setNewAchievement(profile.achievements[index]);
+    setEditingAchievementIndex(index);
+    setShowAchievementDialog(true);
+  };
+  
+  const handleDeleteAchievement = (index: number) => {
+    const updatedAchievements = profile.achievements.filter((_, i) => i !== index);
+    setProfile({ ...profile, achievements: updatedAchievements });
+  };
+  
+  // Similar handlers for Experience, Projects, Skills...
+  const handleSaveExperience = () => {
+    const updatedExp = [...profile.experience];
+    if (editingExperienceIndex !== null) {
+      updatedExp[editingExperienceIndex] = newExperience;
+    } else {
+      updatedExp.push(newExperience);
+    }
+    
+    setProfile({ ...profile, experience: updatedExp });
+    resetExperienceForm();
+  };
+  
+  const resetExperienceForm = () => {
+    setNewExperience({
+      company: '',
+      role: '',
+      duration: '',
+      description: ''
+    });
+    setEditingExperienceIndex(null);
+    setShowExperienceDialog(false);
+  };
+
+  // ... existing code ...
 
   return (
     <DashboardLayout>
@@ -603,55 +814,55 @@ const Profile = () => {
           {/* Content Tabs */}
           <Tabs defaultValue="practice" className="space-y-6 sm:space-y-8">
             <div className="overflow-x-auto scrollbar-hide">
-              <TabsList className="flex w-max sm:grid sm:w-full sm:grid-cols-8 bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1 h-12 sm:h-14 gap-1">
+              <TabsList className="flex w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1.5 h-12 sm:h-14 overflow-x-auto scrollbar-hide">
               <TabsTrigger 
                 value="practice" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 Practice
               </TabsTrigger>
               <TabsTrigger 
                 value="interviews" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 Interviews
               </TabsTrigger>
               <TabsTrigger 
                 value="skills" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 Skills
               </TabsTrigger>
               <TabsTrigger 
                 value="certificates" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 <span className="hidden sm:inline">Certificates</span>
                 <span className="sm:hidden">Certs</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="experience" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 <span className="hidden sm:inline">Experience</span>
                 <span className="sm:hidden">Exp</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="projects" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-4 py-2 whitespace-nowrap flex-shrink-0"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 Projects
               </TabsTrigger>
               <TabsTrigger 
                 value="achievements" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-2 sm:px-3"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 <span className="hidden sm:inline">Achievements</span>
                 <span className="sm:hidden">Awards</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="resume" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-2 sm:px-3"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs sm:text-sm px-3 sm:px-6 py-1.5 sm:py-2 whitespace-nowrap min-w-[80px] mx-0.5"
               >
                 Resume
               </TabsTrigger>
@@ -922,82 +1133,203 @@ const Profile = () => {
             </TabsContent>
 
             {/* Certificates Tab */}
-            <TabsContent value="certificates" className="space-y-4 sm:space-y-6">
-              <div className="grid gap-4 sm:gap-6">
-                {profile.certificates.map((cert, index) => (
-                  <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row gap-4 sm:items-start sm:justify-between">
-                        <div className="flex items-start gap-3 sm:gap-4 flex-1">
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-prepzo-500 to-prepzo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg sm:text-xl font-bold text-prepzo-900 mb-1 break-words">{cert.name}</h3>
-                            <p className="text-prepzo-600 font-medium mb-2 text-sm sm:text-base">{cert.issuer}</p>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-prepzo-600">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span>Issued: {cert.issueDate}</span>
-                              </div>
-                              {cert.expiryDate && (
+            <TabsContent value="certificates" className="space-y-6">
+              {profile.certificates && profile.certificates.length > 0 ? (
+                <div className="grid gap-4 sm:gap-6">
+                  {profile.certificates.map((cert, index) => (
+                    <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row gap-4 sm:items-start sm:justify-between">
+                          <div className="flex items-start gap-3 sm:gap-4 flex-1">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-prepzo-500 to-prepzo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Award className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg sm:text-xl font-bold text-prepzo-900 mb-1 break-words">{cert.name}</h3>
+                              <p className="text-prepzo-600 font-medium mb-2 text-sm sm:text-base">{cert.issuer}</p>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-prepzo-600">
                                 <div className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                  <span>Expires: {cert.expiryDate}</span>
+                                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span>Issued: {cert.issueDate}</span>
                                 </div>
+                                {cert.expiryDate && (
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                    <span>Expires: {cert.expiryDate}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {cert.credentialId && (
+                                <p className="text-xs text-prepzo-500 mt-2 break-all">Credential ID: {cert.credentialId}</p>
                               )}
                             </div>
-                            {cert.credentialId && (
-                              <p className="text-xs text-prepzo-500 mt-2 break-all">Credential ID: {cert.credentialId}</p>
+                          </div>
+                          <div className="flex gap-2 flex-shrink-0 self-start sm:self-auto">
+                           {isEditing && (
+                             <>
+                               <Button 
+                                 size="sm" 
+                                 variant="outline" 
+                                 className="border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 text-xs"
+                                 onClick={() => handleEditCertificate(index)}
+                               >
+                                 <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                 Edit
+                               </Button>
+                               <Button 
+                                 size="sm" 
+                                 variant="outline" 
+                                 className="border-red-300 text-red-700 hover:bg-red-50 text-xs"
+                                 onClick={() => handleDeleteCertificate(index)}
+                               >
+                                 <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                               </Button>
+                             </>
+                           )}
+                            {cert.verificationUrl && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 text-xs"
+                                onClick={() => window.open(cert.verificationUrl, '_blank')}
+                              >
+                                <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                <span className="hidden sm:inline">Verify</span>
+                                <span className="sm:hidden">View</span>
+                              </Button>
                             )}
+                            <Badge 
+                              className={`text-xs ${
+                                cert.expiryDate && new Date(cert.expiryDate) > new Date() 
+                                  ? 'bg-green-100 text-green-700 border-green-300' 
+                                  : cert.expiryDate 
+                                  ? 'bg-orange-100 text-orange-700 border-orange-300'
+                                  : 'bg-blue-100 text-blue-700 border-blue-300'
+                              }`}
+                            >
+                              {cert.expiryDate 
+                                ? (new Date(cert.expiryDate) > new Date() ? 'Active' : 'Expired')
+                                : 'No Expiry'
+                              }
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex gap-2 flex-shrink-0 self-start sm:self-auto">
-                          {cert.verificationUrl && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 text-xs"
-                              onClick={() => window.open(cert.verificationUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                              <span className="hidden sm:inline">Verify</span>
-                              <span className="sm:hidden">View</span>
-                            </Button>
-                          )}
-                          <Badge 
-                            className={`text-xs ${
-                              cert.expiryDate && new Date(cert.expiryDate) > new Date() 
-                                ? 'bg-green-100 text-green-700 border-green-300' 
-                                : cert.expiryDate 
-                                ? 'bg-orange-100 text-orange-700 border-orange-300'
-                                : 'bg-blue-100 text-blue-700 border-blue-300'
-                            }`}
-                          >
-                            {cert.expiryDate 
-                              ? (new Date(cert.expiryDate) > new Date() ? 'Active' : 'Expired')
-                              : 'No Expiry'
-                            }
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {isEditing && (
-                  <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
-                    <CardContent className="p-6 sm:p-8 text-center">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                        <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
-                      </div>
-                      <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Certificate</h3>
-                      <p className="text-sm text-prepzo-600">Showcase your professional certifications</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                 
+                 {isEditing && (
+                   <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowCertDialog(true)}>
+                     <CardContent className="p-6 sm:p-8 text-center">
+                       <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                         <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                       </div>
+                       <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Certificate</h3>
+                       <p className="text-sm text-prepzo-600">Showcase your professional certifications</p>
+                     </CardContent>
+                   </Card>
+                 )}
+                </div>
+              ) : (
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <Award className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Certificate</h3>
+                    <p className="text-sm text-prepzo-600 mb-4">Showcase your professional certifications</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowCertDialog(true)}
+                      className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200"
+                    >
+                      <PlusCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                      Add Certificate
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
+
+            {/* Certificate Dialog */}
+            <Dialog open={showCertDialog} onOpenChange={setShowCertDialog}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Award className="w-5 h-5 text-prepzo-600" />
+                    {editingCertIndex !== null ? 'Edit Certificate' : 'Add New Certificate'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-name">Certificate Name *</Label>
+                    <Input
+                      id="cert-name"
+                      value={newCertificate.name}
+                      onChange={(e) => setNewCertificate({...newCertificate, name: e.target.value})}
+                      placeholder="e.g. AWS Solutions Architect"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-issuer">Issuing Organization *</Label>
+                    <Input
+                      id="cert-issuer"
+                      value={newCertificate.issuer}
+                      onChange={(e) => setNewCertificate({...newCertificate, issuer: e.target.value})}
+                      placeholder="e.g. Amazon Web Services"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-date">Issue Date *</Label>
+                    <Input
+                      id="cert-date"
+                      type="date"
+                      value={newCertificate.issueDate}
+                      onChange={(e) => setNewCertificate({...newCertificate, issueDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-expiry">Expiry Date (Optional)</Label>
+                    <Input
+                      id="cert-expiry"
+                      type="date"
+                      value={newCertificate.expiryDate}
+                      onChange={(e) => setNewCertificate({...newCertificate, expiryDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-id">Credential ID (Optional)</Label>
+                    <Input
+                      id="cert-id"
+                      value={newCertificate.credentialId}
+                      onChange={(e) => setNewCertificate({...newCertificate, credentialId: e.target.value})}
+                      placeholder="e.g. ABC123XYZ"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="cert-url">Verification URL (Optional)</Label>
+                    <Input
+                      id="cert-url"
+                      value={newCertificate.verificationUrl}
+                      onChange={(e) => setNewCertificate({...newCertificate, verificationUrl: e.target.value})}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={resetCertificateForm}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveCertificate}
+                    disabled={!newCertificate.name || !newCertificate.issuer || !newCertificate.issueDate}
+                    className="bg-prepzo-600 hover:bg-prepzo-700"
+                  >
+                    {editingCertIndex !== null ? 'Update Certificate' : 'Add Certificate'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Experience Tab */}
             <TabsContent value="experience" className="space-y-6">
@@ -1094,9 +1426,26 @@ const Profile = () => {
                     </CardContent>
                   </Card>
                 ))}
+
+                {profile.projects.length === 0 && (
+                  isEditing ? (
+                    <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                      <CardContent className="p-6 sm:p-8 text-center">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                        </div>
+                        <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Project</h3>
+                        <p className="text-sm text-prepzo-600">Showcase your work and achievements</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <p className="text-prepzo-600 col-span-full text-center">No projects to display.</p>
+                  )
+                )}
               </div>
             </TabsContent>
 
+            {/* Resume Section */}
             <TabsContent value="resume" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Current Resume */}
@@ -1111,18 +1460,18 @@ const Profile = () => {
                     {profile.resume ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-4 bg-prepzo-50 rounded-lg border border-prepzo-200">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
                               <FileText className="w-5 h-5 text-red-600" />
                             </div>
-                            <div>
-                              <p className="font-medium text-prepzo-900">{profile.resume.fileName}</p>
+                            <div className="min-w-0">
+                              <p className="font-medium text-prepzo-900 truncate">{profile.resume.fileName}</p>
                               <p className="text-sm text-prepzo-600">
                                 Uploaded on {new Date(profile.resume.uploadedAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-shrink-0">
                             {profile.resume && (
                               <>
                                 <Button
@@ -1131,23 +1480,23 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                                  <Eye className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                              <Download className="w-4 h-4" />
-                            </Button>
+                                  <Download className="w-4 h-4" />
+                                </Button>
                               </>
                             )}
                           </div>
                         </div>
                         
                         {isEditing && (
-                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
+                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
                             <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
                             <p className="text-prepzo-700 font-medium">Upload New Resume</p>
                             <p className="text-sm text-prepzo-600">Drag and drop or click to browse</p>
@@ -1161,7 +1510,7 @@ const Profile = () => {
                         </div>
                         <p className="text-prepzo-700 font-medium mb-2">No resume uploaded</p>
                         <p className="text-sm text-prepzo-600 mb-4">Upload your current resume to get started</p>
-                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
+                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
                           <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
                           <p className="text-prepzo-700 font-medium">Upload Resume</p>
                           <p className="text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
@@ -1257,31 +1606,133 @@ const Profile = () => {
               </Card>
             </TabsContent>
 
+            {/* Achievements Tab */}
             <TabsContent value="achievements" className="space-y-6">
-              {profile.achievements.map((achievement, index) => (
-                <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                  <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-gradient-to-r from-prepzo-600 to-prepzo-700 rounded-full"></div>
-                          <CardTitle className="text-xl text-prepzo-900 font-bold">{achievement.title}</CardTitle>
+              {profile.achievements && profile.achievements.length > 0 ? (
+                profile.achievements.map((achievement, index) => (
+                  <Card key={index} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                    <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 bg-gradient-to-r from-prepzo-600 to-prepzo-700 rounded-full"></div>
+                            <CardTitle className="text-xl text-prepzo-900 font-bold">{achievement.title}</CardTitle>
+                          </div>
+                          <p className="text-prepzo-600 font-medium ml-6">{achievement.date}</p>
                         </div>
-                        <p className="text-prepzo-600 font-medium ml-6">{achievement.date}</p>
+                        {isEditing && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-prepzo-600 hover:bg-prepzo-100 rounded-full"
+                              onClick={() => handleEditAchievement(index)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="text-red-600 hover:bg-red-100 rounded-full"
+                              onClick={() => handleDeleteAchievement(index)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {isEditing && (
-                        <Button size="sm" variant="ghost" className="text-prepzo-600 hover:bg-prepzo-100 rounded-full">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      )}
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <p className="text-prepzo-700 leading-relaxed ml-6">{achievement.description}</p>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
                     </div>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <p className="text-prepzo-700 leading-relaxed ml-6">{achievement.description}</p>
+                    <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Achievement</h3>
+                    <p className="text-sm text-prepzo-600 mb-4">Highlight your accomplishments and milestones</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowAchievementDialog(true)}
+                      className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200"
+                    >
+                      <PlusCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                      Add Achievement
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
+              )}
+             
+             {isEditing && profile.achievements && profile.achievements.length > 0 && (
+               <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowAchievementDialog(true)}>
+                 <CardContent className="p-6 sm:p-8 text-center">
+                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                     <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                   </div>
+                   <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Achievement</h3>
+                   <p className="text-sm text-prepzo-600">Highlight your accomplishments and milestones</p>
+                 </CardContent>
+               </Card>
+             )}
             </TabsContent>
+
+            {/* Achievement Dialog */}
+            <Dialog open={showAchievementDialog} onOpenChange={setShowAchievementDialog}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-prepzo-600" />
+                    {editingAchievementIndex !== null ? 'Edit Achievement' : 'Add New Achievement'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="achievement-title">Achievement Title *</Label>
+                    <Input
+                      id="achievement-title"
+                      value={newAchievement.title}
+                      onChange={(e) => setNewAchievement({...newAchievement, title: e.target.value})}
+                      placeholder="e.g. Employee of the Month"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="achievement-date">Date *</Label>
+                    <Input
+                      id="achievement-date"
+                      type="date"
+                      value={newAchievement.date}
+                      onChange={(e) => setNewAchievement({...newAchievement, date: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="achievement-description">Description (Optional)</Label>
+                    <Textarea
+                      id="achievement-description"
+                      value={newAchievement.description}
+                      onChange={(e) => setNewAchievement({...newAchievement, description: e.target.value})}
+                      placeholder="Describe the achievement briefly"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={resetAchievementForm}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveAchievement}
+                    disabled={!newAchievement.title || !newAchievement.date}
+                    className="bg-prepzo-600 hover:bg-prepzo-700"
+                  >
+                    {editingAchievementIndex !== null ? 'Update Achievement' : 'Add Achievement'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </Tabs>
         </div>
       </div>
