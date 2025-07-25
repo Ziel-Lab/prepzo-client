@@ -82,9 +82,15 @@ interface ProfileData {
   }>;
   projects: Array<{
     name: string;
+    role: string;
     description: string;
+    impact: string;
+    timeline: string;
     technologies: string[];
-    link?: string;
+    links: {
+      demo: string;
+      repo: string;
+    };
   }>;
   achievements: Array<{
     title: string;
@@ -230,10 +236,19 @@ const Profile = () => {
   
   const [newProject, setNewProject] = useState({
     name: '',
+    role: '',
     description: '',
+    impact: '',
+    timeline: '',
     technologies: [] as string[],
-    link: ''
+    links: {
+      demo: '',
+      repo: ''
+    }
   });
+  
+  // Separate state for technologies input to avoid parsing issues
+  const [technologiesInput, setTechnologiesInput] = useState('');
   
   const [newSkill, setNewSkill] = useState({
     name: '',
@@ -300,10 +315,15 @@ const Profile = () => {
 
     return (rawProjects as any[]).map(p => ({
       name: p.name ?? 'Project',
+      role: p.role ?? '',
       description: p.description ?? '',
+      impact: p.impact ?? '',
+      timeline: p.timeline ?? '',
       technologies: Array.isArray(p.technologies) ? p.technologies : [],
-      // Use repo link first, fall back to demo link if available
-      link: p.links?.repo || p.links?.demo || undefined,
+      links: {
+        demo: p.links?.demo || '',
+        repo: p.links?.repo || ''
+      }
     }));
   };
 
@@ -646,6 +666,111 @@ const Profile = () => {
   const handleDeleteExperience = (index: number) => {
     const updatedExp = profile.experience.filter((_, i) => i !== index);
     setProfile({ ...profile, experience: updatedExp });
+  };
+
+  // Project handlers
+  const handleSaveProject = () => {
+    // Parse technologies from input string
+    const technologies = technologiesInput
+      .split(',')
+      .map(tech => tech.trim())
+      .filter(tech => tech.length > 0);
+    
+    const projectToSave = {
+      ...newProject,
+      technologies
+    };
+    
+    const updatedProjects = [...profile.projects];
+    if (editingProjectIndex !== null) {
+      updatedProjects[editingProjectIndex] = projectToSave;
+    } else {
+      updatedProjects.push(projectToSave);
+    }
+    
+    setProfile({ ...profile, projects: updatedProjects });
+    resetProjectForm();
+  };
+  
+  const resetProjectForm = () => {
+    setNewProject({
+      name: '',
+      role: '',
+      description: '',
+      impact: '',
+      timeline: '',
+      technologies: [],
+      links: {
+        demo: '',
+        repo: ''
+      }
+    });
+    setTechnologiesInput('');
+    setEditingProjectIndex(null);
+    setShowProjectDialog(false);
+  };
+  
+  const handleEditProject = (index: number) => {
+    const project = profile.projects[index];
+    setNewProject({
+      name: project.name,
+      role: project.role,
+      description: project.description,
+      impact: project.impact,
+      timeline: project.timeline,
+      technologies: [...project.technologies],
+      links: {
+        demo: project.links.demo,
+        repo: project.links.repo
+      }
+    });
+    setTechnologiesInput(project.technologies.join(', '));
+    setEditingProjectIndex(index);
+    setShowProjectDialog(true);
+  };
+  
+  const handleDeleteProject = (index: number) => {
+    const updatedProjects = profile.projects.filter((_, i) => i !== index);
+    setProfile({ ...profile, projects: updatedProjects });
+  };
+
+  // Skill handlers
+  const handleSaveSkill = () => {
+    const updatedSkills = [...profile.skills];
+    if (editingSkillIndex !== null) {
+      updatedSkills[editingSkillIndex] = newSkill;
+    } else {
+      updatedSkills.push(newSkill);
+    }
+    
+    setProfile({ ...profile, skills: updatedSkills });
+    resetSkillForm();
+  };
+  
+  const resetSkillForm = () => {
+    setNewSkill({
+      name: '',
+      level: 50,
+      category: 'General'
+    });
+    setEditingSkillIndex(null);
+    setShowSkillDialog(false);
+  };
+  
+  const handleEditSkill = (skillIndex: number) => {
+    const skill = profile.skills[skillIndex];
+    setNewSkill({
+      name: skill.name,
+      level: skill.level,
+      category: skill.category
+    });
+    setEditingSkillIndex(skillIndex);
+    setShowSkillDialog(true);
+  };
+  
+  const handleDeleteSkill = (skillIndex: number) => {
+    const updatedSkills = profile.skills.filter((_, i) => i !== skillIndex);
+    setProfile({ ...profile, skills: updatedSkills });
   };
 
   // ... existing code ...
@@ -1140,11 +1265,11 @@ const Profile = () => {
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-6">
               {Object.entries(
-                profile.skills.reduce((acc, skill) => {
+                profile.skills.reduce((acc, skill, skillIndex) => {
                   if (!acc[skill.category]) acc[skill.category] = [];
-                  acc[skill.category].push(skill);
+                  acc[skill.category].push({ ...skill, originalIndex: skillIndex });
                   return acc;
-                }, {} as Record<string, typeof profile.skills>)
+                }, {} as Record<string, Array<typeof profile.skills[0] & { originalIndex: number }>>)
               ).map(([category, skills]) => (
                 <Card key={category} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader>
@@ -1159,7 +1284,29 @@ const Profile = () => {
                         <div key={index} className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="font-semibold text-prepzo-900">{skill.name}</span>
-                            <span className="text-sm font-medium text-prepzo-600">{skill.level}%</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-prepzo-600">{skill.level}%</span>
+                              {isEditing && (
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="text-prepzo-600 hover:bg-prepzo-100 rounded-full w-8 h-8 p-0"
+                                    onClick={() => handleEditSkill(skill.originalIndex)}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="text-red-600 hover:bg-red-100 rounded-full w-8 h-8 p-0"
+                                    onClick={() => handleDeleteSkill(skill.originalIndex)}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <Progress value={skill.level} className="h-2" />
                         </div>
@@ -1168,6 +1315,40 @@ const Profile = () => {
                   </CardContent>
                 </Card>
               ))}
+              
+              {/* Add New Skill Card */}
+              {isEditing && (
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowSkillDialog(true)}>
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Skill</h3>
+                    <p className="text-sm text-prepzo-600">Showcase your technical and professional skills</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Add skill card when no skills exist */}
+              {profile.skills.length === 0 && (
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                  <CardContent className="p-6 sm:p-8 text-center">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add Your First Skill</h3>
+                    <p className="text-sm text-prepzo-600 mb-4">Showcase your technical and professional skills</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowSkillDialog(true)}
+                      className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200"
+                    >
+                      <PlusCircle className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                      Add Skill
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Certificates Tab */}
@@ -1289,85 +1470,7 @@ const Profile = () => {
               )}
             </TabsContent>
 
-            {/* Certificate Dialog */}
-            <Dialog open={showCertDialog} onOpenChange={setShowCertDialog}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-prepzo-600" />
-                    {editingCertIndex !== null ? 'Edit Certificate' : 'Add New Certificate'}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-name">Certificate Name *</Label>
-                    <Input
-                      id="cert-name"
-                      value={newCertificate.name}
-                      onChange={(e) => setNewCertificate({...newCertificate, name: e.target.value})}
-                      placeholder="e.g. AWS Solutions Architect"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-issuer">Issuing Organization *</Label>
-                    <Input
-                      id="cert-issuer"
-                      value={newCertificate.issuer}
-                      onChange={(e) => setNewCertificate({...newCertificate, issuer: e.target.value})}
-                      placeholder="e.g. Amazon Web Services"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-date">Issue Date *</Label>
-                    <Input
-                      id="cert-date"
-                      type="date"
-                      value={newCertificate.issueDate}
-                      onChange={(e) => setNewCertificate({...newCertificate, issueDate: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-expiry">Expiry Date (Optional)</Label>
-                    <Input
-                      id="cert-expiry"
-                      type="date"
-                      value={newCertificate.expiryDate}
-                      onChange={(e) => setNewCertificate({...newCertificate, expiryDate: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-id">Credential ID (Optional)</Label>
-                    <Input
-                      id="cert-id"
-                      value={newCertificate.credentialId}
-                      onChange={(e) => setNewCertificate({...newCertificate, credentialId: e.target.value})}
-                      placeholder="e.g. ABC123XYZ"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="cert-url">Verification URL (Optional)</Label>
-                    <Input
-                      id="cert-url"
-                      value={newCertificate.verificationUrl}
-                      onChange={(e) => setNewCertificate({...newCertificate, verificationUrl: e.target.value})}
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetCertificateForm}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveCertificate}
-                    disabled={!newCertificate.name || !newCertificate.issuer || !newCertificate.issueDate}
-                    className="bg-prepzo-600 hover:bg-prepzo-700"
-                  >
-                    {editingCertIndex !== null ? 'Update Certificate' : 'Add Certificate'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+
 
             {/* Experience Tab */}
             <TabsContent value="experience" className="space-y-6">
@@ -1432,39 +1535,7 @@ const Profile = () => {
               )}
             </TabsContent>
 
-            {/* Experience Dialog */}
-            <Dialog open={showExperienceDialog} onOpenChange={setShowExperienceDialog}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-prepzo-600" />
-                    {editingExperienceIndex !== null ? 'Edit Experience' : 'Add New Experience'}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="exp-role">Role / Title *</Label>
-                    <Input id="exp-role" value={newExperience.role} onChange={(e) => setNewExperience({...newExperience, role: e.target.value})} placeholder="e.g. Software Engineer" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="exp-company">Company *</Label>
-                    <Input id="exp-company" value={newExperience.company} onChange={(e) => setNewExperience({...newExperience, company: e.target.value})} placeholder="e.g. Prepzo" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="exp-duration">Duration *</Label>
-                    <Input id="exp-duration" value={newExperience.duration} onChange={(e) => setNewExperience({...newExperience, duration: e.target.value})} placeholder="e.g. Jan 2024 - Present" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="exp-desc">Description *</Label>
-                    <Textarea id="exp-desc" rows={3} value={newExperience.description} onChange={(e) => setNewExperience({...newExperience, description: e.target.value})} placeholder="Describe your responsibilities and achievements" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetExperienceForm}>Cancel</Button>
-                  <Button onClick={handleSaveExperience} disabled={!newExperience.role || !newExperience.company || !newExperience.duration || !newExperience.description} className="bg-prepzo-600 hover:bg-prepzo-700">{editingExperienceIndex !== null ? 'Update Experience' : 'Add Experience'}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+
 
             <TabsContent value="education" className="space-y-6">
               {profile.education.map((edu, index) => (
@@ -1493,31 +1564,60 @@ const Profile = () => {
               ))}
             </TabsContent>
 
+            {/* Projects Tab */}
             <TabsContent value="projects" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {profile.projects.map((project, index) => (
                   <Card key={index} className="group border-0 shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
                     <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
                       <div className="flex justify-between items-start">
-                        <CardTitle className="text-xl text-prepzo-900 font-bold group-hover:text-prepzo-700 transition-colors">
-                          {project.name}
-                        </CardTitle>
+                        <div className="space-y-2">
+                          <CardTitle className="text-xl text-prepzo-900 font-bold group-hover:text-prepzo-700 transition-colors">
+                            {project.name}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 text-prepzo-600">
+                            <span className="font-semibold">{project.role}</span>
+                            <span className="w-1 h-1 bg-prepzo-400 rounded-full"></span>
+                            <span className="text-sm">{project.timeline}</span>
+                          </div>
+                        </div>
                         <div className="flex gap-2">
-                          {project.link && (
+                          {(project.links.demo || project.links.repo) && (
                             <Button size="sm" variant="ghost" className="text-prepzo-600 hover:bg-prepzo-100 rounded-full">
-                              <ExternalLink className="w-4 h-4" />
+                             <Link href={project.links.demo} target="_blank"> <ExternalLink className="w-4 h-4" /></Link>
                             </Button>
                           )}
                           {isEditing && (
-                            <Button size="sm" variant="ghost" className="text-prepzo-600 hover:bg-prepzo-100 rounded-full">
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="text-prepzo-600 hover:bg-prepzo-100 rounded-full"
+                                onClick={() => handleEditProject(index)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="text-red-600 hover:bg-red-100 rounded-full"
+                                onClick={() => handleDeleteProject(index)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <p className="text-prepzo-700 leading-relaxed mb-6">{project.description}</p>
+                      <p className="text-prepzo-700 leading-relaxed mb-4">{project.description}</p>
+                      {project.impact && (
+                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-sm font-medium text-green-800 mb-1">Impact:</p>
+                          <p className="text-sm text-green-700">{project.impact}</p>
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         {project.technologies.map((tech, techIndex) => (
                           <Badge 
@@ -1535,7 +1635,7 @@ const Profile = () => {
 
                 {profile.projects.length === 0 && (
                   isEditing ? (
-                    <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer">
+                    <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowProjectDialog(true)}>
                       <CardContent className="p-6 sm:p-8 text-center">
                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
                           <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
@@ -1547,6 +1647,18 @@ const Profile = () => {
                   ) : (
                     <p className="text-prepzo-600 col-span-full text-center">No projects to display.</p>
                   )
+                )}
+                
+                {isEditing && profile.projects.length > 0 && (
+                  <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors cursor-pointer" onClick={() => setShowProjectDialog(true)}>
+                    <CardContent className="p-6 sm:p-8 text-center">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-200 rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-medium text-prepzo-700 mb-2">Add New Project</h3>
+                      <p className="text-sm text-prepzo-600">Showcase your work and achievements</p>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             </TabsContent>
@@ -1786,62 +1898,367 @@ const Profile = () => {
              )}
             </TabsContent>
 
-            {/* Achievement Dialog */}
-            <Dialog open={showAchievementDialog} onOpenChange={setShowAchievementDialog}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-prepzo-600" />
-                    {editingAchievementIndex !== null ? 'Edit Achievement' : 'Add New Achievement'}
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="achievement-title">Achievement Title *</Label>
-                    <Input
-                      id="achievement-title"
-                      value={newAchievement.title}
-                      onChange={(e) => setNewAchievement({...newAchievement, title: e.target.value})}
-                      placeholder="e.g. Employee of the Month"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="achievement-date">Date *</Label>
-                    <Input
-                      id="achievement-date"
-                      type="date"
-                      value={newAchievement.date}
-                      onChange={(e) => setNewAchievement({...newAchievement, date: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="achievement-description">Description (Optional)</Label>
-                    <Textarea
-                      id="achievement-description"
-                      value={newAchievement.description}
-                      onChange={(e) => setNewAchievement({...newAchievement, description: e.target.value})}
-                      placeholder="Describe the achievement briefly"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetAchievementForm}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveAchievement}
-                    disabled={!newAchievement.title || !newAchievement.date}
-                    className="bg-prepzo-600 hover:bg-prepzo-700"
-                  >
-                    {editingAchievementIndex !== null ? 'Update Achievement' : 'Add Achievement'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+
+
+
           </Tabs>
         </div>
       </div>
+
+      {/* Certificate Dialog */}
+      <Dialog open={showCertDialog} onOpenChange={setShowCertDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-prepzo-600" />
+              {editingCertIndex !== null ? 'Edit Certificate' : 'Add New Certificate'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="cert-name">Certificate Name *</Label>
+              <Input
+                id="cert-name"
+                value={newCertificate.name}
+                onChange={(e) => setNewCertificate({...newCertificate, name: e.target.value})}
+                placeholder="e.g. AWS Solutions Architect"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cert-issuer">Issuing Organization *</Label>
+              <Input
+                id="cert-issuer"
+                value={newCertificate.issuer}
+                onChange={(e) => setNewCertificate({...newCertificate, issuer: e.target.value})}
+                placeholder="e.g. Amazon Web Services"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cert-date">Issue Date *</Label>
+              <Input
+                id="cert-date"
+                type="date"
+                value={newCertificate.issueDate}
+                onChange={(e) => setNewCertificate({...newCertificate, issueDate: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cert-expiry">Expiry Date (Optional)</Label>
+              <Input
+                id="cert-expiry"
+                type="date"
+                value={newCertificate.expiryDate}
+                onChange={(e) => setNewCertificate({...newCertificate, expiryDate: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cert-id">Credential ID (Optional)</Label>
+              <Input
+                id="cert-id"
+                value={newCertificate.credentialId}
+                onChange={(e) => setNewCertificate({...newCertificate, credentialId: e.target.value})}
+                placeholder="e.g. ABC123XYZ"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cert-url">Verification URL (Optional)</Label>
+              <Input
+                id="cert-url"
+                value={newCertificate.verificationUrl}
+                onChange={(e) => setNewCertificate({...newCertificate, verificationUrl: e.target.value})}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetCertificateForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCertificate}
+              disabled={!newCertificate.name || !newCertificate.issuer || !newCertificate.issueDate}
+              className="bg-prepzo-600 hover:bg-prepzo-700"
+            >
+              {editingCertIndex !== null ? 'Update Certificate' : 'Add Certificate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Experience Dialog */}
+      <Dialog open={showExperienceDialog} onOpenChange={setShowExperienceDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-prepzo-600" />
+              {editingExperienceIndex !== null ? 'Edit Experience' : 'Add New Experience'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="exp-role">Role / Title *</Label>
+              <Input id="exp-role" value={newExperience.role} onChange={(e) => setNewExperience({...newExperience, role: e.target.value})} placeholder="e.g. Software Engineer" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="exp-company">Company *</Label>
+              <Input id="exp-company" value={newExperience.company} onChange={(e) => setNewExperience({...newExperience, company: e.target.value})} placeholder="e.g. Prepzo" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="exp-duration">Duration *</Label>
+              <Input id="exp-duration" value={newExperience.duration} onChange={(e) => setNewExperience({...newExperience, duration: e.target.value})} placeholder="e.g. Jan 2024 - Present" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="exp-desc">Description *</Label>
+              <Textarea id="exp-desc" rows={3} value={newExperience.description} onChange={(e) => setNewExperience({...newExperience, description: e.target.value})} placeholder="Describe your responsibilities and achievements" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetExperienceForm}>Cancel</Button>
+            <Button onClick={handleSaveExperience} disabled={!newExperience.role || !newExperience.company || !newExperience.duration || !newExperience.description} className="bg-prepzo-600 hover:bg-prepzo-700">{editingExperienceIndex !== null ? 'Update Experience' : 'Add Experience'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Dialog */}
+      <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code className="w-5 h-5 text-prepzo-600" />
+              {editingProjectIndex !== null ? 'Edit Project' : 'Add New Project'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="project-name">Project Name *</Label>
+              <Input
+                id="project-name"
+                value={newProject.name}
+                onChange={(e) => setNewProject({...newProject, name: e.target.value})}
+                placeholder="e.g. Prepzo.ai"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-role">Your Role *</Label>
+              <Input
+                id="project-role"
+                value={newProject.role}
+                onChange={(e) => setNewProject({...newProject, role: e.target.value})}
+                placeholder="e.g. Lead Engineer"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-timeline">Timeline *</Label>
+              <Input
+                id="project-timeline"
+                value={newProject.timeline}
+                onChange={(e) => setNewProject({...newProject, timeline: e.target.value})}
+                placeholder="e.g. Jan 2024 - Present"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-description">Description *</Label>
+              <Textarea
+                id="project-description"
+                value={newProject.description}
+                onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                placeholder="Describe the project and your contributions"
+                rows={3}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-impact">Impact (Optional)</Label>
+              <Textarea
+                id="project-impact"
+                value={newProject.impact}
+                onChange={(e) => setNewProject({...newProject, impact: e.target.value})}
+                placeholder="e.g. Achieved 30% reduction in page load time"
+                rows={2}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-technologies">Technologies (comma-separated)</Label>
+              <Input
+                id="project-technologies"
+                value={technologiesInput}
+                onChange={(e) => setTechnologiesInput(e.target.value)}
+                placeholder="e.g. React, Node.js, PostgreSQL"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="project-demo">Demo URL (Optional)</Label>
+                <Input
+                  id="project-demo"
+                  value={newProject.links.demo}
+                  onChange={(e) => setNewProject({
+                    ...newProject, 
+                    links: {...newProject.links, demo: e.target.value}
+                  })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="project-repo">Repository URL (Optional)</Label>
+                <Input
+                  id="project-repo"
+                  value={newProject.links.repo}
+                  onChange={(e) => setNewProject({
+                    ...newProject, 
+                    links: {...newProject.links, repo: e.target.value}
+                  })}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetProjectForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveProject}
+              disabled={!newProject.name || !newProject.role || !newProject.description || !newProject.timeline}
+              className="bg-prepzo-600 hover:bg-prepzo-700"
+            >
+              {editingProjectIndex !== null ? 'Update Project' : 'Add Project'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Achievement Dialog */}
+      <Dialog open={showAchievementDialog} onOpenChange={setShowAchievementDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-prepzo-600" />
+              {editingAchievementIndex !== null ? 'Edit Achievement' : 'Add New Achievement'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="achievement-title">Achievement Title *</Label>
+              <Input
+                id="achievement-title"
+                value={newAchievement.title}
+                onChange={(e) => setNewAchievement({...newAchievement, title: e.target.value})}
+                placeholder="e.g. Employee of the Month"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="achievement-date">Date *</Label>
+              <Input
+                id="achievement-date"
+                type="date"
+                value={newAchievement.date}
+                onChange={(e) => setNewAchievement({...newAchievement, date: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="achievement-description">Description (Optional)</Label>
+              <Textarea
+                id="achievement-description"
+                value={newAchievement.description}
+                onChange={(e) => setNewAchievement({...newAchievement, description: e.target.value})}
+                placeholder="Describe the achievement briefly"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetAchievementForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAchievement}
+              disabled={!newAchievement.title || !newAchievement.date}
+              className="bg-prepzo-600 hover:bg-prepzo-700"
+            >
+              {editingAchievementIndex !== null ? 'Update Achievement' : 'Add Achievement'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Skills Dialog */}
+      <Dialog open={showSkillDialog} onOpenChange={setShowSkillDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-prepzo-600" />
+              {editingSkillIndex !== null ? 'Edit Skill' : 'Add New Skill'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="skill-name">Skill Name *</Label>
+              <Input
+                id="skill-name"
+                value={newSkill.name}
+                onChange={(e) => setNewSkill({...newSkill, name: e.target.value})}
+                placeholder="e.g. React, Python, Leadership"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="skill-category">Category *</Label>
+              <Select value={newSkill.category} onValueChange={(value) => setNewSkill({...newSkill, category: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Programming">Programming</SelectItem>
+                  <SelectItem value="Frontend">Frontend</SelectItem>
+                  <SelectItem value="Backend">Backend</SelectItem>
+                  <SelectItem value="Database">Database</SelectItem>
+                  <SelectItem value="DevOps">DevOps</SelectItem>
+                  <SelectItem value="Design">Design</SelectItem>
+                  <SelectItem value="Mobile">Mobile</SelectItem>
+                  <SelectItem value="Cloud">Cloud</SelectItem>
+                  <SelectItem value="AI/ML">AI/ML</SelectItem>
+                  <SelectItem value="Soft Skills">Soft Skills</SelectItem>
+                  <SelectItem value="Tools">Tools</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="skill-level">Proficiency Level: {newSkill.level}%</Label>
+              <div className="px-3">
+                                 <input
+                   type="range"
+                   id="skill-level"
+                   min="0"
+                   max="100"
+                   value={newSkill.level}
+                   onChange={(e) => setNewSkill({...newSkill, level: parseInt(e.target.value)})}
+                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                   style={{
+                     background: `linear-gradient(to right, #10b981 0%, #10b981 ${newSkill.level}%, #e5e7eb ${newSkill.level}%, #e5e7eb 100%)`
+                   }}
+                 />
+                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>Beginner</span>
+                  <span>Intermediate</span>
+                  <span>Expert</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetSkillForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveSkill}
+              disabled={!newSkill.name || !newSkill.category}
+              className="bg-prepzo-600 hover:bg-prepzo-700"
+            >
+              {editingSkillIndex !== null ? 'Update Skill' : 'Add Skill'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* LinkedIn Upload Modal */}
       <LinkedInUpload
