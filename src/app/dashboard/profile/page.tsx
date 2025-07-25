@@ -882,13 +882,15 @@ const Profile = () => {
                                 
                                 try {
                                   const formData = new FormData();
-                                  formData.append('avatar', file);
+                                  formData.append('file', file); // Backend expects 'file' as the field name
                                   
                                   const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/upload-avatar`, {
                                     method: 'POST',
-                                    headers: {
+                                    headers: new Headers({
                                       'Authorization': `Bearer ${session.access_token}`,
-                                    },
+                                      // Don't set Content-Type header - browser will set it automatically with boundary
+                                    }),
+                                    credentials: 'include', // Include cookies if needed
                                     body: formData,
                                   });
                                   
