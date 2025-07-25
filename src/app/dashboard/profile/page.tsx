@@ -854,7 +854,7 @@ const Profile = () => {
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                 </svg>
-                <span className="hidden md:inline">LinkedIn</span>
+                {/* <span className="hidden md:inline"></span> */}
                 <span className="md:hidden">LI</span>
               </Button>
               <Button 
@@ -1802,31 +1802,31 @@ const Profile = () => {
 
             {/* Resume Section */}
             <TabsContent value="resume" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {/* Current Resume */}
                 <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                    <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                       Current Resume
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-4 sm:pt-6">
                     {profile.resume ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-prepzo-50 rounded-lg border border-prepzo-200">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-5 h-5 text-red-600" />
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="flex items-center justify-between p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-prepzo-900 truncate">{profile.resume.fileName}</p>
-                              <p className="text-sm text-prepzo-600">
+                              <p className="text-sm sm:text-base font-medium text-prepzo-900 truncate">{profile.resume.fileName}</p>
+                              <p className="text-xs sm:text-sm text-prepzo-600">
                                 Uploaded on {new Date(profile.resume.uploadedAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-                          <div className="flex gap-2 flex-shrink-0">
+                          <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                             {profile.resume && (
                               <>
                                 <Button
@@ -1835,7 +1835,7 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1843,7 +1843,7 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Download className="w-4 h-4" />
+                                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </Button>
                               </>
                             )}
@@ -1851,24 +1851,24 @@ const Profile = () => {
                         </div>
                         
                         {isEditing && (
-                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
-                            <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
-                            <p className="text-prepzo-700 font-medium">Upload New Resume</p>
-                            <p className="text-sm text-prepzo-600">Drag and drop or click to browse</p>
+                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-3 sm:p-4 lg:p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
+                            <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto mb-2" />
+                            <p className="text-sm sm:text-base text-prepzo-700 font-medium">Upload New Resume</p>
+                            <p className="text-xs sm:text-sm text-prepzo-600">Drag and drop or click to browse</p>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <FileText className="w-8 h-8 text-prepzo-600" />
+                      <div className="text-center py-6 sm:py-8">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
                         </div>
-                        <p className="text-prepzo-700 font-medium mb-2">No resume uploaded</p>
-                        <p className="text-sm text-prepzo-600 mb-4">Upload your current resume to get started</p>
-                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
-                          <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
-                          <p className="text-prepzo-700 font-medium">Upload Resume</p>
-                          <p className="text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
+                        <p className="text-sm sm:text-base text-prepzo-700 font-medium mb-2">No resume uploaded</p>
+                        <p className="text-xs sm:text-sm text-prepzo-600 mb-3 sm:mb-4">Upload your current resume to get started</p>
+                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-3 sm:p-4 lg:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
+                          <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto mb-2" />
+                          <p className="text-sm sm:text-base text-prepzo-700 font-medium">Upload Resume</p>
+                          <p className="text-xs sm:text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
                         </div>
                       </div>
                     )}
@@ -1878,46 +1878,48 @@ const Profile = () => {
                 {/* Generate Resume */}
                 <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                      <Download className="w-5 h-5" />
+                    <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                       Generate Resume
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-6">
+                  <CardContent className="pt-4 sm:pt-6">
+                    <div className="space-y-4 sm:space-y-6">
                       <div className="text-center">
-                        <div className="w-16 h-16 bg-gradient-to-br from-prepzo-100 to-prepzo-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <FileText className="w-8 h-8 text-prepzo-700" />
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-prepzo-100 to-prepzo-200 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-700" />
                         </div>
-                        <p className="text-prepzo-700 font-medium mb-2">Create Professional Resume</p>
-                        <p className="text-sm text-prepzo-600 mb-6">
+                        <p className="text-sm sm:text-base text-prepzo-700 font-medium mb-2">Create Professional Resume</p>
+                        <p className="text-xs sm:text-sm text-prepzo-600 mb-4 sm:mb-6">
                           Generate a beautifully formatted resume using your profile information
                         </p>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
-                            <div className="w-8 h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <span className="text-prepzo-700 font-bold text-sm">CV</span>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                          <div className="p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
+                              <span className="text-prepzo-700 font-bold text-xs sm:text-sm">CV</span>
                             </div>
-                            <p className="text-sm text-prepzo-700 font-medium">Classic Format</p>
+                            <p className="text-xs sm:text-sm text-prepzo-700 font-medium">Classic Format</p>
                           </div>
-                          <div className="p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
-                            <div className="w-8 h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <span className="text-prepzo-700 font-bold text-sm">MD</span>
+                          <div className="p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
+                              <span className="text-prepzo-700 font-bold text-xs sm:text-sm">MD</span>
                             </div>
-                            <p className="text-sm text-prepzo-700 font-medium">Modern Design</p>
+                            <p className="text-xs sm:text-sm text-prepzo-700 font-medium">Modern Design</p>
                           </div>
                         </div>
 
-                        <Button className="w-full bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200">
-                          <Download className="w-4 h-4 mr-2" />
+                        <Link href="/dashboard/tools/resume-generator" target="_blank">
+                         <Button className=" mt-10 w-full bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                           Generate & Download Resume
                         </Button>
+                         </Link>
 
                         <div className="text-center">
-                          <p className="text-xs text-prepzo-600">
+                          <p className="text-xs sm:text-sm text-prepzo-600">
                             Your resume will include all sections from your profile
                           </p>
                         </div>
@@ -1930,14 +1932,14 @@ const Profile = () => {
               {/* Resume Preview */}
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                  <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                    <Eye className="w-5 h-5" />
+                  <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                     Resume Preview
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   {profile.resume?.url ? (
-                    <div className="rounded-lg overflow-hidden border border-prepzo-200 h-[600px]">
+                    <div className="rounded-lg overflow-hidden border border-prepzo-200 h-[300px] sm:h-[400px] lg:h-[600px]">
                       <iframe
                         src={profile.resume.url}
                         title="Resume preview"
@@ -1945,13 +1947,13 @@ const Profile = () => {
                       />
                     </div>
                   ) : (
-                  <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
+                  <div className="bg-gray-50 rounded-lg p-4 sm:p-6 min-h-48 sm:min-h-64 lg:min-h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-gray-500" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" />
                       </div>
-                      <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm sm:text-base text-gray-600 font-medium mb-2">Resume Preview</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
                           {isEditing ? 'Upload a resume file to preview it here' : 'Generate or upload a resume to see it here'}
                       </p>
                     </div>
