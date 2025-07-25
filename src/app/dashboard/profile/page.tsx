@@ -188,6 +188,21 @@ interface LinkedInExtractedData {
     expiryDate?: string;
     credentialId?: string;
   }>;
+  // Newly added projects extracted from LinkedIn PDF
+  projects?: Array<{
+    name: string;
+    role: string;
+    description: string;
+    impact?: string;
+    timeline: string;
+    technologies: string[];
+    links: {
+      demo: string;
+      repo: string;
+    };
+  }>;
+  // Optional resume URL extracted (e.g., generated CV link)
+  resume_url?: string;
 }
 
 const Profile = () => {
@@ -533,6 +548,16 @@ const Profile = () => {
       ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: linkedInData.experience }),
       ...(linkedInData.education && linkedInData.education.length > 0 && { education: linkedInData.education }),
       ...(linkedInData.certificates && linkedInData.certificates.length > 0 && { certificates: linkedInData.certificates }),
+      // Apply projects data if present
+      ...(linkedInData.projects && linkedInData.projects.length > 0 && { projects: normaliseProjects(linkedInData.projects) }),
+      // Apply resume if present
+      ...(linkedInData.resume_url && {
+        resume: {
+          url: linkedInData.resume_url,
+          fileName: linkedInData.resume_url.split('/')?.pop() || 'resume.pdf',
+          uploadedAt: new Date().toISOString(),
+        },
+      }),
     }));
 
     setIsEditing(true);
