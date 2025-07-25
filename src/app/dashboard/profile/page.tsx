@@ -878,7 +878,33 @@ const Profile = () => {
                               className="hidden"
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
-                                if (!file || !session?.access_token) return;
+                                if (!file) return;
+
+                                // Client-side validation: only allow PNG, JPG, JPEG, GIF
+                                const allowedTypes = [
+                                  'image/png',
+                                  'image/jpeg',
+                                  'image/jpg',
+                                  'image/gif',
+                                ];
+
+                                if (!allowedTypes.includes(file.type)) {
+                                  toast({
+                                    title: 'Invalid file type',
+                                    description: 'Only PNG, JPG, JPEG, or GIF images are allowed.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
+
+                                if (!session?.access_token) {
+                                  toast({
+                                    title: 'Not authenticated',
+                                    description: 'Please sign in again to upload an avatar.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
                                 
                                 try {
                                   const formData = new FormData();
@@ -894,7 +920,10 @@ const Profile = () => {
                                     body: formData,
                                   });
                                   
-                                  if (!response.ok) throw new Error('Failed to upload avatar');
+                                  if (!response.ok) {
+                                    const errJson = await response.json().catch(() => ({}));
+                                    throw new Error(errJson.error || errJson.message || 'Failed to upload avatar');
+                                  }
                                   
                                   const data = await response.json();
                                   setProfile(prev => ({
