@@ -71,7 +71,8 @@ interface ProfileData {
   experience: Array<{
     company: string;
     role: string;
-    duration: string;
+    duration?: string;
+    timeline?: string; // optional timeline alias
     description: string;
   }>;
   education: Array<{
@@ -342,6 +343,36 @@ const Profile = () => {
     }));
   };
 
+  /**
+   * Normalise raw experience objects (from backend / PDF extractor) into
+   * the shape expected by the UI.
+   */
+  const normaliseExperience = (rawExp: unknown): ProfileData['experience'] => {
+    if (!Array.isArray(rawExp)) return [];
+
+    return (rawExp as any[]).map((e) => {
+      // Build a human-readable duration string
+      let finalDuration = e.duration as string | undefined;
+      if (!finalDuration) {
+        if (e.start_date) {
+          const endPart = e.end_date && e.end_date !== 'Present' ? e.end_date : 'Present';
+          finalDuration = `${e.start_date} - ${endPart}`;
+        }
+      }
+
+      // Combine responsibilities array into description if description missing
+      const desc = e.description ?? (Array.isArray(e.responsibilities) ? e.responsibilities.join('. ') : '');
+
+      return {
+        company: e.company ?? '',
+        role: e.role ?? '',
+        duration: finalDuration ?? '',
+        timeline: finalDuration ?? '',
+        description: desc,
+      };
+    });
+  };
+
   // Convert backend response shape into our local ProfileData partial
   const mapRemoteProfile = (raw: any): Partial<ProfileData> => {
     if (!raw) return {};
@@ -382,7 +413,7 @@ const Profile = () => {
       website,
       avatar: avatar_url || avatar || '',
       skills: normaliseSkills(skills),
-      experience: Array.isArray(experience) ? experience : [],
+      experience: normaliseExperience(experience),
       projects: normaliseProjects(projects),
       certificates: Array.isArray(certifications) ? certifications : [],
       resume: resume_url
@@ -545,7 +576,7 @@ const Profile = () => {
       ...(linkedInData.linkedin && { linkedin: linkedInData.linkedin }),
       ...(linkedInData.website && { website: linkedInData.website }),
       ...(linkedInData.skills && linkedInData.skills.length > 0 && { skills: normaliseSkills(linkedInData.skills) }),
-      ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: linkedInData.experience }),
+      ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: normaliseExperience(linkedInData.experience) }),
       ...(linkedInData.education && linkedInData.education.length > 0 && { education: linkedInData.education }),
       ...(linkedInData.certificates && linkedInData.certificates.length > 0 && { certificates: linkedInData.certificates }),
       // Apply projects data if present
@@ -681,7 +712,7 @@ const Profile = () => {
     setNewExperience({
       company: exp.company,
       role: exp.role,
-      duration: exp.duration,
+      duration: exp.duration || (exp as any).timeline || '',
       description: exp.description,
     });
     setEditingExperienceIndex(index);
@@ -1591,7 +1622,7 @@ const Profile = () => {
                             <div className="flex items-center gap-2 text-prepzo-600">
                               <span className="font-semibold">{exp.company}</span>
                               <span className="w-1 h-1 bg-prepzo-400 rounded-full"></span>
-                              <span className="text-sm">{exp.duration}</span>
+                              <span className="text-sm">{exp.duration || exp.timeline}</span>
                             </div>
                           </div>
                           {isEditing && (
