@@ -87,6 +87,9 @@ interface LinkedInExtractedData {
 
   // Optional resume URL if backend generates one
   resume_url?: string;
+
+  // Optional avatar/profile picture URL
+  avatar_url?: string;
 }
 
 interface LinkedInUploadProps {
@@ -243,6 +246,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           achievements,
           projects,
           resume_url,
+          avatar_url,
         } = raw;
 
         return {
@@ -261,6 +265,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           achievements: Array.isArray(achievements) ? achievements : [],
           projects: Array.isArray(projects) ? projects : [],
           resume_url,
+          avatar_url,
         };
       };
 

@@ -865,6 +865,56 @@ const Profile = () => {
                         <AvatarFallback className="text-lg sm:text-xl lg:text-2xl bg-gradient-to-br from-prepzo-200 to-prepzo-300 text-prepzo-800 font-bold">
                           {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : ''}
                         </AvatarFallback>
+                        {isEditing && (
+                          <div 
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => document.getElementById('avatar-upload')?.click()}
+                          >
+                            <Upload className="w-6 h-6 text-white" />
+                            <input
+                              id="avatar-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file || !session?.access_token) return;
+                                
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('avatar', file);
+                                  
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/upload-avatar`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Authorization': `Bearer ${session.access_token}`,
+                                    },
+                                    body: formData,
+                                  });
+                                  
+                                  if (!response.ok) throw new Error('Failed to upload avatar');
+                                  
+                                  const data = await response.json();
+                                  setProfile(prev => ({
+                                    ...prev,
+                                    avatar: data.avatar_url,
+                                  }));
+                                  
+                                  toast({
+                                    title: "Avatar Updated",
+                                    description: "Your profile picture has been updated successfully",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Upload Failed",
+                                    description: error instanceof Error ? error.message : "Failed to upload avatar",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
                       </Avatar>
                       <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
                     </div>
