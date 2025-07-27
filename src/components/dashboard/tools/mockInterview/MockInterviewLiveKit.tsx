@@ -44,14 +44,16 @@ interface MockInterviewLiveKitProps {
     duration: number;
   };
   onEndInterview: () => void;
+  connectionDetails?: MockInterviewConnectionDetails;
 }
 
 const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({ 
   sessionConfig, 
-  onEndInterview 
+  onEndInterview,
+  connectionDetails: providedConnectionDetails 
 }) => {
   const router = useRouter();
-  const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(undefined);
+  const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
 
   // Simple function to fetch connection details without error handling
@@ -75,10 +77,12 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
     }
   }, [sessionConfig]);
 
-  // Get connection details on mount
+  // Get connection details on mount (only if not provided)
   useEffect(() => {
-    onConnectButtonClicked();
-  }, [onConnectButtonClicked]);
+    if (!providedConnectionDetails) {
+      onConnectButtonClicked();
+    }
+  }, [onConnectButtonClicked, providedConnectionDetails]);
 
   const handleInterviewEnd = () => {
     onEndInterview();

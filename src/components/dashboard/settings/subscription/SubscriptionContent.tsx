@@ -112,7 +112,6 @@ const SubscriptionContent = () => {
           ? "https://buy.stripe.com/dRm7sKazu1bK6sK7WW00000"  // Pro plan
           : "https://buy.stripe.com/4gM9ASgXSaMk3gy0uu00001"; // Premium plan
       
-      console.log(`🔗 Using ${plan} payment link:`, paymentLink);
 
       if (!paymentLink) {
         throw new Error(

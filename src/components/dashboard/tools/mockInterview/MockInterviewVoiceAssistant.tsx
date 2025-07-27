@@ -5,6 +5,7 @@ import {
   useTrackTranscription,
   useLocalParticipant,
   useRemoteParticipants,
+  useRoomContext,
   AgentState,
   AudioTrack,
   ParticipantTile,
@@ -17,6 +18,7 @@ import { ArrowLeft, Camera, Mic, MicOff } from "lucide-react";
 import AnimatedOrb from "@/components/dashboard/tools/mockInterview/sessions/AnimatedOrb";
 import LiveTranscript from "@/components/dashboard/tools/mockInterview/sessions/LiveTranscript";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
+import { useToast } from "@/components/ui/use-toast";
 
 // Custom hook to safely use voice assistant with enhanced error handling
 function useSafeVoiceAssistant() {
@@ -51,6 +53,26 @@ export interface InterviewTranscriptionMessage {
   timestamp: Date;
 }
 
+// Helper function to format interview type for display
+const formatInterviewType = (type: string) => {
+  switch (type) {
+    case 'behavioral':
+      return 'Behavioral';
+    case 'technical':
+      return 'Technical';
+    case 'system_design':
+      return 'System Design';
+    case 'case_study':
+      return 'Case Study';
+    case 'leadership':
+      return 'Leadership';
+    case 'sales':
+      return 'Sales';
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+};
+
 // Component for when LiveKit is connected
 const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({ 
   sessionConfig,
@@ -60,14 +82,18 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const remoteParticipants = useRemoteParticipants();
   const localParticipant = useLocalParticipant();
+  const room = useRoomContext();
+  const { toast } = useToast();
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [messages, setMessages] = useState<InterviewTranscriptionMessage[]>([]);
   const [sessionStartTime] = useState(new Date());
-  const [timer, setTimer] = useState("0:00");
+  const [timer, setTimer] = useState("20:00");
+  const [timeRemaining, setTimeRemaining] = useState(1200); // Always 20 minutes (1200 seconds)
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [lastAgentMessage, setLastAgentMessage] = useState<string>("");
   const [agentSpeakingStartTime, setAgentSpeakingStartTime] = useState<number | null>(null);
   const [consecutiveRepeats, setConsecutiveRepeats] = useState(0);
+  const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
   
   // Refs for audio feedback prevention
   const lastAgentTranscriptionRef = useRef<string>("");
@@ -81,18 +107,88 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const MAX_CONSECUTIVE_REPEATS = 2;
   const RESPONSE_THROTTLE_MS = 1500; // Minimum time between agent responses
 
-  // Timer effect with 2 second delay
+  // Force disconnect from LiveKit room
+  const forceDisconnect = useCallback(async () => {
+    try {
+      console.log('Forcing LiveKit room disconnection...');
+      if (room) {
+        await room.disconnect();
+        console.log('LiveKit room disconnected successfully');
+      }
+    } catch (error) {
+      console.error('Error disconnecting from LiveKit room:', error);
+    } finally {
+      // Always call onEndInterview as fallback
+      onEndInterview();
+    }
+  }, [room, onEndInterview]);
+
+  // Show warning notification
+  const showWarning = useCallback((timeRemaining: number) => {
+    if (warningsShown.has(timeRemaining)) return;
+    
+    setWarningsShown(prev => new Set(prev).add(timeRemaining));
+    
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    
+    let message = '';
+    let variant: "default" | "destructive" = "default";
+    
+    if (timeRemaining === 300) { // 5 minutes
+      message = '5 minutes remaining in your interview';
+      variant = "default";
+    } else if (timeRemaining === 120) { // 2 minutes  
+      message = '2 minutes remaining in your interview';
+      variant = "default";
+    } else if (timeRemaining === 30) { // 30 seconds
+      message = '30 seconds remaining - interview will end soon';
+      variant = "destructive";
+    }
+    
+    if (message) {
+      toast({
+        title: "Time Warning",
+        description: message,
+        variant: variant,
+        duration: 4000,
+      });
+    }
+  }, [warningsShown, toast]);
+
+  // Countdown timer effect with 2 second delay - ALWAYS 20 MINUTES
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    // Start timer after 2 second delay
+    // Start countdown timer after 2 second delay
     const delayTimeout = setTimeout(() => {
       interval = setInterval(() => {
-        const now = new Date();
-        const diff = Math.floor((now.getTime() - sessionStartTime.getTime()) / 1000) - 2; // Subtract 2 seconds delay
-        const minutes = Math.floor(Math.max(0, diff) / 60);
-        const seconds = Math.max(0, diff) % 60;
-        setTimer(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+        setTimeRemaining((prevTime) => {
+          const newTime = prevTime - 1;
+          
+          // Format time display
+          const minutes = Math.floor(Math.max(0, newTime) / 60);
+          const seconds = Math.max(0, newTime) % 60;
+          setTimer(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+          
+          // Show progressive warnings
+          if (newTime === 300) { // 5 minutes remaining
+            showWarning(300);
+          } else if (newTime === 120) { // 2 minutes remaining  
+            showWarning(120);
+          } else if (newTime === 30) { // 30 seconds remaining
+            showWarning(30);
+          }
+          
+          // Force disconnect when time reaches 0
+          if (newTime <= 0) {
+            console.log('Interview time expired - forcing disconnection');
+            forceDisconnect();
+            return 0;
+          }
+          
+          return newTime;
+        });
       }, 1000);
     }, 2000);
 
@@ -100,7 +196,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       clearTimeout(delayTimeout);
       if (interval) clearInterval(interval);
     };
-  }, [sessionStartTime]);
+  }, [sessionStartTime, forceDisconnect, showWarning]);
 
   // Enhanced agent transcription handling with better grouping
   useEffect(() => {
@@ -373,8 +469,12 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
               <AnimatedOrb isSpeaking={isSpeaking} />
             </div>
 
-            {/* Timer */}
-            <div className="text-gray-600 text-xl mb-6 font-mono font-semibold">
+            {/* Timer with visual warnings */}
+            <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
+              timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
+              timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
+              'text-gray-600' // Normal gray
+            }`}>
               {timer}
             </div>
           </div>
@@ -461,23 +561,77 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   sessionConfig,
   onEndInterview
 }) => {
+  const { toast } = useToast();
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
-  const [timer, setTimer] = useState("0:00");
+  const [timer, setTimer] = useState("20:00");
+  const [timeRemaining, setTimeRemaining] = useState(1200); // Always 20 minutes (1200 seconds)
   const [sessionStartTime] = useState(new Date());
+  const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
 
-  // Timer effect with 2 second delay
+  // Show warning notification
+  const showWarning = useCallback((timeRemaining: number) => {
+    if (warningsShown.has(timeRemaining)) return;
+    
+    setWarningsShown(prev => new Set(prev).add(timeRemaining));
+    
+    let message = '';
+    let variant: "default" | "destructive" = "default";
+    
+    if (timeRemaining === 300) { // 5 minutes
+      message = '5 minutes remaining in your interview';
+      variant = "default";
+    } else if (timeRemaining === 120) { // 2 minutes  
+      message = '2 minutes remaining in your interview';
+      variant = "default";
+    } else if (timeRemaining === 30) { // 30 seconds
+      message = '30 seconds remaining - interview will end soon';
+      variant = "destructive";
+    }
+    
+    if (message) {
+      toast({
+        title: "Time Warning",
+        description: message,
+        variant: variant,
+        duration: 4000,
+      });
+    }
+  }, [warningsShown, toast]);
+
+  // Countdown timer effect with 2 second delay - ALWAYS 20 MINUTES
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    // Start timer after 2 second delay
+    // Start countdown timer after 2 second delay
     const delayTimeout = setTimeout(() => {
       interval = setInterval(() => {
-        const now = new Date();
-        const diff = Math.floor((now.getTime() - sessionStartTime.getTime()) / 1000) - 2; // Subtract 2 seconds delay
-        const minutes = Math.floor(Math.max(0, diff) / 60);
-        const seconds = Math.max(0, diff) % 60;
-        setTimer(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+        setTimeRemaining((prevTime) => {
+          const newTime = prevTime - 1;
+          
+          // Format time display
+          const minutes = Math.floor(Math.max(0, newTime) / 60);
+          const seconds = Math.max(0, newTime) % 60;
+          setTimer(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+          
+          // Show progressive warnings
+          if (newTime === 300) { // 5 minutes remaining
+            showWarning(300);
+          } else if (newTime === 120) { // 2 minutes remaining  
+            showWarning(120);
+          } else if (newTime === 30) { // 30 seconds remaining
+            showWarning(30);
+          }
+          
+          // Auto-end interview when time reaches 0
+          if (newTime <= 0) {
+            console.log('Interview time expired - ending session');
+            onEndInterview();
+            return 0;
+          }
+          
+          return newTime;
+        });
       }, 1000);
     }, 2000);
 
@@ -485,7 +639,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
       clearTimeout(delayTimeout);
       if (interval) clearInterval(interval);
     };
-  }, [sessionStartTime]);
+  }, [sessionStartTime, onEndInterview, showWarning]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 relative overflow-hidden">
@@ -500,7 +654,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
           <span className="text-sm font-medium">Exit Interview</span>
         </button>
         <div className="text-sm font-semibold text-emerald-600">
-          {sessionConfig.interviewType} Interview - {sessionConfig.position}
+          {formatInterviewType(sessionConfig.interviewType)} Interview - {sessionConfig.position}
         </div>
       </header>
 
@@ -516,7 +670,11 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
               <AnimatedOrb isSpeaking={false} />
             </div>
 
-            <div className="text-gray-600 text-xl mb-6 font-mono font-semibold">
+            <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
+              timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
+              timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
+              'text-gray-600' // Normal gray
+            }`}>
               {timer}
             </div>
           </div>
