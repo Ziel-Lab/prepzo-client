@@ -1059,51 +1059,62 @@ const Profile = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      {/* Location - Always show if has data or editing */}
+                      {(profile.location || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.location} 
+                              onChange={(e) => setProfile({...profile, location: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Location"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.location}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.location} 
-                            onChange={(e) => setProfile({...profile, location: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Location"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.location}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      )}
+                      
+                      {/* Email - Always show if has data or editing */}
+                      {(profile.email || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.email} 
+                              onChange={(e) => setProfile({...profile, email: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Email"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.email}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.email} 
-                            onChange={(e) => setProfile({...profile, email: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Email"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.email}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 md:col-span-2 lg:col-span-1">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      )}
+                      
+                      {/* Phone - Only show if has data or editing */}
+                      {(profile.phone || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 md:col-span-2 lg:col-span-1">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.phone} 
+                              onChange={(e) => setProfile({...profile, phone: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Phone"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.phone}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.phone} 
-                            onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Phone"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.phone}</span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1112,54 +1123,74 @@ const Profile = () => {
           </Card>
 
           {/* Content Tabs */}
-          <Tabs defaultValue="practice" className="space-y-4 sm:space-y-6 lg:space-y-8">
+          {((profile.skills.length > 0 || profile.certificates.length > 0 || profile.experience.length > 0 || profile.projects.length > 0 || profile.achievements.length > 0) || isEditing) ? (
+            <Tabs 
+              defaultValue={
+                profile.skills.length > 0 ? "skills" :
+                profile.certificates.length > 0 ? "certificates" :
+                profile.experience.length > 0 ? "experience" :
+                profile.projects.length > 0 ? "projects" :
+                profile.achievements.length > 0 ? "achievements" :
+                "resume"
+              } 
+              className="space-y-4 sm:space-y-6 lg:space-y-8"
+            >
             <div className="overflow-x-auto scrollbar-hide pb-2">
               <TabsList className="inline-flex w-auto min-w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1 sm:p-1.5 h-10 sm:h-12 lg:h-14">
-              <TabsTrigger 
-                value="practice" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Practice
-              </TabsTrigger>
-              <TabsTrigger 
-                value="interviews" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Interviews
-              </TabsTrigger>
-              <TabsTrigger 
-                value="skills" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Skills
-              </TabsTrigger>
-              <TabsTrigger 
-                value="certificates" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Certificates</span>
-                <span className="md:hidden">Certs</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="experience" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Experience</span>
-                <span className="md:hidden">Exp</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="projects" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Projects
-              </TabsTrigger>
-              <TabsTrigger 
-                value="achievements" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Achievements</span>
-                <span className="md:hidden">Awards</span>
-              </TabsTrigger>
+              {/* Skills Tab - Always show if has data or editing */}
+              {(profile.skills.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="skills" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  Skills
+                </TabsTrigger>
+              )}
+              
+              {/* Certificates Tab */}
+              {(profile.certificates.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="certificates" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Certificates</span>
+                  <span className="md:hidden">Certs</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Experience Tab */}
+              {(profile.experience.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="experience" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Experience</span>
+                  <span className="md:hidden">Exp</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Projects Tab */}
+              {(profile.projects.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="projects" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  Projects
+                </TabsTrigger>
+              )}
+              
+              {/* Achievements Tab */}
+              {(profile.achievements.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="achievements" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Achievements</span>
+                  <span className="md:hidden">Awards</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Resume Tab - Always show */}
               <TabsTrigger 
                 value="resume" 
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
@@ -1170,8 +1201,8 @@ const Profile = () => {
             </div>
 
             {/* Practice Stats Tab */}
-            <TabsContent value="practice" className="space-y-3 sm:space-y-4 lg:space-y-6">
-              {/* Stats Overview */}
+            {/* <TabsContent value="practice" className="space-y-3 sm:space-y-4 lg:space-y-6">
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-green-100/80 backdrop-blur-sm">
                   <CardContent className="p-3 sm:p-4 lg:p-6">
@@ -1238,7 +1269,7 @@ const Profile = () => {
                 </Card>
               </div>
 
-              {/* Topics Progress */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="flex items-center gap-2 sm:gap-3 text-prepzo-900 text-lg sm:text-xl">
@@ -1267,7 +1298,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
 
-              {/* Language Stats */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1294,11 +1325,11 @@ const Profile = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Interview Practice Tab */}
-            <TabsContent value="interviews" className="space-y-6">
-              {/* Overview Stats */}
+            {/* <TabsContent value="interviews" className="space-y-6">
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-purple-50 to-purple-100/80 backdrop-blur-sm">
                   <CardContent className="p-6">
@@ -1335,7 +1366,7 @@ const Profile = () => {
                 </Card>
               </div>
 
-              {/* Category Performance */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1367,7 +1398,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
 
-              {/* Recent Sessions */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1397,27 +1428,21 @@ const Profile = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-6">
-              {Object.entries(
-                profile.skills.reduce((acc, skill, skillIndex) => {
-                  if (!acc[skill.category]) acc[skill.category] = [];
-                  acc[skill.category].push({ ...skill, originalIndex: skillIndex });
-                  return acc;
-                }, {} as Record<string, Array<typeof profile.skills[0] & { originalIndex: number }>>)
-              ).map(([category, skills]) => (
-                <Card key={category} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              {profile.skills.length > 0 && (
+                <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-prepzo-900">
                       <Brain className="w-6 h-6 text-prepzo-600" />
-                      {category}
+                      Skills
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {skills.map((skill, index) => (
+                      {profile.skills.map((skill, index) => (
                         <div key={index} className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="font-semibold text-prepzo-900">{skill.name}</span>
@@ -1429,7 +1454,7 @@ const Profile = () => {
                                     size="sm" 
                                     variant="ghost" 
                                     className="text-prepzo-600 hover:bg-prepzo-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleEditSkill(skill.originalIndex)}
+                                    onClick={() => handleEditSkill(index)}
                                   >
                                     <Edit className="w-3 h-3" />
                                   </Button>
@@ -1437,7 +1462,7 @@ const Profile = () => {
                                     size="sm" 
                                     variant="ghost" 
                                     className="text-red-600 hover:bg-red-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleDeleteSkill(skill.originalIndex)}
+                                    onClick={() => handleDeleteSkill(index)}
                                   >
                                     <X className="w-3 h-3" />
                                   </Button>
@@ -1451,7 +1476,7 @@ const Profile = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )}
               
               {/* Add New Skill Card */}
               {isEditing && (
@@ -2041,6 +2066,25 @@ const Profile = () => {
 
 
           </Tabs>
+          ) : (
+            /* Empty state when no content and not editing */
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-8 h-8 text-prepzo-600" />
+                </div>
+                <h3 className="text-xl font-medium text-prepzo-700 mb-2">Complete Your Profile</h3>
+                <p className="text-prepzo-600 mb-6">Add your skills, experience, and achievements to showcase your professional journey</p>
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Start Editing Profile
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
