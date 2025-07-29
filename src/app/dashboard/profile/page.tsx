@@ -154,6 +154,8 @@ interface ProfileData {
     fileName: string;
     uploadedAt: string;
   };
+  public_slug?: string;
+  is_public?: boolean;
 }
 
 interface LinkedInExtractedData {
@@ -220,6 +222,9 @@ const Profile = () => {
   const [showExperienceDialog, setShowExperienceDialog] = useState(false);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showSkillDialog, setShowSkillDialog] = useState(false);
+  // Slug dialog state
+  const [showSlugDialog, setShowSlugDialog] = useState(false);
+  const [slugInput, setSlugInput] = useState('');
   
   // Form states for different items
   const [editingCertIndex, setEditingCertIndex] = useState<number | null>(null);
@@ -284,6 +289,8 @@ const Profile = () => {
     },
     interviewPractice: { sessionsCompleted: 0, totalHours: 0, categories: [], recentSessions: [] },
     resume: undefined,
+    public_slug: '',
+    is_public: false,
   };
 
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
@@ -398,6 +405,8 @@ const Profile = () => {
       certifications,
       resume_url,
       updated_at,
+      public_slug,
+      is_public,
     } = raw;
 
     return {
@@ -423,6 +432,8 @@ const Profile = () => {
             uploadedAt: updated_at || new Date().toISOString(),
           }
         : undefined,
+      public_slug,
+      is_public,
     };
   };
 
@@ -484,7 +495,15 @@ const Profile = () => {
   }
 
   const handleShare = async () => {
-    const publicUrl = `${window.location.origin}/public/${profile.id}/${profile.username}`;
+    if (!profile.is_public) {
+      toast({
+        title: 'Profile is private',
+        description: 'Publish your profile before sharing.',
+      });
+      return;
+    }
+
+    const publicUrl = `${window.location.origin}/public/profile/${profile.public_slug || profile.id}`;
     try {
       await navigator.clipboard.writeText(publicUrl);
       toast({
@@ -831,6 +850,103 @@ const Profile = () => {
 
   // ... existing code ...
 
+  // Toggle public visibility
+  const handleTogglePublic = async () => {
+    if (!session?.access_token) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to change visibility',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      if (!profile.is_public) {
+        // Open slug dialog first
+        setSlugInput(profile.public_slug || slugify(profile.username || profile.name || 'user'));
+        setShowSlugDialog(true);
+        return; // wait for dialog confirmation
+      } else {
+        // Unpublish – use the /make-private endpoint
+        const makePrivateEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/make-private`;
+        const resp = await fetch(makePrivateEndpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!resp.ok) throw new Error('Failed');
+
+        setProfile(prev => ({
+          ...prev,
+          is_public: false,
+        }));
+
+        toast({
+          title: 'Profile unpublished',
+          description: 'Your profile is no longer publicly accessible.',
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Could not update visibility',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Helper slugify outside
+  const slugify = (str: string) =>
+    str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+
+  // Confirm slug & publish handler
+  const handleConfirmSlug = async () => {
+    setShowSlugDialog(false);
+    // reuse toggle logic but ensure desired slug set
+    const desiredSlug = slugify(slugInput);
+    try {
+      const editSlugEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/edit-slug`;
+      const respSlug = await fetch(editSlugEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_slug: desiredSlug }),
+      });
+
+      if (!respSlug.ok) {
+        const errJson = await respSlug.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Slug update failed');
+      }
+
+      const slugData = await respSlug.json();
+      setProfile(prev => ({ ...prev, public_slug: slugData.public_slug || desiredSlug }));
+
+      // call make-public endpoint
+      const makePublicEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/make-public`;
+      const resp = await fetch(makePublicEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resp.ok) throw new Error('Failed to publish');
+
+      setProfile(prev => ({ ...prev, is_public: true }));
+
+      toast({ title: 'Profile published!', description: 'Anyone with the link can now view your profile.' });
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed', variant: 'destructive' });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-gradient-to-br from-prepzo-50 via-white to-prepzo-100/30">
@@ -860,7 +976,8 @@ const Profile = () => {
               <Button 
                 variant="outline" 
                 onClick={handleShare}
-                className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 text-xs"
+                disabled={!profile.is_public}
+                className={`group transition-all duration-200 text-xs ${profile.is_public ? 'border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400' : 'border-gray-200 text-gray-400 cursor-not-allowed'}`}
                 size="sm"
               >
                 <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 group-hover:scale-110 transition-transform" />
@@ -875,6 +992,15 @@ const Profile = () => {
                 {isEditing ? <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> : <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
                 <span className="hidden md:inline">{isEditing ? "Save Changes" : "Edit Profile"}</span>
                 <span className="md:hidden">{isEditing ? "Save" : "Edit"}</span>
+              </Button>
+              {/* Publish / Unpublish Button */}
+              <Button
+                variant="outline"
+                onClick={handleTogglePublic}
+                className={`group ${profile.is_public ? 'border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400' : 'border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400'} transition-all duration-200 text-xs`}
+                size="sm"
+              >
+                {profile.is_public ? 'Unpublish' : 'Make Public'}
               </Button>
             </div>
           </div>
@@ -2449,6 +2575,24 @@ const Profile = () => {
         onClose={() => setShowLinkedInUpload(false)}
         onDataExtracted={handleLinkedInDataExtracted}
       />
+
+      {/* Slug Dialog */}
+      <Dialog open={showSlugDialog} onOpenChange={setShowSlugDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Set Public URL</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Label htmlFor="slug">Profile slug</Label>
+            <Input id="slug" value={slugInput} onChange={(e)=>setSlugInput(e.target.value)} placeholder="your-name" />
+            <p className="text-xs text-prepzo-600">Your profile will be visible at {window.location.origin}/public/profile/{slugify(slugInput)}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setShowSlugDialog(false)}>Cancel</Button>
+            <Button onClick={handleConfirmSlug} disabled={!slugInput}>Publish</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
    </DashboardLayout>
   );
 };
