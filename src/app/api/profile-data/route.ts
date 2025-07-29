@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+// Tell Next.js this route is dynamic (uses cookies)
+export const dynamic = 'force-dynamic';
+
 interface ProfileData {
   id: string;
   username: string;

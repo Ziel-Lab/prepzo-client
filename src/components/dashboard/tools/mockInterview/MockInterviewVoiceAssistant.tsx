@@ -83,17 +83,61 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const remoteParticipants = useRemoteParticipants();
   const localParticipant = useLocalParticipant();
   const room = useRoomContext();
+  
+  // Debug logging for room and participant states
+  useEffect(() => {
+    console.log('🏠 Room context:', {
+      roomName: room?.name,
+      roomState: room?.state,
+      localParticipantIdentity: localParticipant?.localParticipant?.identity,
+      remoteParticipantCount: remoteParticipants.length,
+      remoteParticipants: remoteParticipants.map(p => p.identity)
+    });
+  }, [room, localParticipant, remoteParticipants]);
+
+  // Listen for participant changes to detect agent joining/leaving
+  useEffect(() => {
+    if (room) {
+      const handleParticipantConnected = (participant: RemoteParticipant) => {
+        console.log('👥 Participant connected:', participant.identity);
+        if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
+          console.log('🤖 Agent/Assistant joined the room!');
+        }
+      };
+
+      const handleParticipantDisconnected = (participant: RemoteParticipant) => {
+        console.log('👥 Participant disconnected:', participant.identity);
+        if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
+          console.log('🤖 Agent/Assistant left the room!');
+        }
+      };
+
+      room.on('participantConnected', handleParticipantConnected);
+      room.on('participantDisconnected', handleParticipantDisconnected);
+
+      return () => {
+        room.off('participantConnected', handleParticipantConnected);
+        room.off('participantDisconnected', handleParticipantDisconnected);
+      };
+    }
+  }, [room]);
   const { toast } = useToast();
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [messages, setMessages] = useState<InterviewTranscriptionMessage[]>([]);
   const [sessionStartTime] = useState(new Date());
-  const [timer, setTimer] = useState("20:00");
-  const [timeRemaining, setTimeRemaining] = useState(1200); // Always 20 minutes (1200 seconds)
+  const [timer, setTimer] = useState("15:00");
+  const [timeRemaining, setTimeRemaining] = useState(900); // Always 15 minutes (900 seconds)
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [lastAgentMessage, setLastAgentMessage] = useState<string>("");
   const [agentSpeakingStartTime, setAgentSpeakingStartTime] = useState<number | null>(null);
   const [consecutiveRepeats, setConsecutiveRepeats] = useState(0);
   const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
+  const [endingCountdown, setEndingCountdown] = useState<number | null>(null);
+  
+  // Debug effect to track endingCountdown state changes
+  useEffect(() => {
+    console.log('🎯 endingCountdown state changed:', endingCountdown);
+  }, [endingCountdown]);
   
   // Refs for audio feedback prevention
   const lastAgentTranscriptionRef = useRef<string>("");
@@ -156,7 +200,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
     }
   }, [warningsShown, toast]);
 
-  // Countdown timer effect with 2 second delay - ALWAYS 20 MINUTES
+  // Countdown timer effect with 2 second delay - ALWAYS 15 MINUTES
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -197,6 +241,219 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       if (interval) clearInterval(interval);
     };
   }, [sessionStartTime, forceDisconnect, showWarning]);
+
+  // RPC registration for force end interview
+  useEffect(() => {
+    if (localParticipant?.localParticipant && room?.state === 'connected') {
+      let registrationRetryCount = 0;
+      const maxRetries = 3;
+      let registrationTimer: NodeJS.Timeout;
+
+      const registerRpc = async () => {
+        try {
+          console.log(`🔧 Attempting to register RPC method forceEndInterview (attempt ${registrationRetryCount + 1}/${maxRetries})...`);
+          console.log('🔧 Local participant identity:', localParticipant.localParticipant.identity);
+          console.log('🔧 Local participant sid:', localParticipant.localParticipant.sid);
+          console.log('🔧 Room state:', room?.state);
+          
+          await localParticipant.localParticipant.registerRpcMethod('forceEndInterview', async (data: any) => {
+            console.log('🎯 RPC RECEIVED - forceEndInterview called!');
+            console.log('🎯 Raw RPC data:', data);
+            
+            try {
+              let payload;
+              
+              // Handle different payload formats
+              if (typeof data === 'string') {
+                try {
+                  payload = JSON.parse(data);
+                } catch {
+                  payload = { message: data }; // If not JSON, wrap in object
+                }
+              } else if (data && typeof data.payload === 'string') {
+                try {
+                  payload = JSON.parse(data.payload);
+                } catch {
+                  payload = { message: data.payload };
+                }
+              } else if (data && typeof data.payload === 'object') {
+                payload = data.payload;
+              } else {
+                payload = data || {};
+              }
+              
+              console.log('🎯 Parsed RPC payload:', payload);
+              
+              // Show toast notification
+              toast({
+                title: "Interview Completed",
+                description: "The interview has been completed. Ending session...",
+                duration: 3000,
+              });
+              
+              // Start immediate countdown (3 seconds for faster response)
+              console.log('🎯 Starting ending countdown: 3 seconds');
+              setEndingCountdown(3);
+              
+              return JSON.stringify({
+                status: 'success',
+                message: 'Interview ended successfully',
+                timestamp: new Date().toISOString()
+              });
+              
+            } catch (parseError) {
+              console.error('🎯 Error parsing RPC payload:', parseError);
+              console.log('🎯 Fallback: Starting countdown anyway');
+              
+              // Still start countdown even if parsing fails
+              setEndingCountdown(3);
+              return JSON.stringify({
+                status: 'success_with_error',
+                message: 'Interview ended (with parsing error)',
+                error: (parseError as Error).message,
+                timestamp: new Date().toISOString()
+              });
+            }
+          });
+          
+          console.log('✅ RPC method forceEndInterview registered successfully');
+          
+          // Verify registration by testing if the method exists
+          // Note: We can't directly test our own RPC without causing issues, so we'll just log success
+          console.log('✅ RPC registration verification: forceEndInterview handler is active and ready');
+          console.log('🎯 Backend agents can now call forceEndInterview RPC on identity:', localParticipant.localParticipant.identity);
+          
+          // Registration successful, clear any retry timer
+          if (registrationTimer) {
+            clearTimeout(registrationTimer);
+          }
+          
+        } catch (error) {
+          console.error(`❌ Failed to register RPC method (attempt ${registrationRetryCount + 1}):`, error);
+          console.error('❌ Error details:', (error as Error).message, (error as Error).stack);
+          
+          registrationRetryCount++;
+          
+          if (registrationRetryCount < maxRetries) {
+            console.log(`🔄 Retrying RPC registration in 2 seconds... (${maxRetries - registrationRetryCount} attempts left)`);
+            registrationTimer = setTimeout(() => {
+              registerRpc();
+            }, 2000);
+          } else {
+            console.error('❌ Max RPC registration retries exceeded');
+            // RPC registration failed after retries - show fallback notification
+            toast({
+              title: "Please End Call",
+              description: "Please end the interview call manually in 10 seconds",
+              variant: "destructive",
+              duration: 10000,
+            });
+            setEndingCountdown(10); // Still show countdown for user guidance
+          }
+        }
+      };
+      
+      // Start registration with a small delay to ensure room is fully ready
+      const initialDelay = setTimeout(() => {
+        registerRpc();
+      }, 500);
+
+      // Cleanup: unregister RPC method and clear timers when component unmounts
+      return () => {
+        clearTimeout(initialDelay);
+        if (registrationTimer) {
+          clearTimeout(registrationTimer);
+        }
+        
+        if (localParticipant?.localParticipant) {
+          try {
+            localParticipant.localParticipant.unregisterRpcMethod('forceEndInterview');
+            console.log('🔧 RPC method forceEndInterview unregistered');
+          } catch (error) {
+            console.error('🔧 Error unregistering RPC method:', error);
+          }
+        }
+      };
+    } else {
+      console.log('🔧 Waiting for room connection and local participant for RPC registration...', {
+        hasLocalParticipant: !!localParticipant?.localParticipant,
+        roomState: room?.state
+      });
+    }
+  }, [localParticipant, room?.state, toast]);
+
+  // Data channel listener as fallback for interview ending
+  useEffect(() => {
+    if (room) {
+      const handleDataReceived = (data: Uint8Array, participant?: RemoteParticipant, kind?: any, topic?: string) => {
+        try {
+          const message = new TextDecoder().decode(data);
+          console.log('📨 Data channel message received:', { message, topic, participant: participant?.identity });
+          
+          const parsed = JSON.parse(message);
+          
+          // Handle interview end notifications
+          if ((parsed.type === "interview_end" || parsed.type === "force_interview_end") && 
+              (topic === "interview_control" || topic === "interview_force_end")) {
+            
+            console.log('📨 Interview end notification via data channel:', parsed);
+            
+            toast({
+              title: "Interview Completed",
+              description: "The interview has been completed. Ending session...",
+              duration: 3000,
+            });
+            
+            // Start countdown
+            console.log('📨 Starting ending countdown from data channel: 3 seconds');
+            setEndingCountdown(3);
+          }
+        } catch (error) {
+          console.log('📨 Non-JSON data channel message or parsing error:', error);
+        }
+      };
+
+      room.on('dataReceived', handleDataReceived);
+      console.log('📨 Data channel listener registered');
+
+      return () => {
+        room.off('dataReceived', handleDataReceived);
+        console.log('📨 Data channel listener unregistered');
+      };
+    }
+  }, [room, toast]);
+
+  // Ending countdown effect
+  useEffect(() => {
+    if (endingCountdown !== null) {
+      console.log(`⏰ Ending countdown: ${endingCountdown} seconds remaining`);
+      
+      if (endingCountdown <= 0) {
+        // Countdown finished - end interview
+        console.log('⏰ Ending countdown completed, calling onEndInterview');
+        console.log('⏰ onEndInterview function:', typeof onEndInterview);
+        
+        try {
+          onEndInterview();
+          console.log('✅ onEndInterview called successfully');
+        } catch (error) {
+          console.error('❌ Error calling onEndInterview:', error);
+        }
+        return;
+      }
+      
+      // Continue countdown
+      const timeout = setTimeout(() => {
+        setEndingCountdown(prev => {
+          const newValue = prev !== null ? prev - 1 : null;
+          console.log(`⏰ Countdown tick: ${prev} -> ${newValue}`);
+          return newValue;
+        });
+      }, 1000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [endingCountdown, onEndInterview]);
 
   // Enhanced agent transcription handling with better grouping
   useEffect(() => {
@@ -471,11 +728,18 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 
             {/* Timer with visual warnings */}
             <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
+              endingCountdown !== null ? 'text-red-600 animate-pulse' : // Red and pulsing when ending
               timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
               timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
               'text-gray-600' // Normal gray
             }`}>
-              {timer}
+              {endingCountdown !== null ? (
+                <span className="text-red-500 font-bold animate-pulse">
+                  Ending in: {endingCountdown}
+                </span>
+              ) : (
+                timer
+              )}
             </div>
           </div>
 
@@ -508,7 +772,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
             >
               End Interview
             </Button>
-
+            
             {/* Camera Button
             <Button
               variant="outline"
@@ -564,10 +828,11 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   const { toast } = useToast();
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
-  const [timer, setTimer] = useState("20:00");
-  const [timeRemaining, setTimeRemaining] = useState(1200); // Always 20 minutes (1200 seconds)
+  const [timer, setTimer] = useState("15:00");
+  const [timeRemaining, setTimeRemaining] = useState(900); // Always 15 minutes (900 seconds)
   const [sessionStartTime] = useState(new Date());
   const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
+  const [endingCountdown, setEndingCountdown] = useState<number | null>(null);
 
   // Show warning notification
   const showWarning = useCallback((timeRemaining: number) => {
@@ -599,7 +864,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
     }
   }, [warningsShown, toast]);
 
-  // Countdown timer effect with 2 second delay - ALWAYS 20 MINUTES
+  // Countdown timer effect with 2 second delay - ALWAYS 15 MINUTES
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -641,6 +906,25 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
     };
   }, [sessionStartTime, onEndInterview, showWarning]);
 
+  // Ending countdown effect
+  useEffect(() => {
+    if (endingCountdown !== null) {
+      if (endingCountdown <= 0) {
+        // Countdown finished - end interview
+        console.log('Ending countdown completed, calling onEndInterview');
+        onEndInterview();
+        return;
+      }
+      
+      // Continue countdown
+      const timeout = setTimeout(() => {
+        setEndingCountdown(prev => (prev !== null ? prev - 1 : null));
+      }, 1000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [endingCountdown, onEndInterview]);
+
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-green-50/40 via-emerald-50/30 to-lime-50/20 pointer-events-none" />
@@ -671,11 +955,18 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
             </div>
 
             <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
+              endingCountdown !== null ? 'text-red-600 animate-pulse' : // Red and pulsing when ending
               timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
               timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
               'text-gray-600' // Normal gray
             }`}>
-              {timer}
+              {endingCountdown !== null ? (
+                <span className="text-red-500 font-bold animate-pulse">
+                  Ending in: {endingCountdown}
+                </span>
+              ) : (
+                timer
+              )}
             </div>
           </div>
 

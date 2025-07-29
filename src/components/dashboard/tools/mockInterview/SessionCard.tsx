@@ -9,33 +9,42 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
+// Database structure interfaces
+interface MockInterviewAttempt {
+  id: string;
+  mock_interview_id: string;
+  attempt_number: number;
+  room_name: string;
+  status: string;
+  started_at?: string;
+  completed_at?: string;
+  actual_duration_minutes?: number;
+  live_transcription?: any;
+  transcript?: any;
+  feedback?: any; // Contains score and other feedback data
+  evaluation_score?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Updated interface matching the database structure
 interface InterviewSession {
   id: string;
-  title: string;
-  type: string; // Changed from union to string to match database
+  title: string; // Direct from database column
+  type: string;
   duration: number;
-  status: 'completed' | 'in-progress' | 'scheduled';
-  score?: number;
+  status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
+  score?: number; // Calculated from attempts
   date: Date;
-  companyUrl?: string; // Changed from company to companyUrl
+  companyUrl?: string;
+  companyName?: string;
   role?: string;
   feedback?: string;
-  attempts?: any[]; // For future use
-  latestAttempt?: any; // For future use
+  attempts: MockInterviewAttempt[];
+  latestAttempt?: MockInterviewAttempt;
 }
 
-interface Attempt {
-  id: string;
-  attempt_number: number;
-  status: string;
-  started_at: string;
-  completed_at?: string;
-  actual_duration_minutes?: number;
-  evaluation_score?: number;
-  feedback?: any;
-  created_at: string;
-}
+
 
 interface SessionCardProps {
   session: InterviewSession;
@@ -45,7 +54,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   const router = useRouter();
   const supabase = createClient();
   const [showAttempts, setShowAttempts] = useState(false);
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [attempts, setAttempts] = useState<MockInterviewAttempt[]>(session.attempts || []);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -54,11 +63,64 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
         return 'bg-green-100 text-green-700 border-green-200';
       case 'in-progress':
         return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'done':
+      case 'ready':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'scheduled':
         return 'bg-orange-100 text-orange-700 border-orange-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
+  };
+
+  const getStatusDisplayText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Completed';
+      case 'in-progress':
+        return 'In Progress';
+      case 'done':
+        return 'Ready to Start';
+      case 'ready':
+        return 'Ready to Start';
+      case 'scheduled':
+        return 'Preparing...';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
+
+  const calculateSessionScore = () => {
+    if (session.attempts && session.attempts.length > 0) {
+      const completedAttempts = session.attempts.filter(attempt => 
+        attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
+      );
+      
+      if (completedAttempts.length === 0) return undefined;
+      
+      // Calculate the average score from all completed attempts
+      const scores = completedAttempts.map(attempt => {
+        if (attempt.feedback?.Score) {
+          // Parse "7.5/10" format to percentage
+          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+          return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+        }
+        return attempt.evaluation_score || 0;
+      });
+      
+      // Return average instead of maximum
+      const totalScore = scores.reduce((sum, score) => sum + score, 0);
+      return Math.round(totalScore / scores.length);
+    }
+    return session.score;
+  };
+
+  const getCompletedAttemptsCount = () => {
+    return session.attempts?.filter(attempt => attempt.status === 'PROCESSED').length || 0;
+  };
+
+  const hasReachedAttemptLimit = () => {
+    return getCompletedAttemptsCount() >= 3;
   };
 
   const getTypeColor = (type: string) => {
@@ -176,8 +238,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   };
 
   const handleToggleAttempts = () => {
-    if (!showAttempts && attempts.length === 0) {
-      fetchAttempts();
+    if (!showAttempts) {
+      // Use session's attempts if available, otherwise fetch
+      if (session.attempts && session.attempts.length > 0) {
+        setAttempts(session.attempts);
+      } else if (attempts.length === 0) {
+        fetchAttempts();
+      }
     }
     setShowAttempts(!showAttempts);
   };
@@ -258,43 +325,52 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{session.title}</h3>
               <Badge className={`text-xs ${getStatusColor(session.status)}`}>
-                {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                {getStatusDisplayText(session.status)}
               </Badge>
               <Badge variant="outline" className={`text-xs ${getTypeColor(session.type)}`}>
                 {formatType(session.type)}
               </Badge>
             </div>
             
-            {/* Role and Company URL */}
-            <div className="flex items-center gap-4 mb-3 text-sm text-gray-600">
+            {/* Role and Company Info */}
+            <div className="space-y-2 mb-3">
               {session.role && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 text-sm text-gray-600">
                   <Briefcase size={14} />
                   <span>{session.role}</span>
+                </div>
+              )}
+              {session.companyName && (
+                <div className="flex items-center gap-1 text-sm text-gray-500">
+                  <Building2 size={14} />
+                  <span>{session.companyName}</span>
                 </div>
               )}
               {session.companyUrl && (
                 <button
                   onClick={handleCompanyClick}
-                  className="flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                   title="View job posting"
                 >
                   <ExternalLink size={14} />
-                  <span>{extractDomain(session.companyUrl)}</span>
+                  <span>View Job Posting</span>
                 </button>
               )}
             </div>
           </div>
           
           {/* Score */}
-          {session.score && (
-            <div className="flex items-center gap-2 ml-4">
-              <Award size={16} className={getScoreColor(session.score)} />
-              <span className={`text-lg font-bold ${getScoreColor(session.score)}`}>
-                {session.score}%
-              </span>
-            </div>
-          )}
+          {(() => {
+            const calculatedScore = calculateSessionScore();
+            return calculatedScore && (
+              <div className="flex items-center gap-2 ml-4">
+                <Award size={16} className={getScoreColor(calculatedScore)} />
+                <span className={`text-lg font-bold ${getScoreColor(calculatedScore)}`}>
+                  {Math.round(calculatedScore)}%
+                </span>
+              </div>
+            );
+          })()}
         </div>
         
         {/* Bottom Section */}
@@ -323,7 +399,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
             </Button>
 
             {/* Primary Action Button */}
-            {session.status === 'in-progress' && (
+            {session.status === 'in-progress' && !hasReachedAttemptLimit() && (
               <Button
                 size="sm"
                 onClick={() => handleAction('continue')}
@@ -333,16 +409,59 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                 Continue
               </Button>
             )}
+
+            {session.status === 'done' && !hasReachedAttemptLimit() && (
+              <Button
+                size="sm"
+                onClick={() => handleAction('start')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Play size={14} className="mr-1" />
+                Start Interview
+              </Button>
+            )}
+
+            {session.status === 'scheduled' && !hasReachedAttemptLimit() && (
+              <Button
+                size="sm"
+                disabled
+                className="bg-gray-400 text-white cursor-not-allowed"
+              >
+                <Clock size={14} className="mr-1" />
+                Preparing...
+              </Button>
+            )}
+
+            {session.status === 'ready' && !hasReachedAttemptLimit() && (
+              <Button
+                size="sm"
+                onClick={() => handleAction('start')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Play size={14} className="mr-1" />
+                Start Interview
+              </Button>
+            )}
             
-            {(session.status === 'completed' || session.status === 'scheduled') && (
+            {session.status === 'completed' && !hasReachedAttemptLimit() && (
               <Button
                 size="sm"
                 onClick={() => handleAction('start')}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Play size={14} className="mr-1" />
-                {session.status === 'completed' ? 'Practice Again' : 'Start'}
+                Practice Again
               </Button>
+            )}
+
+            {/* Show completion message when attempt limit is reached */}
+            {hasReachedAttemptLimit() && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-full">
+                <Award size={14} className="text-green-600" />
+                <span className="text-sm font-medium text-green-700">
+                  Session Complete ({getCompletedAttemptsCount()}/3 attempts)
+                </span>
+              </div>
             )}
             
             {/* More Options Dropdown */}
@@ -396,14 +515,27 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                       <Badge className={`text-xs ${getAttemptStatusColor(attempt.status)}`}>
                         {attempt.status}
                       </Badge>
-                      {attempt.evaluation_score && (
-                        <div className="flex items-center gap-1">
-                          <Award size={12} className={getScoreColor(attempt.evaluation_score)} />
-                          <span className={`text-sm font-medium ${getScoreColor(attempt.evaluation_score)}`}>
-                            {Math.round(attempt.evaluation_score)}%
-                          </span>
-                        </div>
-                      )}
+                      {(() => {
+                        let score = null;
+                        if (attempt.feedback?.Score) {
+                          // Parse "7.5/10" format
+                          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+                          if (scoreMatch) {
+                            score = (parseFloat(scoreMatch[1]) / 10) * 100;
+                          }
+                        } else if (attempt.evaluation_score) {
+                          score = attempt.evaluation_score;
+                        }
+                        
+                        return score && (
+                          <div className="flex items-center gap-1">
+                            <Award size={12} className={getScoreColor(score)} />
+                            <span className={`text-sm font-medium ${getScoreColor(score)}`}>
+                              {attempt.feedback?.Score || `${Math.round(score)}%`}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-xs text-gray-500">

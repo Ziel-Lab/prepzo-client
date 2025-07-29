@@ -16,6 +16,7 @@ interface UserDocument {
   id: number | string;
   title: string;
   url?: string;
+  subtitle?: string;
 }
 
 interface UserLimits {
@@ -46,6 +47,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     jobDescription: '',
     description: ''
   });
+  
+  // Custom interview type state
+  const [customInterviewType, setCustomInterviewType] = useState('');
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   
@@ -69,7 +73,24 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
   useEffect(() => {
     if (isOpen) {
+      console.log('🎭 NewSessionModal opened - fetching documents...');
+      // Reset state when modal opens
+      setResumeDocuments([]);
+      setCoverLetterDocuments([]);
+      setSelectedResumeUrl('');
+      setSelectedCoverLetterUrl('');
+      setError(null);
+      
       fetchDocuments();
+    } else {
+      // Clear state when modal closes to prevent stale data
+      console.log('🎭 NewSessionModal closed - clearing state...');
+      setResumeDocuments([]);
+      setCoverLetterDocuments([]);
+      setSelectedResumeUrl('');
+      setSelectedCoverLetterUrl('');
+      setError(null);
+      setLoading(false);
     }
   }, [isOpen]);
 
@@ -80,20 +101,31 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData?.session?.access_token) {
+        console.error('🔐 Authentication error:', sessionError);
         setError("Could not retrieve user session.");
-        setResumeMethod('upload');
         return;
       }
 
       const jwtToken = sessionData.session.access_token;
+      const userId = sessionData.session.user?.id;
+      const userEmail = sessionData.session.user?.email;
+      
+      console.log('👤 Fetching documents for user:', {
+        userId: userId?.substring(0, 8) + '***',
+        userEmail: userEmail
+      });
+      
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
         throw new Error("Backend URL is not configured.");
       }
 
-      // Fetch resumes
+      // Fetch ALL documents using mock interview specific endpoint
       try {
-        const resumeResponse = await fetch(`${backendUrl}/mockInterview/user-documents/resumes`, {
+        const requestUrl = `${backendUrl}/mockInterview/user-documents`;
+        console.log('📡 Fetching from:', requestUrl);
+
+        const response = await fetch(requestUrl, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${jwtToken}`,
@@ -101,49 +133,191 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           },
         });
 
-        if (resumeResponse.ok) {
-          const resumeData = await resumeResponse.json();
-          const resumes = (resumeData.resume_documents || []).map((doc: any) => ({
-            id: doc.id,
-            title: doc.document_name || "Untitled Resume",
-            url: doc.document_url,
-          }));
-          setResumeDocuments(resumes);
+        if (response.ok) {
+          const responseData = await response.json();
+          const allDocuments = responseData.documents || [];
           
-          if (resumes.length === 0) {
-            setResumeMethod('upload');
+          console.log('📄 Raw documents received:', {
+            total: allDocuments.length,
+            sample: allDocuments.slice(0, 2).map((doc: any) => ({
+              id: doc.id,
+              name: doc.document_name,
+              type: doc.document_type,
+              uid: doc.uid?.substring(0, 8) + '***',
+              url_exists: !!doc.document_url
+            }))
+          });
+
+          // Improved filtering with better logging and case-insensitive matching
+          const resumes = allDocuments
+            .filter((doc: { uid: string; document_type: string; id: number; document_name: string; document_url: string; }) => {
+              const docType = (doc.document_type || '').toLowerCase().trim();
+              const fileName = (doc.document_name || '').toLowerCase();
+              const belongsToUser = doc.uid === userId;
+              
+              console.log('🔍 Resume filter check:', {
+                docId: doc.id,
+                docName: doc.document_name,
+                docType: doc.document_type,
+                normalizedType: docType,
+                belongsToUser,
+                userIdMatch: doc.uid === userId,
+                currentUserId: userId?.substring(0, 8) + '***',
+                docUserId: doc.uid?.substring(0, 8) + '***',
+                fileName: fileName
+              });
+              
+              // Primary: Case-insensitive document type matching for resumes
+              const isResumeType = (
+                docType === 'resume' || docType === 'cv' ||
+                docType === 'Resume' || docType === 'CV' ||
+                docType.includes('resume') || docType.includes('cv')
+              );
+              
+              // Secondary: Check filename for resume-like patterns (fallback for misclassified docs)
+              const hasResumeInFilename = (
+                fileName.includes('resume') || fileName.includes('cv') || 
+                fileName.includes('curriculum') ||
+                // Check if it's likely a personal resume file (firstname + lastname + optional numbers + pdf)
+                /^[a-z]+[a-z0-9]*\.(pdf|doc|docx)$/i.test(fileName) ||
+                // Common resume patterns
+                /resume/i.test(fileName) || /cv/i.test(fileName) ||
+                // Aggressive detection for likely personal documents (for misclassified resumes)
+                (fileName.endsWith('.pdf') && 
+                 fileName.length > 5 && 
+                 fileName.length < 50 && 
+                 /^[a-zA-Z]+[a-zA-Z0-9]*\.pdf$/i.test(fileName) &&
+                 !fileName.toLowerCase().includes('cover') &&
+                 !fileName.toLowerCase().includes('letter'))
+              );
+              
+                             console.log('📄 Filename analysis:', {
+                 fileName,
+                 hasResumeInFilename,
+                 isPdfFile: fileName.endsWith('.pdf'),
+                 looksLikePersonalFile: /^[a-z]+[a-z0-9]*\.(pdf|doc|docx)$/i.test(fileName),
+                 isResumeType,
+                 finalDecision: belongsToUser && (isResumeType || hasResumeInFilename),
+                 reasons: {
+                   belongsToUser,
+                   matchesResumeType: isResumeType,
+                   matchesFilename: hasResumeInFilename
+                 }
+               });
+               
+               return belongsToUser && (isResumeType || hasResumeInFilename);
+            })
+            .map((doc: any) => {
+              const docType = (doc.document_type || '').toLowerCase().trim();
+              const isProperlyCategories = docType.includes('resume') || docType.includes('cv');
+              
+              return {
+                id: doc.id,
+                title: doc.document_name || doc.display_name || "Untitled Resume",
+                url: doc.document_url,
+                // Add indicator if this was matched by filename rather than type
+                subtitle: !isProperlyCategories ? "(Auto-detected from filename)" : undefined
+              };
+            });
+          
+          // Improved filtering for cover letters
+          const coverLetters = allDocuments
+            .filter((doc: { uid: string; document_type: string; id: number; document_name: string; document_url: string; }) => {
+              const docType = (doc.document_type || '').toLowerCase().trim();
+              const belongsToUser = doc.uid === userId;
+              
+              console.log('💌 Cover letter filter check:', {
+                docId: doc.id,
+                docName: doc.document_name,
+                docType: doc.document_type,
+                normalizedType: docType,
+                belongsToUser,
+                userIdMatch: doc.uid === userId
+              });
+              
+              // Case-insensitive document type matching for cover letters
+              const isCoverLetterType = (
+                docType === 'cover letter' || docType === 'cover_letter' ||
+                docType === 'coverletter' || docType.includes('cover') ||
+                docType === 'Cover Letter' || docType === 'Cover_Letter'
+              );
+              
+              return belongsToUser && isCoverLetterType;
+            })
+            .map((doc: any) => ({
+              id: doc.id,
+              title: doc.document_name || doc.display_name || "Untitled Cover Letter", 
+              url: doc.document_url,
+            }));
+
+          // Check for potential misclassified documents
+          const potentialResumes = allDocuments.filter((doc: any) => {
+            const fileName = (doc.document_name || '').toLowerCase();
+            const belongsToUser = doc.uid === userId;
+            const currentType = (doc.document_type || '').toLowerCase();
+            
+            // Look for resume-like filenames that might be misclassified
+            const hasResumeInName = fileName.includes('resume') || fileName.includes('cv') || 
+                                   fileName.includes('curriculum');
+            
+            return belongsToUser && hasResumeInName && currentType !== 'resume' && currentType !== 'cv';
+          });
+
+          console.log('✅ Document filtering results:', {
+            totalDocuments: allDocuments.length,
+            resumesFound: resumes.length,
+            coverLettersFound: coverLetters.length,
+            potentialMisclassifiedResumes: potentialResumes.length,
+            resumes: resumes.map((r: UserDocument) => ({ id: r.id, title: r.title })),
+            coverLetters: coverLetters.map((c: UserDocument) => ({ id: c.id, title: c.title })),
+            allDocTypes: allDocuments.map((doc: any) => ({ 
+              name: doc.document_name, 
+              type: doc.document_type,
+              belongsToUser: doc.uid === userId 
+            })),
+            potentialMisclassified: potentialResumes.map((doc: any) => ({
+              name: doc.document_name,
+              currentType: doc.document_type,
+              suggestion: 'This looks like a resume but is categorized differently'
+            }))
+          });
+
+          setResumeDocuments(resumes);
+          setCoverLetterDocuments(coverLetters);
+          
+          // Show helpful message if no resumes found but potential misclassified documents exist
+          if (resumes.length === 0 && potentialResumes.length > 0) {
+            setError(`📋 Found ${potentialResumes.length} document(s) that might be resumes but are categorized differently. Check your Documents section to update document types.`);
+          } else {
+            // Clear any previous errors on successful load
+            setError(null);
+          }
+          
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to fetch documents:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorText
+          });
+          
+          if (response.status === 401) {
+            setError("Authentication failed. Please try logging out and back in.");
+          } else if (response.status === 403) {
+            setError("Access denied. Please check your account permissions.");
+          } else if (response.status === 404) {
+            setError("Document service not found. Please contact support.");
+          } else {
+            setError(`Failed to fetch documents (${response.status}). Please try again.`);
           }
         }
-      } catch (e) {
-        console.warn('Failed to fetch resumes:', e);
-        setResumeMethod('upload');
+      } catch (networkError) {
+        console.error('🌐 Network error fetching documents:', networkError);
+        setError("Network error. Please check your connection and try again.");
       }
-
-      // Fetch cover letters
-      try {
-        const coverLetterResponse = await fetch(`${backendUrl}/mockInterview/user-documents/cover-letters`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (coverLetterResponse.ok) {
-          const coverLetterData = await coverLetterResponse.json();
-          const coverLetters = (coverLetterData.cover_letter_documents || []).map((doc: any) => ({
-            id: doc.id,
-            title: doc.document_name || "Untitled Cover Letter",
-            url: doc.document_url,
-          }));
-          setCoverLetterDocuments(coverLetters);
-        }
-      } catch (e) {
-        console.warn('Failed to fetch cover letters:', e);
-      }
-    } catch (err) {
-      setError("Unable to load documents.");
-      setResumeMethod('upload');
+    } catch (authError) {
+      console.error('🔒 Auth error:', authError);
+      setError("Authentication error. Please try logging in again.");
     } finally {
       setLoading(false);
     }
@@ -153,7 +327,8 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     { value: 'behavioral', label: 'Behavioral' },
     { value: 'technical', label: 'Technical' },
     { value: 'system_design', label: 'System Design' },
-    { value: 'case_study', label: 'Case Study' }
+    { value: 'case_study', label: 'Case Study' },
+    { value: 'other', label: 'Other' }
   ];
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>, type: 'resume' | 'coverLetter') => {
@@ -216,6 +391,17 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Debug company URL changes
+    if (field === 'companyUrl') {
+      console.log('🏢 Company URL changed:', {
+        field,
+        newValue: value,
+        valueLength: value.length,
+        isEmpty: !value.trim()
+      });
+    }
+    
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -230,18 +416,41 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
     if (!formData.type) {
       newErrors.type = 'Interview type is required';
+    } else if (formData.type === 'other' && !customInterviewType.trim()) {
+      newErrors.type = 'Please specify the interview type';
     }
 
-    if (!selectedResumeUrl && !newResumeFile) {
-      newErrors.resume = 'Please select or upload a resume';
+    if (resumeMethod === 'select' && !selectedResumeUrl) {
+      newErrors.resume = 'Please select a resume or switch to "Upload New"';
+    } else if (resumeMethod === 'upload' && !newResumeFile) {
+      newErrors.resume = 'Please upload a resume file';
     }
 
     if (!formData.jobDescription.trim()) {
       newErrors.jobDescription = 'Job description is required';
     }
 
-    if (formData.companyUrl && !formData.companyUrl.match(/^https?:\/\/.+/)) {
-      newErrors.companyUrl = 'Please enter a valid URL (starting with http:// or https://)';
+            if (!formData.companyUrl.trim()) {
+          newErrors.companyUrl = 'Company URL is required';
+        }
+
+        if (formData.companyUrl && !formData.companyUrl.match(/^https?:\/\/.+\..+/)) {
+          newErrors.companyUrl = 'Please enter a valid company website URL (e.g., https://company.com)';
+        }
+
+        console.log('🏢 Company URL validation:', {
+          companyUrl: formData.companyUrl,
+          length: formData.companyUrl.length,
+          trimmed: formData.companyUrl.trim(),
+          isValid: formData.companyUrl.match(/^https?:\/\/.+\..+/) !== null
+        });
+
+    if (includeCoverLetter) {
+      if (coverLetterMethod === 'select' && !selectedCoverLetterUrl) {
+        newErrors.coverLetter = 'Please select a cover letter or switch to "Upload New"';
+      } else if (coverLetterMethod === 'upload' && !newCoverLetterFile) {
+        newErrors.coverLetter = 'Please upload a cover letter file';
+      }
     }
 
     setErrors(newErrors);
@@ -293,12 +502,16 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
        }
 
       const sessionDateTime = new Date();
+      
+      // Use custom type if "other" is selected
+      const finalInterviewType = formData.type === 'other' ? customInterviewType.trim() : formData.type;
 
-      onSubmit({
+      const submitData = {
         title: formData.title,
-        type: formData.type,
-        duration: 20,
-        companyUrl: formData.companyUrl || undefined,
+        type: finalInterviewType,
+        duration: 15,
+        company: formData.companyUrl.trim(), // Ensure no extra whitespace
+        company_name: formData.companyUrl.trim(), // Send both formats to be sure
         role: formData.role || undefined,
         jobDescription: formData.jobDescription,
         description: formData.description || undefined,
@@ -307,7 +520,18 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
         resumeDocumentId: resumeDocumentId,
         coverLetterUrl: includeCoverLetter ? finalCoverLetterUrl : undefined,
         coverLetterDocumentId: includeCoverLetter ? coverLetterDocumentId : undefined
+      };
+
+      console.log('🚀 Submitting session data:', {
+        ...submitData,
+        companyUrlFromForm: formData.companyUrl,
+        companyFieldSent: submitData.company,
+        companyFieldLength: submitData.company?.length || 0,
+        isCompanyEmpty: !submitData.company || submitData.company.trim() === '',
+        date: submitData.date?.toISOString()
       });
+
+      onSubmit(submitData);
 
       // Reset form
       setFormData({
@@ -324,6 +548,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       setNewResumeFile(null);
       setNewCoverLetterFile(null);
       setIncludeCoverLetter(false);
+      setResumeMethod('select');
+      setCoverLetterMethod('select');
+      setCustomInterviewType('');
       setError(null);
     } catch (error) {
       setError('An error occurred. Please try again.');
@@ -347,6 +574,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     setNewResumeFile(null);
     setNewCoverLetterFile(null);
     setIncludeCoverLetter(false);
+    setResumeMethod('select');
+    setCoverLetterMethod('select');
+    setCustomInterviewType('');
     setError(null);
     onClose();
   };
@@ -390,7 +620,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           {/* Interview Type */}
           <div className="space-y-2">
             <Label>Interview Type *</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
               {interviewTypes.map((type) => (
                 <Card
                   key={type.value}
@@ -399,7 +629,12 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-green-300'
                   }`}
-                  onClick={() => handleInputChange('type', type.value)}
+                  onClick={() => {
+                    handleInputChange('type', type.value);
+                    if (type.value !== 'other') {
+                      setCustomInterviewType('');
+                    }
+                  }}
                 >
                   <CardContent className="p-3 text-center">
                     <h4 className="font-medium text-sm">{type.label}</h4>
@@ -407,6 +642,24 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                 </Card>
               ))}
             </div>
+            
+            {/* Custom Interview Type Input */}
+            {formData.type === 'other' && (
+              <div className="mt-3">
+                <Input
+                  placeholder="e.g., Product Manager, Sales, HR, Panel Interview"
+                  value={customInterviewType}
+                  onChange={(e) => {
+                    setCustomInterviewType(e.target.value);
+                    if (errors.type) {
+                      setErrors(prev => ({ ...prev, type: '' }));
+                    }
+                  }}
+                  className={errors.type ? 'border-red-300' : ''}
+                />
+              </div>
+            )}
+            
             {errors.type && <p className="text-sm text-red-600">{errors.type}</p>}
           </div>
 
@@ -414,11 +667,11 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           <div className="space-y-2">
             <Label htmlFor="companyUrl" className="flex items-center gap-1">
               <Link size={14} />
-              Company URL (Optional)
+              Company URL *
             </Label>
             <Input
               id="companyUrl"
-              placeholder="https://company.com/careers/job-posting"
+              placeholder="https://company.com/"
               value={formData.companyUrl}
               onChange={(e) => handleInputChange('companyUrl', e.target.value)}
               className={errors.companyUrl ? 'border-red-300' : ''}
@@ -440,7 +693,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
               className="flex items-center gap-4"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="select" id="selectResume" disabled={loading || resumeDocuments.length === 0} />
+                <RadioGroupItem value="select" id="selectResume" disabled={loading} />
                 <Label htmlFor="selectResume">Select Existing</Label>
               </div>
               <div className="flex items-center space-x-2">
@@ -449,15 +702,24 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
               </div>
             </RadioGroup>
 
-            {resumeMethod === 'select' && !loading && (
-              resumeDocuments.length > 0 ? (
-                <Select 
-                  value={selectedResumeUrl}
-                  onValueChange={(value) => {
-                    setSelectedResumeUrl(value);
-                    setNewResumeFile(null);
-                  }}
-                >
+            {resumeMethod === 'select' && (
+              loading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                  <span className="ml-2 text-sm text-gray-600">Loading documents...</span>
+                </div>
+              ) : resumeDocuments.length > 0 ? (
+                <div className="space-y-2">
+                  <Select 
+                    value={selectedResumeUrl}
+                    onValueChange={(value) => {
+                      setSelectedResumeUrl(value);
+                      setNewResumeFile(null);
+                      if (errors.resume) {
+                        setErrors(prev => ({ ...prev, resume: '' }));
+                      }
+                    }}
+                  >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a resume..." />
                   </SelectTrigger>
@@ -466,14 +728,50 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                       <SelectItem key={doc.id} value={doc.url || ""}>
                         <div className="flex items-center">
                           <FileText size={16} className="mr-2 text-gray-600"/> 
-                          {doc.title}
+                          <div className="flex flex-col">
+                            <span>{doc.title}</span>
+                            {doc.subtitle && (
+                              <span className="text-xs text-amber-600">{doc.subtitle}</span>
+                            )}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {resumeDocuments.some(doc => doc.subtitle) && (
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                    ℹ️ Some documents were auto-detected as resumes based on filename. Consider updating document types in the Documents section for better organization.
+                  </p>
+                )}
+                </div>
               ) : (
-                <p className="text-sm text-gray-500">No resume documents found. Please upload one.</p>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500">
+                    {error && error.includes('📋') ? 
+                      error :
+                      error ? 
+                        "Failed to load documents. Please try refreshing or contact support." : 
+                        "No resume documents found. Please switch to \"Upload New\" or upload documents first."
+                    }
+                  </p>
+                  {!error || !error.includes('📋') ? (
+                    <p className="text-xs text-gray-400">💡 Tip: Upload documents in <strong>Documents</strong> section first, then return here to select them.</p>
+                  ) : (
+                    <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                      <p>🔍 <strong>Possible Issue:</strong> You have documents that might be resumes but are categorized as other types.</p>
+                      <p className="mt-1">✅ <strong>Solution:</strong> Go to <strong>Documents</strong> section and check if any files should be re-categorized as "Resume" or "CV".</p>
+                    </div>
+                  )}
+                  {error && (
+                    <button 
+                      onClick={fetchDocuments}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      🔄 Retry loading documents
+                    </button>
+                  )}
+                </div>
               )
             )}
 
@@ -501,7 +799,12 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                 type="checkbox"
                 id="includeCoverLetter"
                 checked={includeCoverLetter}
-                onChange={(e) => setIncludeCoverLetter(e.target.checked)}
+                onChange={(e) => {
+                  setIncludeCoverLetter(e.target.checked);
+                  if (errors.coverLetter) {
+                    setErrors(prev => ({ ...prev, coverLetter: '' }));
+                  }
+                }}
                 className="rounded"
               />
               <Label htmlFor="includeCoverLetter" className="text-base font-semibold">
@@ -516,11 +819,14 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                   onValueChange={(value: 'select' | 'upload') => {
                     setCoverLetterMethod(value);
                     if (value === 'select') setNewCoverLetterFile(null);
+                    if (errors.coverLetter) {
+                      setErrors(prev => ({ ...prev, coverLetter: '' }));
+                    }
                   }}
                   className="flex items-center gap-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="select" id="selectCoverLetter" disabled={loading || coverLetterDocuments.length === 0} />
+                    <RadioGroupItem value="select" id="selectCoverLetter" disabled={loading} />
                     <Label htmlFor="selectCoverLetter">Select Existing</Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -529,13 +835,21 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                   </div>
                 </RadioGroup>
 
-                {coverLetterMethod === 'select' && !loading && (
-                  coverLetterDocuments.length > 0 ? (
+                {coverLetterMethod === 'select' && (
+                  loading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading documents...</span>
+                    </div>
+                  ) : coverLetterDocuments.length > 0 ? (
                     <Select 
                       value={selectedCoverLetterUrl}
                       onValueChange={(value) => {
                         setSelectedCoverLetterUrl(value);
                         setNewCoverLetterFile(null);
+                        if (errors.coverLetter) {
+                          setErrors(prev => ({ ...prev, coverLetter: '' }));
+                        }
                       }}
                     >
                       <SelectTrigger>
@@ -553,7 +867,23 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="text-sm text-gray-500">No cover letter documents found.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">
+                        {error ? 
+                          "Failed to load documents. Please try refreshing or contact support." : 
+                          "No cover letter documents found. Please switch to \"Upload New\" or upload documents first."
+                        }
+                      </p>
+                      <p className="text-xs text-gray-400">💡 Tip: Upload documents in <strong>Documents</strong> section first, then return here to select them.</p>
+                      {error && (
+                        <button 
+                          onClick={fetchDocuments}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          🔄 Retry loading documents
+                        </button>
+                      )}
+                    </div>
                   )
                 )}
 
@@ -572,6 +902,8 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                 )}
               </>
             )}
+
+            {errors.coverLetter && <p className="text-sm text-red-600">{errors.coverLetter}</p>}
           </div>
 
           {/* Job Description */}
@@ -600,20 +932,6 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             />
           </div>
 
-          {/* Plan Info */}
-          {userLimits && (
-            <div className="p-3 bg-gray-50 border rounded-lg">
-              <p className="text-sm text-gray-600">
-                {userLimits.plan_name === 'Free' ? (
-                  <span className="text-amber-700">Mock interviews require a Pro or Premium subscription.</span>
-                ) : (
-                  <span>
-                    {userLimits.plan_name} Plan • Sessions: {userLimits.sessions_used}/{userLimits.session_limit || '∞'} • 20 min sessions
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>

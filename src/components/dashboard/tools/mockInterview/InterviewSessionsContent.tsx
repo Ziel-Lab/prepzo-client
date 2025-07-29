@@ -60,13 +60,14 @@ interface MockInterviewAttempt {
 // Combined interface for display
 interface InterviewSession {
   id: string;
-  title: string;
+  title: string; // Direct from database column
   type: string;
   duration: number;
-  status: 'completed' | 'in-progress' | 'scheduled';
-  score?: number;
+  status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
+  score?: number; // Calculated from attempts
   date: Date;
-  companyUrl?: string; // Changed from company to companyUrl
+  companyUrl?: string;
+  companyName?: string;
   role?: string;
   feedback?: string;
   attempts: MockInterviewAttempt[];
@@ -154,8 +155,8 @@ const InterviewSessionsContent = () => {
 
         console.log('🌐 Using backend URL:', backendUrl);
 
-        // Fetch sessions from backend API
-        const response = await fetch(`${backendUrl}/mockInterview/sessions`, {
+        // Fetch sessions from backend API (with attempts for stats calculation)
+        const response = await fetch(`${backendUrl}/mockInterview/sessions?include_attempts=true`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -190,20 +191,25 @@ const InterviewSessionsContent = () => {
             display_status: backendSession.display_status
           });
 
+          // Fetch attempts for this session to calculate score
+          const sessionAttempts: MockInterviewAttempt[] = backendSession.attempts || [];
+          const calculatedScore = calculateScoreFromAttempts(sessionAttempts);
+          
           // Map backend session to frontend format
           const sessionItem: InterviewSession = {
             id: backendSession.id,
-            title: generateSessionTitle(backendSession),
+            title: backendSession.title || generateSessionTitle(backendSession), // Use database title first
             type: backendSession.interview_type || 'behavioral',
             duration: backendSession.duration_minutes || 30,
-            status: mapBackendStatusToFrontend(backendSession.display_status || backendSession.status),
-            score: undefined, // Will be filled by attempts if available
+            status: mapBackendStatusToFrontend(backendSession.display_status || backendSession.status, backendSession.status_prep),
+            score: calculatedScore,
             date: new Date(backendSession.created_at),
             companyUrl: backendSession.company_url || undefined,
+            companyName: backendSession.company_name || undefined,
             role: backendSession.position || undefined,
-            feedback: undefined, // Will be filled by attempts if available
-            attempts: [], // Will be filled if needed
-            latestAttempt: undefined
+            feedback: undefined,
+            attempts: sessionAttempts,
+            latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
           };
 
           console.log('✅ Transformed session item:', sessionItem);
@@ -212,8 +218,11 @@ const InterviewSessionsContent = () => {
 
         console.log('🎯 Final session data:', sessionData.length, sessionData);
 
-        setSessions(sessionData);
-        setFilteredSessions(sessionData);
+        // Ensure all sessions have attempts data for accurate stats
+        const sessionsWithAttempts = await ensureAttemptsForStats(sessionData);
+        
+        setSessions(sessionsWithAttempts);
+        setFilteredSessions(sessionsWithAttempts);
 
       } catch (error) {
         console.error('💥 Error in fetchInterviewData:', error);
@@ -226,6 +235,174 @@ const InterviewSessionsContent = () => {
     fetchInterviewData();
     fetchUserLimits();
   }, [supabase]);
+
+  // Real-time subscription for mock_interview table changes
+  useEffect(() => {
+    let channel: any = null;
+
+    const setupRealtimeSubscription = async () => {
+      try {
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+        if (authError || !authSession?.user?.id) {
+          console.log('🔔 No authenticated user for real-time subscription');
+          return;
+        }
+
+        const userId = authSession.user.id;
+        console.log('🔔 Setting up real-time subscription for user:', userId?.substring(0, 8) + '***');
+        console.log('🔔 Listening for status_prep changes in mock_interview table');
+
+        // Subscribe to changes in mock_interview table for current user
+        channel = supabase
+          .channel('mock_interview_status_prep_changes')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'mock_interview',
+              filter: `user_id=eq.${userId}`
+            },
+            (payload) => {
+              console.log('🔔 Real-time UPDATE received for mock_interview:', {
+                sessionId: payload.new?.id,
+                oldStatusPrep: payload.old?.status_prep,
+                newStatusPrep: payload.new?.status_prep,
+                oldStatus: payload.old?.status,
+                newStatus: payload.new?.status
+              });
+              
+              if (payload.new && payload.old) {
+                const updatedSession = payload.new;
+                const oldSession = payload.old;
+                
+                // Check specifically if status_prep changed to DONE
+                if (oldSession.status_prep !== 'DONE' && updatedSession.status_prep === 'DONE') {
+                  console.log('🎉 Session preparation completed! status_prep: PENDING → DONE', {
+                    sessionId: updatedSession.id,
+                    title: updatedSession.title
+                  });
+                  
+                  // Update the specific session in state to show "Ready to Start"
+                  setSessions(prevSessions => {
+                    return prevSessions.map(session => {
+                      if (session.id === updatedSession.id) {
+                        console.log('📝 Updating session status: preparing → ready');
+                        return {
+                          ...session,
+                          status: 'ready' as const // Change from preparing to ready
+                        };
+                      }
+                      return session;
+                    });
+                  });
+                  
+                  // Also update filtered sessions
+                  setFilteredSessions(prevFiltered => {
+                    return prevFiltered.map(session => {
+                      if (session.id === updatedSession.id) {
+                        return {
+                          ...session,
+                          status: 'ready' as const
+                        };
+                      }
+                      return session;
+                    });
+                  });
+                } else {
+                  console.log('🔔 Other mock_interview update (not status_prep to DONE):', {
+                    sessionId: updatedSession.id,
+                    changes: Object.keys(payload.new).filter(key => 
+                      JSON.stringify(payload.old[key]) !== JSON.stringify(payload.new[key])
+                    )
+                  });
+                }
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('🔔 Real-time subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Successfully subscribed to mock_interview table changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('❌ Real-time subscription error');
+            }
+          });
+
+      } catch (error) {
+        console.error('❌ Error setting up real-time subscription:', error);
+      }
+    };
+
+    setupRealtimeSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🔔 Cleaning up real-time subscription');
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [supabase]);
+
+  // Function to fetch attempts for sessions that don't have them loaded
+  const ensureAttemptsForStats = async (sessionsToUpdate: InterviewSession[]) => {
+    try {
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      if (authError || !session?.access_token) return sessionsToUpdate;
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) return sessionsToUpdate;
+
+      // Check which sessions need attempts data
+      const sessionsNeedingAttempts = sessionsToUpdate.filter(s => 
+        !s.attempts || s.attempts.length === 0
+      );
+
+      if (sessionsNeedingAttempts.length === 0) return sessionsToUpdate;
+
+      // Fetch attempts for sessions that need them
+      const updatedSessions = await Promise.all(
+        sessionsToUpdate.map(async (sessionItem) => {
+          if (sessionItem.attempts && sessionItem.attempts.length > 0) {
+            return sessionItem; // Already has attempts
+          }
+
+          try {
+            const response = await fetch(`${backendUrl}/mockInterview/session/${sessionItem.id}/attempts`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              const attempts = result.attempts || [];
+              const calculatedScore = calculateScoreFromAttempts(attempts);
+              
+              return {
+                ...sessionItem,
+                attempts,
+                score: calculatedScore,
+                latestAttempt: attempts.length > 0 ? attempts[attempts.length - 1] : undefined
+              };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch attempts for session ${sessionItem.id}:`, error);
+          }
+
+          return sessionItem; // Return unchanged if fetch failed
+        })
+      );
+
+      return updatedSessions;
+    } catch (error) {
+      console.error('Error ensuring attempts for stats:', error);
+      return sessionsToUpdate;
+    }
+  };
 
   // Helper function to generate meaningful session titles
   const generateSessionTitle = (backendSession: any): string => {
@@ -247,19 +424,49 @@ const InterviewSessionsContent = () => {
   };
 
   // Helper function to map backend status to frontend status
-  const mapBackendStatusToFrontend = (backendStatus: string): 'completed' | 'in-progress' | 'scheduled' => {
+  const mapBackendStatusToFrontend = (backendStatus: string, statusPrep?: string): 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done' => {
     switch (backendStatus?.toLowerCase()) {
       case 'completed':
         return 'completed';
       case 'active':
       case 'in-progress':
         return 'in-progress';
+      case 'done':
+        return 'done';
       case 'ready':
+        // Check status_prep to determine if truly ready or still preparing
+        return statusPrep === 'DONE' ? 'ready' : 'scheduled';
       case 'scheduled':
       case 'created':
       default:
-        return 'scheduled';
+        // Check status_prep to determine if preparing or scheduled
+        return statusPrep === 'DONE' ? 'ready' : 'scheduled';
     }
+  };
+
+  // Helper function to calculate score from attempts
+  const calculateScoreFromAttempts = (attempts: MockInterviewAttempt[]): number | undefined => {
+    if (!attempts || attempts.length === 0) return undefined;
+    
+    const completedAttempts = attempts.filter(attempt => 
+      attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
+    );
+    
+    if (completedAttempts.length === 0) return undefined;
+    
+    // Calculate the average score from all completed attempts
+    const scores = completedAttempts.map(attempt => {
+      if (attempt.feedback?.Score) {
+        // Parse "7.5/10" format to percentage
+        const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+        return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+      }
+      return attempt.evaluation_score || 0;
+    });
+    
+    // Return average instead of maximum
+    const totalScore = scores.reduce((sum, score) => sum + score, 0);
+    return Math.round(totalScore / scores.length);
   };
 
   useEffect(() => {
@@ -297,17 +504,57 @@ const InterviewSessionsContent = () => {
 
   const stats = {
     total: sessions.length,
-    completed: sessions.filter(s => s.status === 'completed').length,
-    avgScore: (() => {
-      const sessionsWithScores = sessions.filter(s => s.score);
-      if (sessionsWithScores.length === 0) return 0;
-      const total = sessionsWithScores.reduce((acc, s) => acc + (s.score || 0), 0);
-      return Math.round(total / sessionsWithScores.length);
+    completed: (() => {
+      // Count sessions that have at least one completed attempt
+      return sessions.filter(s => 
+        s.attempts && s.attempts.some(attempt => attempt.status === 'PROCESSED')
+      ).length;
     })(),
-    totalTime: sessions.reduce((acc, s) => acc + s.duration, 0)
+    avgScore: (() => {
+      // Calculate average from all completed attempts across all sessions
+      const allCompletedAttempts = sessions.flatMap(s => 
+        s.attempts?.filter(attempt => 
+          attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
+        ) || []
+      );
+      
+      if (allCompletedAttempts.length === 0) return 0;
+      
+      const scores = allCompletedAttempts.map(attempt => {
+        if (attempt.feedback?.Score) {
+          // Parse "7.5/10" format to percentage
+          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+          return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+        }
+        return attempt.evaluation_score || 0;
+      });
+      
+      const total = scores.reduce((acc, score) => acc + score, 0);
+      return Math.round(total / scores.length);
+    })(),
+    totalTime: (() => {
+      // Calculate total time from actual completed attempts
+      const allCompletedAttempts = sessions.flatMap(s => 
+        s.attempts?.filter(attempt => 
+          attempt.status === 'PROCESSED' && attempt.actual_duration_minutes
+        ) || []
+      );
+      
+      return allCompletedAttempts.reduce((acc, attempt) => 
+        acc + (attempt.actual_duration_minutes || 0), 0
+      );
+    })()
   };
 
   const handleNewSession = async (sessionData: any) => {
+    console.log('🚀 handleNewSession received data:', sessionData);
+    console.log('🏢 Company URL field mapping:', {
+      company: sessionData.company,
+      company_name: sessionData.company_name,
+      companyUrl: sessionData.companyUrl,
+      finalValue: sessionData.company || sessionData.company_name || ''
+    });
+    
     try {
       // Get user session for authentication
       const { data: authData, error: authError } = await supabase.auth.getSession();
@@ -322,6 +569,24 @@ const InterviewSessionsContent = () => {
         return;
       }
 
+      // Prepare request body
+      const requestBody = {
+        title: sessionData.title,
+        interview_type: sessionData.type,
+        difficulty_level: 'medium', // Default
+        position: sessionData.role || 'Software Engineer',
+        company_url: sessionData.company || sessionData.company_name || '',
+        job_description: sessionData.jobDescription,
+        custom_instructions: sessionData.description || '',
+        resume_url: sessionData.resumeUrl,
+        resume_document_id: sessionData.resumeDocumentId,
+        cover_letter_url: sessionData.coverLetterUrl,
+        cover_letter_document_id: sessionData.coverLetterDocumentId
+      };
+      
+      console.log('📤 Sending to backend:', requestBody);
+      console.log('🏢 Company URL being sent:', requestBody.company_url);
+
       // Call backend create-session endpoint
       const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
         method: 'POST',
@@ -329,19 +594,7 @@ const InterviewSessionsContent = () => {
           'Authorization': `Bearer ${authData.session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          title: sessionData.title,
-          interview_type: sessionData.type,
-          difficulty_level: 'medium', // Default
-          position: sessionData.role || 'Software Engineer',
-          company_url: sessionData.companyUrl || '',
-          job_description: sessionData.jobDescription,
-          custom_instructions: sessionData.description || '',
-          resume_url: sessionData.resumeUrl,
-          resume_document_id: sessionData.resumeDocumentId,
-          cover_letter_url: sessionData.coverLetterUrl,
-          cover_letter_document_id: sessionData.coverLetterDocumentId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -355,7 +608,7 @@ const InterviewSessionsContent = () => {
       // Close modal and refresh data
       setIsNewSessionModalOpen(false);
       
-      // Refresh the page to show the new session
+      // Refresh sessions (will optimize for real-time updates later)
       window.location.reload();
 
     } catch (error) {
@@ -480,6 +733,8 @@ const InterviewSessionsContent = () => {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="done">Ready to Start</SelectItem>
+                  <SelectItem value="ready">Preparing</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
                 </SelectContent>
               </Select>
@@ -498,24 +753,6 @@ const InterviewSessionsContent = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Debug Info (remove in production) */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">Debug Info</h4>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p>📊 Total sessions: {sessions.length}</p>
-                <p>🔍 Filtered sessions: {filteredSessions.length}</p>
-                <p>⚡ Loading: {isLoading ? 'Yes' : 'No'}</p>
-                <p>❌ Error: {error || 'None'}</p>
-                <p>🔍 Search term: "{searchTerm}"</p>
-                <p>📋 Status filter: {statusFilter}</p>
-                <p>🏷️ Type filter: {typeFilter}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Sessions List */}
         <div className="space-y-4">

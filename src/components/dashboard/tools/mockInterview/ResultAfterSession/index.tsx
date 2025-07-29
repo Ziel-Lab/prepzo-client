@@ -12,6 +12,7 @@ import {
   Clock, 
   TrendingUp, 
   ArrowRight, 
+  ArrowLeft,
   RotateCcw, 
   Target,
   AlertTriangle,
@@ -20,7 +21,11 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  Star
+  Star,
+  MessageSquare,
+  Building2,
+  Briefcase,
+  Calendar
 } from 'lucide-react';
 
 interface StructuredFeedback {
@@ -33,25 +38,40 @@ interface StructuredFeedback {
   "additional_questions_and_answers"?: string;
 }
 
-interface ResultAfterSessionProps {
-  attemptId: string;
-  sessionId: string;
-  score?: number;
-  duration: number;
-  feedback?: string | StructuredFeedback;
+interface AttemptData {
+  id: string;
+  attempt_number: number;
   status: string;
+  started_at: string;
+  completed_at: string;
+  actual_duration_minutes: number;
+  evaluation_score: number;
+  feedback: any;
+  transcript: any;
+  mock_interview: {
+    title: string;
+    interview_type: string;
+    position: string;
+    company_name: string;
+  };
+}
+
+interface ResultAfterSessionProps {
+  attemptData: AttemptData;
 }
 
 const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
-  attemptId,
-  sessionId,
-  score,
-  duration,
-  feedback,
-  status
+  attemptData
 }) => {
   const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
+
+  // Extract data from attemptData
+  const feedback = attemptData.feedback;
+  const score = attemptData.evaluation_score;
+  const duration = attemptData.actual_duration_minutes;
+  const status = attemptData.status;
+  const attemptId = attemptData.id;
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -83,105 +103,244 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   };
 
   const parseAdditionalQA = (qaText: string) => {
-    // Split by "**Additional Question" but preserve the marker
-    const sections = qaText.split(/(?=\*\*Additional Question)/);
-    return sections.filter(section => section.includes('Additional Question')).map(section => {
-      // Extract question number and text
-      const questionMatch = section.match(/\*\*Additional Question (\d+):\*\*\s*([\s\S]+?)(?=\*\*Appropriate Response:|$)/);
-      const question = questionMatch ? questionMatch[2].trim() : '';
+    const results = [];
+    let currentIndex = 0;
+    let questionNumber = 1;
+    
+    while (true) {
+      // Try multiple question marker formats
+      const questionMarkers = [
+        `**Additional Question ${questionNumber}:**`,
+        `### Additional Question ${questionNumber}:`,
+        `**Question ${questionNumber}:**`,
+        `### Question ${questionNumber}:`
+      ];
       
-      // Extract response
-      const responseMatch = section.match(/\*\*Appropriate Response:\*\*\s*([\s\S]+?)(?=\*\*Additional Question|$)/);
-      let response = responseMatch ? responseMatch[1].trim() : '';
+      let questionIndex = -1;
+      let usedMarker = '';
       
-      // Clean up response - remove quotes and extra whitespace
-      response = response.replace(/^['"]|['"]$/g, '').trim();
+      // Find which marker format exists
+      for (const marker of questionMarkers) {
+        const index = qaText.indexOf(marker, currentIndex);
+        if (index !== -1) {
+          questionIndex = index;
+          usedMarker = marker;
+          break;
+        }
+      }
       
-      return { question, response };
-    }).filter(qa => qa.question && qa.response);
+      if (questionIndex === -1) {
+        break;
+      }
+      
+      const questionTextStart = questionIndex + usedMarker.length;
+      const responseMarker = '**Appropriate Response:**';
+      const responseIndex = qaText.indexOf(responseMarker, questionTextStart);
+      
+      if (responseIndex === -1) {
+        break;
+      }
+      
+      let question = qaText.substring(questionTextStart, responseIndex).trim();
+      const responseTextStart = responseIndex + responseMarker.length;
+      
+      // Look for next question to determine where this response ends
+      const nextQuestionNumber = questionNumber + 1;
+      const nextQuestionMarkers = [
+        `**Additional Question ${nextQuestionNumber}:**`,
+        `### Additional Question ${nextQuestionNumber}:`,
+        `**Question ${nextQuestionNumber}:**`,
+        `### Question ${nextQuestionNumber}:`
+      ];
+      
+      let nextQuestionIndex = -1;
+      for (const marker of nextQuestionMarkers) {
+        const index = qaText.indexOf(marker, responseTextStart);
+        if (index !== -1) {
+          nextQuestionIndex = index;
+          break;
+        }
+      }
+      
+      let response;
+      if (nextQuestionIndex !== -1) {
+        response = qaText.substring(responseTextStart, nextQuestionIndex).trim();
+      } else {
+        response = qaText.substring(responseTextStart).trim();
+      }
+      
+      // Clean up response text - remove quotes and extra whitespace
+      response = response.replace(/^['"`''""]|['"`''""]$/g, '').trim();
+      
+      if (question && response) {
+        results.push({ question, response });
+      }
+      
+      questionNumber++;
+      currentIndex = responseTextStart;
+    }
+    
+    return results;
   };
 
-  // Function to format markdown text (convert ** to bold)
+  // Function to format markdown text (convert ** to bold and ### to headers)
   const formatMarkdownText = (text: string) => {
-    // Split text by ** markers and format accordingly
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        const boldText = part.slice(2, -2);
-        return <strong key={index} className="font-semibold">{boldText}</strong>;
+    // First handle ### headers, then ** bold text
+    const lines = text.split('\n');
+    return lines.map((line, lineIndex) => {
+      // Handle ### headers
+      if (line.trim().startsWith('### ')) {
+        const headerText = line.replace(/^### /, '').trim();
+        return (
+          <h3 key={lineIndex} className="text-lg font-bold text-emerald-900 mt-4 mb-2 first:mt-0">
+            {headerText}
+          </h3>
+        );
       }
-      return part;
+      
+      // Handle ** bold text within the line
+      const parts = line.split(/(\*\*[^*]+\*\*)/g);
+      const formattedLine = parts.map((part, partIndex) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          const boldText = part.slice(2, -2);
+          return <strong key={partIndex} className="font-semibold text-emerald-800">{boldText}</strong>;
+        }
+        return part;
+      });
+      
+      return (
+        <div key={lineIndex} className="mb-2">
+          {formattedLine}
+        </div>
+      );
     });
   };
 
   const structuredFeedback = parseStructuredFeedback();
   const parsedScore = structuredFeedback?.Score ? parseInt(structuredFeedback.Score) : score;
 
+  // Helper functions
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Interview Complete!</h1>
-        <p className="text-gray-600">Your detailed analysis and personalized feedback are ready.</p>
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button 
+          onClick={() => router.push('/dashboard/tools/mock-Interview')} 
+          variant="outline"
+          size="sm"
+        >
+          <ArrowLeft size={16} className="mr-2" />
+          Back to Sessions
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
+          <p className="text-gray-600">Attempt #{attemptData.attempt_number}</p>
+        </div>
       </div>
 
-      {/* Quick Stats */}
-      <Card className="border-2 border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+      {/* Session Overview */}
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-blue-800">
-            <TrendingUp size={24} />
-            Performance Overview
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="text-green-600" size={20} />
+            Session Overview
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Clock size={20} className="text-gray-600" />
-                <span className="text-sm font-medium text-gray-600">Duration</span>
-              </div>
-              <div className="text-2xl font-bold text-gray-900">{duration} min</div>
-            </div>
-            
-            {parsedScore && (
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Award size={20} className="text-yellow-600" />
-                  <span className="text-sm font-medium text-gray-600">Overall Score</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold text-gray-900">{attemptData.mock_interview.title}</h3>
+              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <Building2 size={14} />
+                  <span>{attemptData.mock_interview.company_name}</span>
                 </div>
-                <div className={`text-2xl font-bold ${getScoreColor(parsedScore)}`}>
-                  {Math.round(parsedScore)}/100
+                <div className="flex items-center gap-1">
+                  <Briefcase size={14} />
+                  <span>{attemptData.mock_interview.position}</span>
                 </div>
               </div>
-            )}
-
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Star size={20} className="text-purple-600" />
-                <span className="text-sm font-medium text-gray-600">Status</span>
-              </div>
-              <Badge className={`text-sm ${
-                status === 'PROCESSED' ? 'bg-green-100 text-green-700 border-green-200' : 
-                'bg-blue-100 text-blue-700 border-blue-200'
-              }`}>
-                {status === 'PROCESSED' ? 'Analysis Complete' : 'Processing...'}
+              <Badge variant="outline" className="mt-2">
+                {attemptData.mock_interview.interview_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Calendar size={14} />
+                <span>{formatDate(attemptData.started_at)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock size={14} />
+                <span>{attemptData.actual_duration_minutes} minutes</span>
+              </div>
+              {(attemptData.evaluation_score || structuredFeedback?.Score) && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Award size={14} className="text-yellow-600" />
+                  <span className="font-semibold text-gray-900">
+                    {structuredFeedback?.Score ? (
+                      <span className={getScoreColor(parseFloat(structuredFeedback.Score))}>
+                        {structuredFeedback.Score}
+                      </span>
+                    ) : (
+                      <span className={getScoreColor(attemptData.evaluation_score)}>
+                        {Math.round(attemptData.evaluation_score)}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <Badge className={`text-sm ${attemptData.status === 'PROCESSED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {attemptData.status}
+                </Badge>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Score Card */}
+      {attemptData.evaluation_score && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="text-yellow-600" size={20} />
+              Performance Score
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center">
+              <div className={`text-6xl font-bold ${getScoreColor(attemptData.evaluation_score)} mb-2`}>
+                {Math.round(attemptData.evaluation_score)}%
+              </div>
+              <Badge className={getScoreBgColor(attemptData.evaluation_score)}>
+                {attemptData.evaluation_score >= 90 ? 'Excellent' :
+                 attemptData.evaluation_score >= 80 ? 'Good' :
+                 attemptData.evaluation_score >= 70 ? 'Average' : 'Needs Improvement'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {/* Structured Feedback */}
       {structuredFeedback && (
         <div className="space-y-6">
-          {/* SWOT Analysis */}
+          {/* Feedback Analysis */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="text-indigo-600" size={24} />
-                SWOT Analysis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <Tabs defaultValue="strengths" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="strengths" className="text-xs sm:text-sm">Strengths</TabsTrigger>
@@ -260,7 +419,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
             </Card>
           )}
 
-          {/* Additional Practice Questions */}
+          {/* Practice Questions */}
           {structuredFeedback["additional_questions_and_answers"] && (
             <Card>
               <CardHeader>
@@ -268,33 +427,70 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                   <Lightbulb className="text-emerald-600" size={24} />
                   Practice Questions & Model Answers
                 </CardTitle>
+                <p className="text-gray-600 text-sm mt-1">
+                  Additional questions to help you prepare for similar interviews
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                {parseAdditionalQA(structuredFeedback["additional_questions_and_answers"]).map((qa, index) => (
-                  <Collapsible key={index}>
-                    <CollapsibleTrigger
-                      onClick={() => toggleSection(`qa-${index}`)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Badge className="bg-emerald-600 text-white">Q{index + 1}</Badge>
-                          <span className="font-medium text-emerald-900">{qa.question}</span>
+                {(() => {
+                  const qaData = structuredFeedback["additional_questions_and_answers"] || "";
+                  const parsedQA = parseAdditionalQA(qaData);
+                  
+                  // If parsing failed but we have data, show clean raw format
+                  if (parsedQA.length === 0 && qaData) {
+                    return (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+                        <h4 className="font-semibold text-emerald-900 mb-4 flex items-center gap-2">
+                          <BookOpen size={16} />
+                          Practice Questions & Model Answers
+                        </h4>
+                        <div className="text-emerald-800 leading-relaxed whitespace-pre-line space-y-4">
+                          {formatMarkdownText(qaData)}
                         </div>
-                        {expandedSections[`qa-${index}`] ? 
-                          <ChevronUp className="text-emerald-600" size={20} /> : 
-                          <ChevronDown className="text-emerald-600" size={20} />
-                        }
                       </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <h4 className="font-semibold text-gray-900 mb-2">Model Answer:</h4>
-                        <p className="text-gray-800 leading-relaxed">{qa.response}</p>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
+                    );
+                  }
+                  
+                  // Return parsed Q&A as collapsible components
+                  return (
+                    <div className="space-y-3">
+                      {parsedQA.map((qa, index) => (
+                        <Collapsible key={index}>
+                          <CollapsibleTrigger
+                            onClick={() => toggleSection(`qa-${index}`)}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer">
+                              <div className="flex items-start gap-3">
+                                <Badge className="bg-emerald-600 text-white shrink-0 mt-0.5">
+                                  Q{index + 1}
+                                </Badge>
+                                <span className="font-medium text-emerald-900 text-left overflow-hidden">
+                                  {qa.question.length > 100 ? qa.question.substring(0, 100) + '...' : qa.question}
+                                </span>
+                              </div>
+                              {expandedSections[`qa-${index}`] ? 
+                                <ChevronUp className="text-emerald-600 shrink-0" size={20} /> : 
+                                <ChevronDown className="text-emerald-600 shrink-0" size={20} />
+                              }
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                <Star size={14} className="text-yellow-500" />
+                                Model Answer:
+                              </h4>
+                              <div className="text-gray-800 leading-relaxed bg-white p-3 rounded border border-gray-100">
+                                {qa.response}
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
@@ -306,53 +502,61 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="text-blue-600" size={20} />
-              Feedback Summary
+              <TrendingUp className="text-blue-600" size={20} />
+              Detailed Feedback
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-gray-800 leading-relaxed">{feedback}</p>
+            <div className="prose max-w-none">
+              <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">{feedback}</p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Button 
-          onClick={() => router.push(`/dashboard/tools/mock-Interview/feedback/${attemptId}`)}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-12"
-          size="lg"
-        >
-          View Complete Analysis
-          <ArrowRight size={18} className="ml-2" />
-        </Button>
-        
-        <Button 
-          onClick={() => router.push('/dashboard/tools/mock-Interview')}
-          variant="outline"
-          className="flex-1 h-12"
-          size="lg"
-        >
-          <RotateCcw size={18} className="mr-2" />
-          Practice Again
-        </Button>
-      </div>
-
-      {/* Processing Notice */}
-      {status !== 'PROCESSED' && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-800">
-              <Clock size={16} />
-              <span className="text-sm font-medium">
-                Your interview is being analyzed. Detailed feedback will be available shortly.
-              </span>
+      {/* Transcript */}
+      {attemptData.transcript && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="text-gray-600" size={20} />
+              Interview Transcript
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg max-h-96 overflow-y-auto">
+              {typeof attemptData.transcript === 'string' ? (
+                <p className="text-gray-900 whitespace-pre-wrap text-sm leading-relaxed">{attemptData.transcript}</p>
+              ) : (
+                <pre className="text-sm text-gray-900 font-mono">
+                  {JSON.stringify(attemptData.transcript, null, 2)}
+                </pre>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Actions */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-wrap gap-4">
+            <Button 
+              onClick={() => router.push('/dashboard/tools/mock-Interview')}
+              variant="outline"
+            >
+              <ArrowLeft size={16} className="mr-2" />
+              Back to Sessions
+            </Button>
+            <Button 
+              onClick={() => router.push('/dashboard/tools/mock-Interview')}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Practice Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

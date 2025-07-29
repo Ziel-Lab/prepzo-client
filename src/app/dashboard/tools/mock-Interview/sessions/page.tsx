@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MockInterviewLiveKit from '@/components/dashboard/tools/mockInterview/MockInterviewLiveKit';
 import { createClient } from '@/utils/supabase/client';
@@ -28,7 +28,18 @@ interface SessionData {
   created_at: string;
 }
 
-const MockInterviewSessionsPage = () => {
+// Loading component for Suspense fallback
+const SessionsLoading = () => (
+  <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">Loading session parameters...</p>
+    </div>
+  </div>
+);
+
+// Main component that uses useSearchParams
+const MockInterviewSessionsContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
@@ -170,7 +181,16 @@ const MockInterviewSessionsPage = () => {
           onEndInterview={handleEndInterview}
         />
       </div>
-  )
+  );
+};
+
+// Main page component with Suspense boundary
+const MockInterviewSessionsPage = () => {
+  return (
+    <Suspense fallback={<SessionsLoading />}>
+      <MockInterviewSessionsContent />
+    </Suspense>
+  );
 };
 
 export default MockInterviewSessionsPage; 
