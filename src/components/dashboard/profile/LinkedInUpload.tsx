@@ -70,6 +70,26 @@ interface LinkedInExtractedData {
     description: string;
     date: string;
   }>;
+
+  // Projects section extracted from LinkedIn PDF
+  projects?: Array<{
+    name: string;
+    role: string;
+    description: string;
+    impact?: string;
+    timeline: string;
+    technologies: string[];
+    links: {
+      demo: string;
+      repo: string;
+    };
+  }>;
+
+  // Optional resume URL if backend generates one
+  resume_url?: string;
+
+  // Optional avatar/profile picture URL
+  avatar_url?: string;
 }
 
 interface LinkedInUploadProps {
@@ -224,6 +244,9 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           education,
           certifications,
           achievements,
+          projects,
+          resume_url,
+          avatar_url,
         } = raw;
 
         return {
@@ -240,6 +263,9 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           education: Array.isArray(education) ? education : [],
           certificates: Array.isArray(certifications) ? certifications : [],
           achievements: Array.isArray(achievements) ? achievements : [],
+          projects: Array.isArray(projects) ? projects : [],
+          resume_url,
+          avatar_url,
         };
       };
 

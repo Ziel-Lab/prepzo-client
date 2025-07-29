@@ -71,7 +71,8 @@ interface ProfileData {
   experience: Array<{
     company: string;
     role: string;
-    duration: string;
+    duration?: string;
+    timeline?: string; // optional timeline alias
     description: string;
   }>;
   education: Array<{
@@ -153,6 +154,8 @@ interface ProfileData {
     fileName: string;
     uploadedAt: string;
   };
+  public_slug?: string;
+  is_public?: boolean;
 }
 
 interface LinkedInExtractedData {
@@ -188,6 +191,21 @@ interface LinkedInExtractedData {
     expiryDate?: string;
     credentialId?: string;
   }>;
+  // Newly added projects extracted from LinkedIn PDF
+  projects?: Array<{
+    name: string;
+    role: string;
+    description: string;
+    impact?: string;
+    timeline: string;
+    technologies: string[];
+    links: {
+      demo: string;
+      repo: string;
+    };
+  }>;
+  // Optional resume URL extracted (e.g., generated CV link)
+  resume_url?: string;
 }
 
 const Profile = () => {
@@ -204,6 +222,10 @@ const Profile = () => {
   const [showExperienceDialog, setShowExperienceDialog] = useState(false);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showSkillDialog, setShowSkillDialog] = useState(false);
+  // Slug dialog state
+  const [showSlugDialog, setShowSlugDialog] = useState(false);
+  const [slugInput, setSlugInput] = useState('');
+  const [slugError, setSlugError] = useState('');
   
   // Form states for different items
   const [editingCertIndex, setEditingCertIndex] = useState<number | null>(null);
@@ -268,6 +290,8 @@ const Profile = () => {
     },
     interviewPractice: { sessionsCompleted: 0, totalHours: 0, categories: [], recentSessions: [] },
     resume: undefined,
+    public_slug: '',
+    is_public: false,
   };
 
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
@@ -327,6 +351,36 @@ const Profile = () => {
     }));
   };
 
+  /**
+   * Normalise raw experience objects (from backend / PDF extractor) into
+   * the shape expected by the UI.
+   */
+  const normaliseExperience = (rawExp: unknown): ProfileData['experience'] => {
+    if (!Array.isArray(rawExp)) return [];
+
+    return (rawExp as any[]).map((e) => {
+      // Build a human-readable duration string
+      let finalDuration = e.duration as string | undefined;
+      if (!finalDuration) {
+        if (e.start_date) {
+          const endPart = e.end_date && e.end_date !== 'Present' ? e.end_date : 'Present';
+          finalDuration = `${e.start_date} - ${endPart}`;
+        }
+      }
+
+      // Combine responsibilities array into description if description missing
+      const desc = e.description ?? (Array.isArray(e.responsibilities) ? e.responsibilities.join('. ') : '');
+
+      return {
+        company: e.company ?? '',
+        role: e.role ?? '',
+        duration: finalDuration ?? '',
+        timeline: finalDuration ?? '',
+        description: desc,
+      };
+    });
+  };
+
   // Convert backend response shape into our local ProfileData partial
   const mapRemoteProfile = (raw: any): Partial<ProfileData> => {
     if (!raw) return {};
@@ -352,6 +406,8 @@ const Profile = () => {
       certifications,
       resume_url,
       updated_at,
+      public_slug,
+      is_public,
     } = raw;
 
     return {
@@ -367,7 +423,7 @@ const Profile = () => {
       website,
       avatar: avatar_url || avatar || '',
       skills: normaliseSkills(skills),
-      experience: Array.isArray(experience) ? experience : [],
+      experience: normaliseExperience(experience),
       projects: normaliseProjects(projects),
       certificates: Array.isArray(certifications) ? certifications : [],
       resume: resume_url
@@ -377,6 +433,8 @@ const Profile = () => {
             uploadedAt: updated_at || new Date().toISOString(),
           }
         : undefined,
+      public_slug,
+      is_public,
     };
   };
 
@@ -438,7 +496,15 @@ const Profile = () => {
   }
 
   const handleShare = async () => {
-    const publicUrl = `${window.location.origin}/public/${profile.id}/${profile.username}`;
+    if (!profile.is_public) {
+      toast({
+        title: 'Profile is private',
+        description: 'Publish your profile before sharing.',
+      });
+      return;
+    }
+
+    const publicUrl = `${window.location.origin}/public/profile/${profile.public_slug || profile.id}`;
     try {
       await navigator.clipboard.writeText(publicUrl);
       toast({
@@ -530,9 +596,19 @@ const Profile = () => {
       ...(linkedInData.linkedin && { linkedin: linkedInData.linkedin }),
       ...(linkedInData.website && { website: linkedInData.website }),
       ...(linkedInData.skills && linkedInData.skills.length > 0 && { skills: normaliseSkills(linkedInData.skills) }),
-      ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: linkedInData.experience }),
+      ...(linkedInData.experience && linkedInData.experience.length > 0 && { experience: normaliseExperience(linkedInData.experience) }),
       ...(linkedInData.education && linkedInData.education.length > 0 && { education: linkedInData.education }),
       ...(linkedInData.certificates && linkedInData.certificates.length > 0 && { certificates: linkedInData.certificates }),
+      // Apply projects data if present
+      ...(linkedInData.projects && linkedInData.projects.length > 0 && { projects: normaliseProjects(linkedInData.projects) }),
+      // Apply resume if present
+      ...(linkedInData.resume_url && {
+        resume: {
+          url: linkedInData.resume_url,
+          fileName: linkedInData.resume_url.split('/')?.pop() || 'resume.pdf',
+          uploadedAt: new Date().toISOString(),
+        },
+      }),
     }));
 
     setIsEditing(true);
@@ -656,7 +732,7 @@ const Profile = () => {
     setNewExperience({
       company: exp.company,
       role: exp.role,
-      duration: exp.duration,
+      duration: exp.duration || (exp as any).timeline || '',
       description: exp.description,
     });
     setEditingExperienceIndex(index);
@@ -775,6 +851,107 @@ const Profile = () => {
 
   // ... existing code ...
 
+  // Toggle public visibility
+  const handleTogglePublic = async () => {
+    if (!session?.access_token) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to change visibility',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      if (!profile.is_public) {
+        // Open slug dialog first
+        setSlugInput(profile.public_slug || slugify(profile.username || profile.name || 'user'));
+        setShowSlugDialog(true);
+        return; // wait for dialog confirmation
+      } else {
+        // Unpublish – use the /make-private endpoint
+        const makePrivateEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/make-private`;
+        const resp = await fetch(makePrivateEndpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!resp.ok) throw new Error('Failed');
+
+        setProfile(prev => ({
+          ...prev,
+          is_public: false,
+        }));
+
+        toast({
+          title: 'Profile unpublished',
+          description: 'Your profile is no longer publicly accessible.',
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Could not update visibility',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Helper slugify outside
+  const slugify = (str: string) =>
+    str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+
+  // Confirm slug & publish handler
+  const handleConfirmSlug = async () => {
+    setShowSlugDialog(false);
+    // reuse toggle logic but ensure desired slug set
+    const desiredSlug = slugify(slugInput);
+    try {
+      const editSlugEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/edit-slug`;
+      const respSlug = await fetch(editSlugEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_slug: desiredSlug }),
+      });
+
+      if (!respSlug.ok) {
+        const errJson = await respSlug.json().catch(() => ({}));
+        // Show inline error and reopen dialog
+        setSlugError(errJson.error || errJson.message || 'Slug update failed');
+        setShowSlugDialog(true);
+        return;
+      }
+
+      const slugData = await respSlug.json();
+      setProfile(prev => ({ ...prev, public_slug: slugData.public_slug || desiredSlug }));
+
+      // call make-public endpoint
+      const makePublicEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/make-public`;
+      const resp = await fetch(makePublicEndpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!resp.ok) throw new Error('Failed to publish');
+
+      setProfile(prev => ({ ...prev, is_public: true }));
+
+      toast({ title: 'Profile published!', description: 'Anyone with the link can now view your profile.' });
+    } catch (e) {
+      setSlugError(e instanceof Error ? e.message : 'Failed');
+      setShowSlugDialog(true);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-gradient-to-br from-prepzo-50 via-white to-prepzo-100/30">
@@ -798,13 +975,14 @@ const Profile = () => {
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                 </svg>
-                <span className="hidden md:inline">LinkedIn</span>
+                {/* <span className="hidden md:inline"></span> */}
                 <span className="md:hidden">LI</span>
               </Button>
               <Button 
                 variant="outline" 
                 onClick={handleShare}
-                className="group border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 text-xs"
+                disabled={!profile.is_public}
+                className={`group transition-all duration-200 text-xs ${profile.is_public ? 'border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400' : 'border-gray-200 text-gray-400 cursor-not-allowed'}`}
                 size="sm"
               >
                 <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 group-hover:scale-110 transition-transform" />
@@ -819,6 +997,15 @@ const Profile = () => {
                 {isEditing ? <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> : <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
                 <span className="hidden md:inline">{isEditing ? "Save Changes" : "Edit Profile"}</span>
                 <span className="md:hidden">{isEditing ? "Save" : "Edit"}</span>
+              </Button>
+              {/* Publish / Unpublish Button */}
+              <Button
+                variant="outline"
+                onClick={handleTogglePublic}
+                className={`group ${profile.is_public ? 'border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400' : 'border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400'} transition-all duration-200 text-xs`}
+                size="sm"
+              >
+                {profile.is_public ? 'Unpublish' : 'Make Public'}
               </Button>
             </div>
           </div>
@@ -840,6 +1027,87 @@ const Profile = () => {
                         <AvatarFallback className="text-lg sm:text-xl lg:text-2xl bg-gradient-to-br from-prepzo-200 to-prepzo-300 text-prepzo-800 font-bold">
                           {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : ''}
                         </AvatarFallback>
+                        {isEditing && (
+                          <div 
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => document.getElementById('avatar-upload')?.click()}
+                          >
+                            <Upload className="w-6 h-6 text-white" />
+                            <input
+                              id="avatar-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                // Client-side validation: only allow PNG, JPG, JPEG, GIF
+                                const allowedTypes = [
+                                  'image/png',
+                                  'image/jpeg',
+                                  'image/jpg',
+                                  'image/gif',
+                                ];
+
+                                if (!allowedTypes.includes(file.type)) {
+                                  toast({
+                                    title: 'Invalid file type',
+                                    description: 'Only PNG, JPG, JPEG, or GIF images are allowed.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
+
+                                if (!session?.access_token) {
+                                  toast({
+                                    title: 'Not authenticated',
+                                    description: 'Please sign in again to upload an avatar.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
+                                
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file); // Backend expects 'file' as the field name
+                                  
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/upload-avatar`, {
+                                    method: 'POST',
+                                    headers: new Headers({
+                                      'Authorization': `Bearer ${session.access_token}`,
+                                      // Don't set Content-Type header - browser will set it automatically with boundary
+                                    }),
+                                    credentials: 'include', // Include cookies if needed
+                                    body: formData,
+                                  });
+                                  
+                                  if (!response.ok) {
+                                    const errJson = await response.json().catch(() => ({}));
+                                    throw new Error(errJson.error || errJson.message || 'Failed to upload avatar');
+                                  }
+                                  
+                                  const data = await response.json();
+                                  setProfile(prev => ({
+                                    ...prev,
+                                    avatar: data.avatar_url,
+                                  }));
+                                  
+                                  toast({
+                                    title: "Avatar Updated",
+                                    description: "Your profile picture has been updated successfully",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    title: "Upload Failed",
+                                    description: error instanceof Error ? error.message : "Failed to upload avatar",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
                       </Avatar>
                       <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
                     </div>
@@ -922,51 +1190,62 @@ const Profile = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      {/* Location - Always show if has data or editing */}
+                      {(profile.location || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.location} 
+                              onChange={(e) => setProfile({...profile, location: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Location"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.location}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.location} 
-                            onChange={(e) => setProfile({...profile, location: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Location"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.location}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      )}
+                      
+                      {/* Email - Always show if has data or editing */}
+                      {(profile.email || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.email} 
+                              onChange={(e) => setProfile({...profile, email: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Email"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.email}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.email} 
-                            onChange={(e) => setProfile({...profile, email: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Email"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.email}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 md:col-span-2 lg:col-span-1">
-                        <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
-                          <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                      )}
+                      
+                      {/* Phone - Only show if has data or editing */}
+                      {(profile.phone || isEditing) && (
+                        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-white/60 backdrop-blur-sm border border-prepzo-100 md:col-span-2 lg:col-span-1">
+                          <div className="w-6 h-6 rounded-full bg-prepzo-100 flex items-center justify-center flex-shrink-0">
+                            <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-prepzo-600" />
+                          </div>
+                          {isEditing ? (
+                            <Input 
+                              value={profile.phone} 
+                              onChange={(e) => setProfile({...profile, phone: e.target.value})}
+                              className="border-0 bg-transparent text-xs"
+                              placeholder="Phone"
+                            />
+                          ) : (
+                            <span className="text-prepzo-700 font-medium text-xs truncate">{profile.phone}</span>
+                          )}
                         </div>
-                        {isEditing ? (
-                          <Input 
-                            value={profile.phone} 
-                            onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                            className="border-0 bg-transparent text-xs"
-                            placeholder="Phone"
-                          />
-                        ) : (
-                          <span className="text-prepzo-700 font-medium text-xs truncate">{profile.phone}</span>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -975,54 +1254,74 @@ const Profile = () => {
           </Card>
 
           {/* Content Tabs */}
-          <Tabs defaultValue="practice" className="space-y-4 sm:space-y-6 lg:space-y-8">
+          {((profile.skills.length > 0 || profile.certificates.length > 0 || profile.experience.length > 0 || profile.projects.length > 0 || profile.achievements.length > 0) || isEditing) ? (
+            <Tabs 
+              defaultValue={
+                profile.skills.length > 0 ? "skills" :
+                profile.certificates.length > 0 ? "certificates" :
+                profile.experience.length > 0 ? "experience" :
+                profile.projects.length > 0 ? "projects" :
+                profile.achievements.length > 0 ? "achievements" :
+                "resume"
+              } 
+              className="space-y-4 sm:space-y-6 lg:space-y-8"
+            >
             <div className="overflow-x-auto scrollbar-hide pb-2">
               <TabsList className="inline-flex w-auto min-w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1 sm:p-1.5 h-10 sm:h-12 lg:h-14">
-              <TabsTrigger 
-                value="practice" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Practice
-              </TabsTrigger>
-              <TabsTrigger 
-                value="interviews" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Interviews
-              </TabsTrigger>
-              <TabsTrigger 
-                value="skills" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Skills
-              </TabsTrigger>
-              <TabsTrigger 
-                value="certificates" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Certificates</span>
-                <span className="md:hidden">Certs</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="experience" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Experience</span>
-                <span className="md:hidden">Exp</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="projects" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                Projects
-              </TabsTrigger>
-              <TabsTrigger 
-                value="achievements" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
-              >
-                <span className="hidden md:inline">Achievements</span>
-                <span className="md:hidden">Awards</span>
-              </TabsTrigger>
+              {/* Skills Tab - Always show if has data or editing */}
+              {(profile.skills.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="skills" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  Skills
+                </TabsTrigger>
+              )}
+              
+              {/* Certificates Tab */}
+              {(profile.certificates.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="certificates" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Certificates</span>
+                  <span className="md:hidden">Certs</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Experience Tab */}
+              {(profile.experience.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="experience" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Experience</span>
+                  <span className="md:hidden">Exp</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Projects Tab */}
+              {(profile.projects.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="projects" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  Projects
+                </TabsTrigger>
+              )}
+              
+              {/* Achievements Tab */}
+              {(profile.achievements.length > 0 || isEditing) && (
+                <TabsTrigger 
+                  value="achievements" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+                >
+                  <span className="hidden md:inline">Achievements</span>
+                  <span className="md:hidden">Awards</span>
+                </TabsTrigger>
+              )}
+              
+              {/* Resume Tab - Always show */}
               <TabsTrigger 
                 value="resume" 
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
@@ -1033,8 +1332,8 @@ const Profile = () => {
             </div>
 
             {/* Practice Stats Tab */}
-            <TabsContent value="practice" className="space-y-3 sm:space-y-4 lg:space-y-6">
-              {/* Stats Overview */}
+            {/* <TabsContent value="practice" className="space-y-3 sm:space-y-4 lg:space-y-6">
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-green-50 to-green-100/80 backdrop-blur-sm">
                   <CardContent className="p-3 sm:p-4 lg:p-6">
@@ -1101,7 +1400,7 @@ const Profile = () => {
                 </Card>
               </div>
 
-              {/* Topics Progress */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader className="pb-3 sm:pb-6">
                   <CardTitle className="flex items-center gap-2 sm:gap-3 text-prepzo-900 text-lg sm:text-xl">
@@ -1130,7 +1429,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
 
-              {/* Language Stats */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1157,11 +1456,11 @@ const Profile = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Interview Practice Tab */}
-            <TabsContent value="interviews" className="space-y-6">
-              {/* Overview Stats */}
+            {/* <TabsContent value="interviews" className="space-y-6">
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-purple-50 to-purple-100/80 backdrop-blur-sm">
                   <CardContent className="p-6">
@@ -1198,7 +1497,7 @@ const Profile = () => {
                 </Card>
               </div>
 
-              {/* Category Performance */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1230,7 +1529,7 @@ const Profile = () => {
                 </CardContent>
               </Card>
 
-              {/* Recent Sessions */}
+              
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-prepzo-900">
@@ -1260,27 +1559,21 @@ const Profile = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-6">
-              {Object.entries(
-                profile.skills.reduce((acc, skill, skillIndex) => {
-                  if (!acc[skill.category]) acc[skill.category] = [];
-                  acc[skill.category].push({ ...skill, originalIndex: skillIndex });
-                  return acc;
-                }, {} as Record<string, Array<typeof profile.skills[0] & { originalIndex: number }>>)
-              ).map(([category, skills]) => (
-                <Card key={category} className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              {profile.skills.length > 0 && (
+                <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-prepzo-900">
                       <Brain className="w-6 h-6 text-prepzo-600" />
-                      {category}
+                      Skills
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {skills.map((skill, index) => (
+                      {profile.skills.map((skill, index) => (
                         <div key={index} className="space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="font-semibold text-prepzo-900">{skill.name}</span>
@@ -1292,7 +1585,7 @@ const Profile = () => {
                                     size="sm" 
                                     variant="ghost" 
                                     className="text-prepzo-600 hover:bg-prepzo-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleEditSkill(skill.originalIndex)}
+                                    onClick={() => handleEditSkill(index)}
                                   >
                                     <Edit className="w-3 h-3" />
                                   </Button>
@@ -1300,7 +1593,7 @@ const Profile = () => {
                                     size="sm" 
                                     variant="ghost" 
                                     className="text-red-600 hover:bg-red-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleDeleteSkill(skill.originalIndex)}
+                                    onClick={() => handleDeleteSkill(index)}
                                   >
                                     <X className="w-3 h-3" />
                                   </Button>
@@ -1314,7 +1607,7 @@ const Profile = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )}
               
               {/* Add New Skill Card */}
               {isEditing && (
@@ -1485,7 +1778,7 @@ const Profile = () => {
                             <div className="flex items-center gap-2 text-prepzo-600">
                               <span className="font-semibold">{exp.company}</span>
                               <span className="w-1 h-1 bg-prepzo-400 rounded-full"></span>
-                              <span className="text-sm">{exp.duration}</span>
+                              <span className="text-sm">{exp.duration || exp.timeline}</span>
                             </div>
                           </div>
                           {isEditing && (
@@ -1665,31 +1958,31 @@ const Profile = () => {
 
             {/* Resume Section */}
             <TabsContent value="resume" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {/* Current Resume */}
                 <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                    <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                       Current Resume
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-4 sm:pt-6">
                     {profile.resume ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-prepzo-50 rounded-lg border border-prepzo-200">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-5 h-5 text-red-600" />
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="flex items-center justify-between p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-prepzo-900 truncate">{profile.resume.fileName}</p>
-                              <p className="text-sm text-prepzo-600">
+                              <p className="text-sm sm:text-base font-medium text-prepzo-900 truncate">{profile.resume.fileName}</p>
+                              <p className="text-xs sm:text-sm text-prepzo-600">
                                 Uploaded on {new Date(profile.resume.uploadedAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-                          <div className="flex gap-2 flex-shrink-0">
+                          <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                             {profile.resume && (
                               <>
                                 <Button
@@ -1698,7 +1991,7 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </Button>
                                 <Button
                                   size="sm"
@@ -1706,7 +1999,7 @@ const Profile = () => {
                                   className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50"
                                   onClick={() => window.open(profile.resume?.url, '_blank')}
                                 >
-                                  <Download className="w-4 h-4" />
+                                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </Button>
                               </>
                             )}
@@ -1714,24 +2007,24 @@ const Profile = () => {
                         </div>
                         
                         {isEditing && (
-                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
-                            <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
-                            <p className="text-prepzo-700 font-medium">Upload New Resume</p>
-                            <p className="text-sm text-prepzo-600">Drag and drop or click to browse</p>
+                          <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-3 sm:p-4 lg:p-6 text-center hover:border-prepzo-400 transition-colors cursor-pointer">
+                            <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto mb-2" />
+                            <p className="text-sm sm:text-base text-prepzo-700 font-medium">Upload New Resume</p>
+                            <p className="text-xs sm:text-sm text-prepzo-600">Drag and drop or click to browse</p>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <div className="w-16 h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <FileText className="w-8 h-8 text-prepzo-600" />
+                      <div className="text-center py-6 sm:py-8">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600" />
                         </div>
-                        <p className="text-prepzo-700 font-medium mb-2">No resume uploaded</p>
-                        <p className="text-sm text-prepzo-600 mb-4">Upload your current resume to get started</p>
-                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
-                          <Upload className="w-8 h-8 text-prepzo-600 mx-auto mb-2" />
-                          <p className="text-prepzo-700 font-medium">Upload Resume</p>
-                          <p className="text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
+                        <p className="text-sm sm:text-base text-prepzo-700 font-medium mb-2">No resume uploaded</p>
+                        <p className="text-xs sm:text-sm text-prepzo-600 mb-3 sm:mb-4">Upload your current resume to get started</p>
+                        <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-3 sm:p-4 lg:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
+                          <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto mb-2" />
+                          <p className="text-sm sm:text-base text-prepzo-700 font-medium">Upload Resume</p>
+                          <p className="text-xs sm:text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
                         </div>
                       </div>
                     )}
@@ -1741,46 +2034,48 @@ const Profile = () => {
                 {/* Generate Resume */}
                 <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                   <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                    <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                      <Download className="w-5 h-5" />
+                    <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                      <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                       Generate Resume
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-6">
+                  <CardContent className="pt-4 sm:pt-6">
+                    <div className="space-y-4 sm:space-y-6">
                       <div className="text-center">
-                        <div className="w-16 h-16 bg-gradient-to-br from-prepzo-100 to-prepzo-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <FileText className="w-8 h-8 text-prepzo-700" />
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-prepzo-100 to-prepzo-200 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-700" />
                         </div>
-                        <p className="text-prepzo-700 font-medium mb-2">Create Professional Resume</p>
-                        <p className="text-sm text-prepzo-600 mb-6">
+                        <p className="text-sm sm:text-base text-prepzo-700 font-medium mb-2">Create Professional Resume</p>
+                        <p className="text-xs sm:text-sm text-prepzo-600 mb-4 sm:mb-6">
                           Generate a beautifully formatted resume using your profile information
                         </p>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
-                            <div className="w-8 h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <span className="text-prepzo-700 font-bold text-sm">CV</span>
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                          <div className="p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
+                              <span className="text-prepzo-700 font-bold text-xs sm:text-sm">CV</span>
                             </div>
-                            <p className="text-sm text-prepzo-700 font-medium">Classic Format</p>
+                            <p className="text-xs sm:text-sm text-prepzo-700 font-medium">Classic Format</p>
                           </div>
-                          <div className="p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
-                            <div className="w-8 h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-2">
-                              <span className="text-prepzo-700 font-bold text-sm">MD</span>
+                          <div className="p-3 sm:p-4 bg-prepzo-50 rounded-lg border border-prepzo-200 text-center">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-prepzo-200 rounded-lg flex items-center justify-center mx-auto mb-1 sm:mb-2">
+                              <span className="text-prepzo-700 font-bold text-xs sm:text-sm">MD</span>
                             </div>
-                            <p className="text-sm text-prepzo-700 font-medium">Modern Design</p>
+                            <p className="text-xs sm:text-sm text-prepzo-700 font-medium">Modern Design</p>
                           </div>
                         </div>
 
-                        <Button className="w-full bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200">
-                          <Download className="w-4 h-4 mr-2" />
+                        <Link href="/dashboard/tools/resume-generator" target="_blank">
+                         <Button className=" mt-10 w-full bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                           Generate & Download Resume
                         </Button>
+                         </Link>
 
                         <div className="text-center">
-                          <p className="text-xs text-prepzo-600">
+                          <p className="text-xs sm:text-sm text-prepzo-600">
                             Your resume will include all sections from your profile
                           </p>
                         </div>
@@ -1793,14 +2088,14 @@ const Profile = () => {
               {/* Resume Preview */}
               <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
                 <CardHeader className="bg-gradient-to-r from-prepzo-50 to-prepzo-100/50 border-b border-prepzo-100">
-                  <CardTitle className="text-xl text-prepzo-900 font-bold flex items-center gap-2">
-                    <Eye className="w-5 h-5" />
+                  <CardTitle className="text-lg sm:text-xl text-prepzo-900 font-bold flex items-center gap-2">
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                     Resume Preview
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   {profile.resume?.url ? (
-                    <div className="rounded-lg overflow-hidden border border-prepzo-200 h-[600px]">
+                    <div className="rounded-lg overflow-hidden border border-prepzo-200 h-[300px] sm:h-[400px] lg:h-[600px]">
                       <iframe
                         src={profile.resume.url}
                         title="Resume preview"
@@ -1808,13 +2103,13 @@ const Profile = () => {
                       />
                     </div>
                   ) : (
-                  <div className="bg-gray-50 rounded-lg p-6 min-h-96 flex items-center justify-center">
+                  <div className="bg-gray-50 rounded-lg p-4 sm:p-6 min-h-48 sm:min-h-64 lg:min-h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-gray-500" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                        <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500" />
                       </div>
-                      <p className="text-gray-600 font-medium mb-2">Resume Preview</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm sm:text-base text-gray-600 font-medium mb-2">Resume Preview</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
                           {isEditing ? 'Upload a resume file to preview it here' : 'Generate or upload a resume to see it here'}
                       </p>
                     </div>
@@ -1902,6 +2197,25 @@ const Profile = () => {
 
 
           </Tabs>
+          ) : (
+            /* Empty state when no content and not editing */
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 bg-prepzo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-8 h-8 text-prepzo-600" />
+                </div>
+                <h3 className="text-xl font-medium text-prepzo-700 mb-2">Complete Your Profile</h3>
+                <p className="text-prepzo-600 mb-6">Add your skills, experience, and achievements to showcase your professional journey</p>
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Start Editing Profile
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -2266,6 +2580,25 @@ const Profile = () => {
         onClose={() => setShowLinkedInUpload(false)}
         onDataExtracted={handleLinkedInDataExtracted}
       />
+
+      {/* Slug Dialog */}
+      <Dialog open={showSlugDialog} onOpenChange={setShowSlugDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Set Public URL</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Label htmlFor="slug">Profile slug</Label>
+            <Input id="slug" value={slugInput} onChange={(e)=>setSlugInput(e.target.value)} placeholder="your-name" />
+            {slugError && <p className="text-red-600 text-xs">{slugError}</p>}
+            <p className="text-xs text-prepzo-600">Your profile will be visible at {window.location.origin}/public/profile/{slugify(slugInput)}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setShowSlugDialog(false)}>Cancel</Button>
+            <Button onClick={handleConfirmSlug} disabled={!slugInput}>Publish</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
    </DashboardLayout>
   );
 };
