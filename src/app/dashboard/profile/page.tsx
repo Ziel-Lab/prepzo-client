@@ -225,6 +225,7 @@ const Profile = () => {
   // Slug dialog state
   const [showSlugDialog, setShowSlugDialog] = useState(false);
   const [slugInput, setSlugInput] = useState('');
+  const [slugError, setSlugError] = useState('');
   
   // Form states for different items
   const [editingCertIndex, setEditingCertIndex] = useState<number | null>(null);
@@ -921,7 +922,10 @@ const Profile = () => {
 
       if (!respSlug.ok) {
         const errJson = await respSlug.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Slug update failed');
+        // Show inline error and reopen dialog
+        setSlugError(errJson.error || errJson.message || 'Slug update failed');
+        setShowSlugDialog(true);
+        return;
       }
 
       const slugData = await respSlug.json();
@@ -943,7 +947,8 @@ const Profile = () => {
 
       toast({ title: 'Profile published!', description: 'Anyone with the link can now view your profile.' });
     } catch (e) {
-      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed', variant: 'destructive' });
+      setSlugError(e instanceof Error ? e.message : 'Failed');
+      setShowSlugDialog(true);
     }
   };
 
@@ -2585,6 +2590,7 @@ const Profile = () => {
           <div className="grid gap-4 py-4">
             <Label htmlFor="slug">Profile slug</Label>
             <Input id="slug" value={slugInput} onChange={(e)=>setSlugInput(e.target.value)} placeholder="your-name" />
+            {slugError && <p className="text-red-600 text-xs">{slugError}</p>}
             <p className="text-xs text-prepzo-600">Your profile will be visible at {window.location.origin}/public/profile/{slugify(slugInput)}</p>
           </div>
           <DialogFooter>
