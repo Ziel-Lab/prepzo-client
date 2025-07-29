@@ -54,8 +54,8 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       ],
       isCurrent: currentPlanId === 1,
       action: handleFreeSignup || (() => {}),
-      actionLabel: currentPlanId === 1 ? "Current Plan" : "Get Started Free",
-              actionDisabled: (currentPlanId === 1 && !handleFreeSignup) || isProcessingAction,
+              actionLabel: currentPlanId === 1 ? "Current Plan" : "Get Started Free",
+        actionDisabled: (currentPlanId === 1 && !handleFreeSignup) || isProcessingAction || isPro || isPremium,
     },
     {
       name: "Pro",
@@ -71,8 +71,8 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       ],
       isCurrent: isPro,
       action: () => handleUpgrade("pro"),
-      actionLabel: isPro ? "Current Plan" : "Get Pro",
-      actionDisabled: isPro || isProcessingAction,
+              actionLabel: isPro ? "Current Plan" : "Get Pro",
+        actionDisabled: isPro || isPremium || isProcessingAction,
     },
     {
       name: "Premium",
