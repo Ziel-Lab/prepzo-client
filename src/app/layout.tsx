@@ -138,13 +138,30 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning> {/* Add suppressHydrationWarning if needed for dark mode */}
+      <head>
+        {/* Hotjar Tracking Code */}
+        <Script
+          id="hotjar-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(h,o,t,j,a,r){
+              h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+              h._hjSettings={hjid:6477815,hjsv:6};
+              a=o.getElementsByTagName('head')[0];
+              r=o.createElement('script');r.async=1;
+              r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+              a.appendChild(r);
+            })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');`,
+          }}
+        />
+      </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         {/* Use the ClientProviders component to wrap children */}
         <ClientProviders>
           {children} {/* Render the page content */}
         </ClientProviders>
         <Analytics />
-        <Script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="bkoC70HeGtS7HWG" data-version="062024"/>
+        
         {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-0X56SMJDT3"
