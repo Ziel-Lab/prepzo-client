@@ -28,6 +28,7 @@ import Image from 'next/image'
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
+  { icon: UserRound, label: "Profile  ✨", href: "/dashboard/profile" },
   { icon: MessageSquare, label: "Conversations", href: "/dashboard/conversations" },
   { icon: FileText, label: "Applications", href: "/dashboard/applications" },
   { icon: TrendingUp, label: "Skills", href: "/dashboard/skills" },
@@ -35,7 +36,6 @@ const staticSidebarItems = [
   { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
   { icon: FileText, label: "Documents", href: "/dashboard/documents" },
   { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
-  { icon: UserRound, label: "Profile  ✨", href: "/dashboard/profile" },
   { icon: CreditCard, label: "My Subscription", href: "/dashboard/settings/subscription" },
 ];
 
