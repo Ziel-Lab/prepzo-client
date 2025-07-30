@@ -28,9 +28,12 @@ import {
   Plus,
   PlusCircle,
   Calendar,
-  X
+  X,
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Link from 'next/link';
 
 interface LinkedInExtractedData {
   name?: string;
@@ -425,6 +428,31 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           {/* Upload Step */}
           {currentStep === 'upload' && (
             <div className="space-y-6">
+              {/* Add LinkedIn Optimizer suggestion */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">
+                      Want to improve your LinkedIn profile first?
+                    </h4>
+                    <p className="text-xs text-blue-700 mb-3">
+                      Use our LinkedIn Optimizer tool to enhance your profile before importing.
+                    </p>
+                    <Link 
+                      href="/dashboard/tools/linkedin-optimizer"
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors"
+                    >
+                      Optimize my LinkedIn Profile
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Upload className="w-8 h-8 text-blue-600" />
@@ -486,14 +514,26 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
 
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <h4 className="font-medium text-blue-900 mb-2">How to export from LinkedIn:</h4>
-                <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Go to your LinkedIn profile page</li>
-                  <li>Click "More" button near your profile picture</li>
-                  <li>Select "Save to PDF" option</li>
-                  <li>Download the generated PDF</li>
-                  <li>Upload it here to extract your data</li>
-                </ol>
+                <h4 className="font-medium text-blue-900 mb-2">How to prepare your files:</h4>
+                <div className="space-y-3">
+                  <div>
+                    <h5 className="text-sm font-medium text-blue-800 mb-1">LinkedIn Export:</h5>
+                    <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>Go to your LinkedIn profile page</li>
+                      <li>Click "More" button near your profile picture</li>
+                      <li>Select "Save to PDF" option</li>
+                      <li>Download the generated PDF</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-medium text-blue-800 mb-1">Resume Upload:</h5>
+                    <ul className="text-xs sm:text-sm text-blue-800 space-y-1 list-disc list-inside">
+                      <li>Ensure your resume is in PDF format</li>
+                      <li>File size should be under 10MB</li>
+                      <li>Make sure text is selectable (not scanned)</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           )}
