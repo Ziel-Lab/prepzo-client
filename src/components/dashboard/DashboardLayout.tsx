@@ -12,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider 
 } from "@/components/ui/sidebar";
-import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle, CreditCard, Bot } from "lucide-react";
+import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle, CreditCard, Bot, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ const staticSidebarItems = [
   { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
   { icon: FileText, label: "Documents", href: "/dashboard/documents" },
   { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
+  { icon: UserRound, label: "Profile  ✨", href: "/dashboard/profile" },
   { icon: CreditCard, label: "My Subscription", href: "/dashboard/settings/subscription" },
 ];
 
