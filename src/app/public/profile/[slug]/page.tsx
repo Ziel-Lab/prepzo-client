@@ -96,7 +96,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const data = await getProfile(params.slug);
   if (!data) return {};
   return {
-    title: `${data.name || 'Profile'} | Prepzo`,
+    title: `${data.name || 'Profile'} | ${data.title || ''}`,
     description: data.bio || `${data.name}'s public profile on Prepzo`,
   };
 }
