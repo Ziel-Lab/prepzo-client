@@ -168,16 +168,25 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      // Simulate progress while we upload / poll
+      // Modified progress simulation with slower initial progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
+          // Initial phase (0-30%): Fast
+          if (prev < 30) {
+            return prev + 5;
           }
-          return prev + 10;
+          // Middle phase (30-60%): Slower
+          else if (prev < 60) {
+            return prev + 2;
+          }
+          // Final phase (60-85%): Very slow
+          else if (prev < 85) {
+            return prev + 0.5;
+          }
+          // Stop at 85% and wait for actual response
+          return 85;
         });
-      }, 300);
+      }, 200); // Reduced interval frequency for smoother animation
 
       // 1. Upload PDF to remote backend
       const uploadRes = await fetch(REMOTE_UPLOAD_ENDPOINT, {
@@ -225,7 +234,11 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       }
 
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      
+      // Add a small delay before showing 100% to make the transition smoother
+      setTimeout(() => {
+        setUploadProgress(100);
+      }, 300);
 
       // Normalisation (mirrors previous API route logic)
       const normaliseData = (raw: any): LinkedInExtractedData => {
