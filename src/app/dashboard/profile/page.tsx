@@ -954,7 +954,7 @@ const Profile = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-prepzo-50 via-white to-prepzo-100/30">
+      <div className="min-h-screen ">
         <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
           {/* Header */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 sm:justify-between sm:items-center mb-6 sm:mb-8 lg:mb-12">
@@ -1111,7 +1111,7 @@ const Profile = () => {
                       </Avatar>
                       <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white"></div>
                     </div>
-                    <div className="flex gap-2 flex-wrap justify-center md:justify-start">
+                    <div className="flex gap-2 flex-wrap justify-center items-center w-full">  
                       {profile.linkedin && (
                         <Button size="sm" variant="outline" asChild className="border-prepzo-200 text-prepzo-700 hover:bg-prepzo-50 hover:border-prepzo-400 transition-all duration-200 rounded-full w-8 h-8 p-0">
                           <Link
@@ -1144,7 +1144,7 @@ const Profile = () => {
                         <Globe className="w-4 h-4" />
                           </Link>
                       </Button>
-                      )}
+                      )}                      
                     </div>
                   </div>
                   
@@ -1167,10 +1167,10 @@ const Profile = () => {
                         </div>
                       ) : (
                         <>
-                          <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-prepzo-900 to-prepzo-700 bg-clip-text text-transparent mb-1 sm:mb-2 lg:mb-3">
+                          <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white bg-clip-text text-transparent mb-1 sm:mb-2 lg:mb-3">
                             {profile.name}
                           </h2>
-                          <p className="text-base sm:text-lg lg:text-xl text-prepzo-600 font-medium mb-2 sm:mb-3 md:mt-6 lg:mb-4">{profile.title}</p>
+                          <p className="text-base sm:text-lg lg:text-xl text-prepzo-600 font-medium mb-2 sm:mb-3 md:mt-8 lg:mb-4">{profile.title}</p>
                         </>
                       )}
                     </div>
@@ -1571,40 +1571,68 @@ const Profile = () => {
                       Skills
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {profile.skills.map((skill, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="font-semibold text-prepzo-900">{skill.name}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-prepzo-600">{skill.level}%</span>
-                              {isEditing && (
-                                <div className="flex gap-1">
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="text-prepzo-600 hover:bg-prepzo-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleEditSkill(index)}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="text-red-600 hover:bg-red-100 rounded-full w-8 h-8 p-0"
-                                    onClick={() => handleDeleteSkill(index)}
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              )}
+                  <CardContent className="space-y-8">
+                    {/* Group skills by category */}
+                    {Object.entries(
+                      profile.skills.reduce((acc, skill) => {
+                        const category = skill.category || 'Other';
+                        return {
+                          ...acc,
+                          [category]: [...(acc[category] || []), skill]
+                        };
+                      }, {} as Record<string, typeof profile.skills>)
+                    ).map(([category, skills]) => (
+                      <div key={category} className="space-y-3">
+                        <h3 className="text-lg font-semibold text-prepzo-800 border-b border-prepzo-100 pb-2">
+                          {category}
+                        </h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {skills.map((skill, index) => (
+                            <div key={index} className="relative group">
+                              <div className="flex items-center justify-center p-4 rounded-lg bg-prepzo-50/50 hover:bg-prepzo-100/50 transition-colors min-h-[5rem]">
+                                {skill.name.includes('(') ? (
+                                  // Handle names with parentheses by splitting them into two lines
+                                  <div className="text-center">
+                                    <span className="text-base font-semibold text-prepzo-800 block">
+                                      {skill.name.split('(')[0].trim()}
+                                    </span>
+                                    <span className="text-sm font-medium text-prepzo-600 block mt-0.5">
+                                      ({skill.name.split('(')[1].replace(')', '')})
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-base font-semibold text-center text-prepzo-800">
+                                    {skill.name}
+                                  </span>
+                                )}
+
+                                {/* Edit/Delete buttons - only show on hover when editing */}
+                                {isEditing && (
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-prepzo-600 hover:bg-prepzo-100 rounded-full w-7 h-7 p-0"
+                                      onClick={() => handleEditSkill(index)}
+                                    >
+                                      <Edit className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="text-red-600 hover:bg-red-100 rounded-full w-7 h-7 p-0"
+                                      onClick={() => handleDeleteSkill(index)}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <Progress value={skill.level} className="h-2" />
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               )}
