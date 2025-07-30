@@ -44,6 +44,7 @@ interface MockInterviewVoiceAssistantProps {
   };
   connectionDetails: MockInterviewConnectionDetails | null;
   onEndInterview: () => void;
+  endingCountdown?: number | null; // Optional countdown from parent RPC handler
 }
 
 export interface InterviewTranscriptionMessage {
@@ -77,7 +78,8 @@ const formatInterviewType = (type: string) => {
 const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({ 
   sessionConfig,
   connectionDetails,
-  onEndInterview
+  onEndInterview,
+  endingCountdown: parentEndingCountdown
 }) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const remoteParticipants = useRemoteParticipants();
@@ -132,7 +134,10 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const [agentSpeakingStartTime, setAgentSpeakingStartTime] = useState<number | null>(null);
   const [consecutiveRepeats, setConsecutiveRepeats] = useState(0);
   const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
-  const [endingCountdown, setEndingCountdown] = useState<number | null>(null);
+  const [localEndingCountdown, setLocalEndingCountdown] = useState<number | null>(null);
+  
+  // Use parent's endingCountdown if available, otherwise use local
+  const endingCountdown = parentEndingCountdown !== undefined ? parentEndingCountdown : localEndingCountdown;
   
   // Debug effect to track endingCountdown state changes
   useEffect(() => {
@@ -242,145 +247,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
     };
   }, [sessionStartTime, forceDisconnect, showWarning]);
 
-  // RPC registration for force end interview
-  useEffect(() => {
-    if (localParticipant?.localParticipant && room?.state === 'connected') {
-      let registrationRetryCount = 0;
-      const maxRetries = 3;
-      let registrationTimer: NodeJS.Timeout;
-
-      const registerRpc = async () => {
-        try {
-          console.log(`🔧 Attempting to register RPC method forceEndInterview (attempt ${registrationRetryCount + 1}/${maxRetries})...`);
-          console.log('🔧 Local participant identity:', localParticipant.localParticipant.identity);
-          console.log('🔧 Local participant sid:', localParticipant.localParticipant.sid);
-          console.log('🔧 Room state:', room?.state);
-          
-          await localParticipant.localParticipant.registerRpcMethod('forceEndInterview', async (data: any) => {
-            console.log('🎯 RPC RECEIVED - forceEndInterview called!');
-            console.log('🎯 Raw RPC data:', data);
-            
-            try {
-              let payload;
-              
-              // Handle different payload formats
-              if (typeof data === 'string') {
-                try {
-                  payload = JSON.parse(data);
-                } catch {
-                  payload = { message: data }; // If not JSON, wrap in object
-                }
-              } else if (data && typeof data.payload === 'string') {
-                try {
-                  payload = JSON.parse(data.payload);
-                } catch {
-                  payload = { message: data.payload };
-                }
-              } else if (data && typeof data.payload === 'object') {
-                payload = data.payload;
-              } else {
-                payload = data || {};
-              }
-              
-              console.log('🎯 Parsed RPC payload:', payload);
-              
-              // Show toast notification
-              toast({
-                title: "Interview Completed",
-                description: "The interview has been completed. Ending session...",
-                duration: 3000,
-              });
-              
-              // Start immediate countdown (3 seconds for faster response)
-              console.log('🎯 Starting ending countdown: 3 seconds');
-              setEndingCountdown(3);
-              
-              return JSON.stringify({
-                status: 'success',
-                message: 'Interview ended successfully',
-                timestamp: new Date().toISOString()
-              });
-              
-            } catch (parseError) {
-              console.error('🎯 Error parsing RPC payload:', parseError);
-              console.log('🎯 Fallback: Starting countdown anyway');
-              
-              // Still start countdown even if parsing fails
-              setEndingCountdown(3);
-              return JSON.stringify({
-                status: 'success_with_error',
-                message: 'Interview ended (with parsing error)',
-                error: (parseError as Error).message,
-                timestamp: new Date().toISOString()
-              });
-            }
-          });
-          
-          console.log('✅ RPC method forceEndInterview registered successfully');
-          
-          // Verify registration by testing if the method exists
-          // Note: We can't directly test our own RPC without causing issues, so we'll just log success
-          console.log('✅ RPC registration verification: forceEndInterview handler is active and ready');
-          console.log('🎯 Backend agents can now call forceEndInterview RPC on identity:', localParticipant.localParticipant.identity);
-          
-          // Registration successful, clear any retry timer
-          if (registrationTimer) {
-            clearTimeout(registrationTimer);
-          }
-          
-        } catch (error) {
-          console.error(`❌ Failed to register RPC method (attempt ${registrationRetryCount + 1}):`, error);
-          console.error('❌ Error details:', (error as Error).message, (error as Error).stack);
-          
-          registrationRetryCount++;
-          
-          if (registrationRetryCount < maxRetries) {
-            console.log(`🔄 Retrying RPC registration in 2 seconds... (${maxRetries - registrationRetryCount} attempts left)`);
-            registrationTimer = setTimeout(() => {
-              registerRpc();
-            }, 2000);
-          } else {
-            console.error('❌ Max RPC registration retries exceeded');
-            // RPC registration failed after retries - show fallback notification
-            toast({
-              title: "Please End Call",
-              description: "Please end the interview call manually in 10 seconds",
-              variant: "destructive",
-              duration: 10000,
-            });
-            setEndingCountdown(10); // Still show countdown for user guidance
-          }
-        }
-      };
-      
-      // Start registration with a small delay to ensure room is fully ready
-      const initialDelay = setTimeout(() => {
-        registerRpc();
-      }, 500);
-
-      // Cleanup: unregister RPC method and clear timers when component unmounts
-      return () => {
-        clearTimeout(initialDelay);
-        if (registrationTimer) {
-          clearTimeout(registrationTimer);
-        }
-        
-        if (localParticipant?.localParticipant) {
-          try {
-            localParticipant.localParticipant.unregisterRpcMethod('forceEndInterview');
-            console.log('🔧 RPC method forceEndInterview unregistered');
-          } catch (error) {
-            console.error('🔧 Error unregistering RPC method:', error);
-          }
-        }
-      };
-    } else {
-      console.log('🔧 Waiting for room connection and local participant for RPC registration...', {
-        hasLocalParticipant: !!localParticipant?.localParticipant,
-        roomState: room?.state
-      });
-    }
-  }, [localParticipant, room?.state, toast]);
+  // Note: RPC registration is now handled in MockInterviewLiveKit.tsx for proper timing
 
   // Data channel listener as fallback for interview ending
   useEffect(() => {
@@ -406,7 +273,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
             
             // Start countdown
             console.log('📨 Starting ending countdown from data channel: 3 seconds');
-            setEndingCountdown(3);
+            setLocalEndingCountdown(3);
           }
         } catch (error) {
           console.log('📨 Non-JSON data channel message or parsing error:', error);
@@ -444,7 +311,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       
       // Continue countdown
       const timeout = setTimeout(() => {
-        setEndingCountdown(prev => {
+        setLocalEndingCountdown(prev => {
           const newValue = prev !== null ? prev - 1 : null;
           console.log(`⏰ Countdown tick: ${prev} -> ${newValue}`);
           return newValue;
@@ -823,7 +690,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 // Component for when not connected
 const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({ 
   sessionConfig,
-  onEndInterview
+  onEndInterview,
+  endingCountdown: parentEndingCountdown
 }) => {
   const { toast } = useToast();
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -832,7 +700,10 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   const [timeRemaining, setTimeRemaining] = useState(900); // Always 15 minutes (900 seconds)
   const [sessionStartTime] = useState(new Date());
   const [warningsShown, setWarningsShown] = useState<Set<number>>(new Set());
-  const [endingCountdown, setEndingCountdown] = useState<number | null>(null);
+  const [localEndingCountdown, setLocalEndingCountdown] = useState<number | null>(null);
+  
+  // Use parent's endingCountdown if available, otherwise use local
+  const endingCountdown = parentEndingCountdown !== undefined ? parentEndingCountdown : localEndingCountdown;
 
   // Show warning notification
   const showWarning = useCallback((timeRemaining: number) => {
@@ -918,7 +789,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
       
       // Continue countdown
       const timeout = setTimeout(() => {
-        setEndingCountdown(prev => (prev !== null ? prev - 1 : null));
+        setLocalEndingCountdown(prev => (prev !== null ? prev - 1 : null));
       }, 1000);
       
       return () => clearTimeout(timeout);

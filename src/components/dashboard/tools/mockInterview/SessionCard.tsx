@@ -34,7 +34,7 @@ interface InterviewSession {
   type: string;
   duration: number;
   status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
-  score?: number; // Calculated from attempts
+  score?: string; // Calculated from attempts - now in rating format like "8/10"
   date: Date;
   companyUrl?: string;
   companyName?: string;
@@ -98,19 +98,20 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       
       if (completedAttempts.length === 0) return undefined;
       
-      // Calculate the average score from all completed attempts
+      // Calculate the average score as rating out of 10
       const scores = completedAttempts.map(attempt => {
         if (attempt.feedback?.Score) {
-          // Parse "7.5/10" format to percentage
+          // Parse "7.5/10" format
           const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-          return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+          return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
         }
-        return attempt.evaluation_score || 0;
+        // Convert evaluation_score to rating out of 10
+        const evalScore = attempt.evaluation_score || 0;
+        return evalScore <= 10 ? evalScore : (evalScore / 100) * 10;
       });
       
-      // Return average instead of maximum
-      const totalScore = scores.reduce((sum, score) => sum + score, 0);
-      return Math.round(totalScore / scores.length);
+      const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+      return `${Math.round(averageScore * 10) / 10}/10`;
     }
     return session.score;
   };
@@ -362,11 +363,17 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
           {/* Score */}
           {(() => {
             const calculatedScore = calculateSessionScore();
-            return calculatedScore && (
+            if (!calculatedScore) return null;
+            
+            // Extract numeric value for color calculation
+            const scoreMatch = calculatedScore.match(/^(\d+\.?\d*)/);
+            const numericScore = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
+            
+            return (
               <div className="flex items-center gap-2 ml-4">
-                <Award size={16} className={getScoreColor(calculatedScore)} />
-                <span className={`text-lg font-bold ${getScoreColor(calculatedScore)}`}>
-                  {Math.round(calculatedScore)}%
+                <Award size={16} className={getScoreColor(numericScore)} />
+                <span className={`text-lg font-bold ${getScoreColor(numericScore)}`}>
+                  {calculatedScore}
                 </span>
               </div>
             );
@@ -516,22 +523,32 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                         {attempt.status}
                       </Badge>
                       {(() => {
-                        let score = null;
+                        let scoreDisplay = null;
+                        let scoreNumeric = 0;
+                        
                         if (attempt.feedback?.Score) {
-                          // Parse "7.5/10" format
+                          // Show original "X/10" format
+                          scoreDisplay = attempt.feedback.Score;
                           const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-                          if (scoreMatch) {
-                            score = (parseFloat(scoreMatch[1]) / 10) * 100;
-                          }
+                          scoreNumeric = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
                         } else if (attempt.evaluation_score) {
-                          score = attempt.evaluation_score;
+                          // Convert to rating format, never percentage
+                          if (attempt.evaluation_score <= 10) {
+                            scoreDisplay = `${attempt.evaluation_score}/10`;
+                            scoreNumeric = attempt.evaluation_score;
+                          } else {
+                            // Convert percentage to rating out of 10
+                            const rating = Math.round((attempt.evaluation_score / 100) * 10);
+                            scoreDisplay = `${rating}/10`;
+                            scoreNumeric = rating;
+                          }
                         }
                         
-                        return score && (
+                        return scoreDisplay && (
                           <div className="flex items-center gap-1">
-                            <Award size={12} className={getScoreColor(score)} />
-                            <span className={`text-sm font-medium ${getScoreColor(score)}`}>
-                              {attempt.feedback?.Score || `${Math.round(score)}%`}
+                            <Award size={12} className={getScoreColor(scoreNumeric)} />
+                            <span className={`text-sm font-medium ${getScoreColor(scoreNumeric)}`}>
+                              {scoreDisplay}
                             </span>
                           </div>
                         );

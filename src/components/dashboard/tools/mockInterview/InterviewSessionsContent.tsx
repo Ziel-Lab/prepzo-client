@@ -64,7 +64,7 @@ interface InterviewSession {
   type: string;
   duration: number;
   status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
-  score?: number; // Calculated from attempts
+  score?: string; // Calculated from attempts - now in rating format like "8/10"
   date: Date;
   companyUrl?: string;
   companyName?: string;
@@ -444,8 +444,8 @@ const InterviewSessionsContent = () => {
     }
   };
 
-  // Helper function to calculate score from attempts
-  const calculateScoreFromAttempts = (attempts: MockInterviewAttempt[]): number | undefined => {
+  // Helper function to calculate score from attempts - return as rating out of 10
+  const calculateScoreFromAttempts = (attempts: MockInterviewAttempt[]): string | undefined => {
     if (!attempts || attempts.length === 0) return undefined;
     
     const completedAttempts = attempts.filter(attempt => 
@@ -457,16 +457,23 @@ const InterviewSessionsContent = () => {
     // Calculate the average score from all completed attempts
     const scores = completedAttempts.map(attempt => {
       if (attempt.feedback?.Score) {
-        // Parse "7.5/10" format to percentage
+        // Parse "7.5/10" format
         const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-        return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+        return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
       }
-      return attempt.evaluation_score || 0;
+      // Convert evaluation_score to rating out of 10
+      const evalScore = attempt.evaluation_score || 0;
+      if (evalScore <= 10) {
+        return evalScore;
+      } else {
+        // Convert percentage to rating out of 10
+        return (evalScore / 100) * 10;
+      }
     });
     
-    // Return average instead of maximum
-    const totalScore = scores.reduce((sum, score) => sum + score, 0);
-    return Math.round(totalScore / scores.length);
+    // Return average as rating out of 10
+    const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    return `${Math.round(averageScore * 10) / 10}/10`;
   };
 
   useEffect(() => {
@@ -511,26 +518,33 @@ const InterviewSessionsContent = () => {
       ).length;
     })(),
     avgScore: (() => {
-      // Calculate average from all completed attempts across all sessions
+      // Calculate average from all completed attempts across all sessions - return as rating
       const allCompletedAttempts = sessions.flatMap(s => 
         s.attempts?.filter(attempt => 
           attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
         ) || []
       );
       
-      if (allCompletedAttempts.length === 0) return 0;
+      if (allCompletedAttempts.length === 0) return "0/10";
       
       const scores = allCompletedAttempts.map(attempt => {
         if (attempt.feedback?.Score) {
-          // Parse "7.5/10" format to percentage
+          // Parse "7.5/10" format - keep as rating out of 10
           const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-          return scoreMatch ? (parseFloat(scoreMatch[1]) / 10) * 100 : 0;
+          return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
         }
-        return attempt.evaluation_score || 0;
+        // Convert evaluation_score to rating out of 10
+        const evalScore = attempt.evaluation_score || 0;
+        if (evalScore <= 10) {
+          return evalScore;
+        } else {
+          // Convert percentage to rating out of 10
+          return (evalScore / 100) * 10;
+        }
       });
       
-      const total = scores.reduce((acc, score) => acc + score, 0);
-      return Math.round(total / scores.length);
+      const averageScore = scores.reduce((acc, score) => acc + score, 0) / scores.length;
+      return `${Math.round(averageScore * 10) / 10}/10`;
     })(),
     totalTime: (() => {
       // Calculate total time from actual completed attempts
@@ -698,7 +712,7 @@ const InterviewSessionsContent = () => {
           />
           <SessionStatsCard
             title="Avg Score"
-            value={`${stats.avgScore}%`}
+            value={stats.avgScore}
             icon={Award}
             color="purple"
           />

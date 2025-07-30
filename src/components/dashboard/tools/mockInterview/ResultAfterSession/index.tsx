@@ -80,17 +80,27 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     }));
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 80) return 'text-emerald-600';
-    if (score >= 70) return 'text-yellow-600';
+  const getScoreColor = (scoreData: {numeric: number, maxScore: number} | null) => {
+    if (!scoreData) return 'text-gray-600';
+    
+    // Normalize score to percentage for color calculation
+    const percentage = (scoreData.numeric / scoreData.maxScore) * 100;
+    
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 80) return 'text-emerald-600';
+    if (percentage >= 70) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getScoreBgColor = (score: number) => {
-    if (score >= 90) return 'bg-green-100 text-green-800 border-green-200';
-    if (score >= 80) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  const getScoreBgColor = (scoreData: {numeric: number, maxScore: number} | null) => {
+    if (!scoreData) return 'bg-gray-100 text-gray-800 border-gray-200';
+    
+    // Normalize score to percentage for color calculation
+    const percentage = (scoreData.numeric / scoreData.maxScore) * 100;
+    
+    if (percentage >= 90) return 'bg-green-100 text-green-800 border-green-200';
+    if (percentage >= 80) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    if (percentage >= 70) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     return 'bg-red-100 text-red-800 border-red-200';
   };
 
@@ -102,22 +112,106 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     return null;
   };
 
+  // Standardized score parsing and display - NEVER show percentages, always ratings
+  const parseAndDisplayScore = () => {
+    const structuredScore = structuredFeedback?.Score;
+    const evaluationScore = attemptData.evaluation_score;
+
+    // If we have structured feedback score, use it
+    if (structuredScore) {
+      // Check if it's in "X/10" format
+      const fractionMatch = structuredScore.match(/^(\d+\.?\d*)\/(\d+)$/);
+      if (fractionMatch) {
+        return {
+          display: structuredScore, // Show original "8/10" format
+          numeric: parseFloat(fractionMatch[1]), // For color calculation
+          maxScore: parseFloat(fractionMatch[2])
+        };
+      }
+      
+      // Check if it's just a number
+      const numberMatch = structuredScore.match(/^(\d+\.?\d*)$/);
+      if (numberMatch) {
+        const num = parseFloat(numberMatch[1]);
+        // Always convert to rating format, never percentage
+        if (num <= 10) {
+          return {
+            display: `${structuredScore}/10`,
+            numeric: num,
+            maxScore: 10
+          };
+        } else {
+          // If it's a large number (like 80), convert to rating out of 10
+          const rating = Math.round((num / 100) * 10);
+          return {
+            display: `${rating}/10`,
+            numeric: rating,
+            maxScore: 10
+          };
+        }
+      }
+      
+      // Fallback: show as-is
+      return {
+        display: structuredScore,
+        numeric: parseFloat(structuredScore) || 0,
+        maxScore: 10
+      };
+    }
+    
+    // If we only have evaluation score
+    if (evaluationScore !== undefined && evaluationScore !== null) {
+      // If it's a small number, assume it's already out of 10
+      if (evaluationScore <= 10) {
+        return {
+          display: `${evaluationScore}/10`,
+          numeric: evaluationScore,
+          maxScore: 10
+        };
+      }
+      // If it's a percentage-like number (0-100), convert to rating out of 10
+      else if (evaluationScore <= 100) {
+        const rating = Math.round((evaluationScore / 100) * 10);
+        return {
+          display: `${rating}/10`,
+          numeric: rating,
+          maxScore: 10
+        };
+      }
+      // Fallback for very large numbers
+      else {
+        return {
+          display: `${Math.round(evaluationScore)}/10`,
+          numeric: Math.round(evaluationScore),
+          maxScore: 10
+        };
+      }
+    }
+    
+    return null;
+  };
+
   const parseAdditionalQA = (qaText: string) => {
     const results = [];
     let currentIndex = 0;
     let questionNumber = 1;
     
     while (true) {
-      // Try multiple question marker formats
+      // Try multiple question marker formats - both old and new
       const questionMarkers = [
+        // New format: **Question 1: [question text]**
+        `**Question ${questionNumber}:`,
+        // Old format: **Question 1:**
+        `**Question ${questionNumber}:**`,
+        // Additional old formats
         `**Additional Question ${questionNumber}:**`,
         `### Additional Question ${questionNumber}:`,
-        `**Question ${questionNumber}:**`,
         `### Question ${questionNumber}:`
       ];
       
       let questionIndex = -1;
       let usedMarker = '';
+      let isNewFormat = false;
       
       // Find which marker format exists
       for (const marker of questionMarkers) {
@@ -125,6 +219,8 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         if (index !== -1) {
           questionIndex = index;
           usedMarker = marker;
+          // Check if this is the new format (no closing colon immediately)
+          isNewFormat = marker === `**Question ${questionNumber}:`;
           break;
         }
       }
@@ -133,7 +229,27 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         break;
       }
       
-      const questionTextStart = questionIndex + usedMarker.length;
+      let question = '';
+      let questionTextStart = questionIndex + usedMarker.length;
+      
+      if (isNewFormat) {
+        // New format: extract question from **Question 1: [question text]**
+        const questionEndMarker = '**';
+        const questionEndIndex = qaText.indexOf(questionEndMarker, questionTextStart);
+        if (questionEndIndex !== -1) {
+          question = qaText.substring(questionTextStart, questionEndIndex).trim();
+          // Update questionTextStart to be after the closing **
+          questionTextStart = questionEndIndex + 2;
+        }
+      } else {
+        // Old format: question text is after the marker and before response
+        const responseMarker = '**Appropriate Response:**';
+        const responseIndex = qaText.indexOf(responseMarker, questionTextStart);
+        if (responseIndex !== -1) {
+          question = qaText.substring(questionTextStart, responseIndex).trim();
+        }
+      }
+      
       const responseMarker = '**Appropriate Response:**';
       const responseIndex = qaText.indexOf(responseMarker, questionTextStart);
       
@@ -141,15 +257,15 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         break;
       }
       
-      let question = qaText.substring(questionTextStart, responseIndex).trim();
       const responseTextStart = responseIndex + responseMarker.length;
       
       // Look for next question to determine where this response ends
       const nextQuestionNumber = questionNumber + 1;
       const nextQuestionMarkers = [
+        `**Question ${nextQuestionNumber}:`,
+        `**Question ${nextQuestionNumber}:**`,
         `**Additional Question ${nextQuestionNumber}:**`,
         `### Additional Question ${nextQuestionNumber}:`,
-        `**Question ${nextQuestionNumber}:**`,
         `### Question ${nextQuestionNumber}:`
       ];
       
@@ -217,6 +333,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   };
 
   const structuredFeedback = parseStructuredFeedback();
+  const scoreData = parseAndDisplayScore();
   const parsedScore = structuredFeedback?.Score ? parseInt(structuredFeedback.Score) : score;
 
   // Helper functions
@@ -283,19 +400,13 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                 <Clock size={14} />
                 <span>{attemptData.actual_duration_minutes} minutes</span>
               </div>
-              {(attemptData.evaluation_score || structuredFeedback?.Score) && (
+              {scoreData && (
                 <div className="flex items-center gap-2 text-sm">
                   <Award size={14} className="text-yellow-600" />
                   <span className="font-semibold text-gray-900">
-                    {structuredFeedback?.Score ? (
-                      <span className={getScoreColor(parseFloat(structuredFeedback.Score))}>
-                        {structuredFeedback.Score}
-                      </span>
-                    ) : (
-                      <span className={getScoreColor(attemptData.evaluation_score)}>
-                        {Math.round(attemptData.evaluation_score)}%
-                      </span>
-                    )}
+                    <span className={getScoreColor(scoreData)}>
+                      {scoreData.display}
+                    </span>
                   </span>
                 </div>
               )}
@@ -308,32 +419,6 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           </div>
         </CardContent>
       </Card>
-
-      {/* Score Card */}
-      {attemptData.evaluation_score && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="text-yellow-600" size={20} />
-              Performance Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className={`text-6xl font-bold ${getScoreColor(attemptData.evaluation_score)} mb-2`}>
-                {Math.round(attemptData.evaluation_score)}%
-              </div>
-              <Badge className={getScoreBgColor(attemptData.evaluation_score)}>
-                {attemptData.evaluation_score >= 90 ? 'Excellent' :
-                 attemptData.evaluation_score >= 80 ? 'Good' :
-                 attemptData.evaluation_score >= 70 ? 'Average' : 'Needs Improvement'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-
 
       {/* Structured Feedback */}
       {structuredFeedback && (
@@ -465,8 +550,8 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                                 <Badge className="bg-emerald-600 text-white shrink-0 mt-0.5">
                                   Q{index + 1}
                                 </Badge>
-                                <span className="font-medium text-emerald-900 text-left overflow-hidden">
-                                  {qa.question.length > 100 ? qa.question.substring(0, 100) + '...' : qa.question}
+                                <span className="font-medium text-emerald-900 text-left">
+                                  {qa.question}
                                 </span>
                               </div>
                               {expandedSections[`qa-${index}`] ? 
