@@ -383,11 +383,11 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
         <CardHeader className="border-b bg-gradient-to-r from-prepzo-50 to-prepzo-100/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              {/* <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Linkedin className="w-6 h-6 text-white" />
-              </div>
+              </div> */}
               <div>
-                <CardTitle className="text-xl text-prepzo-900">Import from LinkedIn</CardTitle>
+                <CardTitle className="text-xl text-prepzo-900">Import from LinkedIn/Resume</CardTitle>
                 <p className="text-sm text-prepzo-600">Extract your profile data from LinkedIn PDF export</p>
               </div>
             </div>
@@ -430,7 +430,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                   <Upload className="w-8 h-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-prepzo-900 mb-2">
-                  Upload Your LinkedIn PDF Export
+                  Upload Your Resume or LinkedIn PDF Export
                 </h3>
                 <p className="text-prepzo-600 mb-6">
                   Export your LinkedIn profile as PDF and upload it here to automatically populate your profile
