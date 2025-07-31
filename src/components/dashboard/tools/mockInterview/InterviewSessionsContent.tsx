@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Filter, Calendar, Clock, Award, TrendingUp, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -63,7 +63,7 @@ interface InterviewSession {
   title: string; // Direct from database column
   type: string;
   duration: number;
-  status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
+  status: 'completed' | 'ready' | 'preparing';
   score?: string; // Calculated from attempts - now in rating format like "8/10"
   date: Date;
   companyUrl?: string;
@@ -76,7 +76,6 @@ interface InterviewSession {
 
 const InterviewSessionsContent = () => {
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
-  const [filteredSessions, setFilteredSessions] = useState<InterviewSession[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -88,7 +87,7 @@ const InterviewSessionsContent = () => {
   const supabase = createClient();
 
   // Fetch user limits from backend
-  const fetchUserLimits = async () => {
+  const fetchUserLimits = useCallback(async () => {
     try {
       setLimitsLoading(true);
       
@@ -125,13 +124,14 @@ const InterviewSessionsContent = () => {
     } finally {
       setLimitsLoading(false);
     }
-  };
+  }, [supabase]);
 
   // Fetch data from backend API instead of direct Supabase
-  useEffect(() => {
-    const fetchInterviewData = async () => {
+  const fetchInterviewData = useCallback(async (showLoading: boolean = false) => {
       try {
-        setIsLoading(true);
+        if (showLoading) {
+          setIsLoading(true);
+        }
         setError(null);
 
         console.log('🔍 Starting to fetch interview data via backend API...');
@@ -176,10 +176,9 @@ const InterviewSessionsContent = () => {
         console.log('📊 Sessions from backend:', sessionsFromBackend.length, sessionsFromBackend);
 
         if (sessionsFromBackend.length === 0) {
-          console.log('📭 No sessions found');
-          setSessions([]);
-          setFilteredSessions([]);
-          return;
+                  console.log('📭 No sessions found');
+        setSessions([]);
+        return;
         }
 
         // Transform backend data to frontend format
@@ -196,12 +195,14 @@ const InterviewSessionsContent = () => {
           const calculatedScore = calculateScoreFromAttempts(sessionAttempts);
           
           // Map backend session to frontend format
+          const mappedStatus = mapBackendStatusToFrontend(backendSession.display_status || backendSession.status, backendSession.status_prep, sessionAttempts);
+          
           const sessionItem: InterviewSession = {
             id: backendSession.id,
             title: backendSession.title || generateSessionTitle(backendSession), // Use database title first
             type: backendSession.interview_type || 'behavioral',
             duration: backendSession.duration_minutes || 30,
-            status: mapBackendStatusToFrontend(backendSession.display_status || backendSession.status, backendSession.status_prep),
+            status: mappedStatus,
             score: calculatedScore,
             date: new Date(backendSession.created_at),
             companyUrl: backendSession.company_url || undefined,
@@ -211,6 +212,18 @@ const InterviewSessionsContent = () => {
             attempts: sessionAttempts,
             latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
           };
+          
+          // Log status mapping for debugging
+          if (backendSession.status_prep) {
+            console.log('📊 Session status mapping during fetch:', {
+              sessionId: backendSession.id.substring(0, 8) + '***',
+              title: sessionItem.title,
+              backendStatus: backendSession.status,
+              statusPrep: backendSession.status_prep,
+              mappedStatus: mappedStatus,
+              attemptsCount: sessionAttempts.length
+            });
+          }
 
           console.log('✅ Transformed session item:', sessionItem);
           return sessionItem;
@@ -222,19 +235,56 @@ const InterviewSessionsContent = () => {
         const sessionsWithAttempts = await ensureAttemptsForStats(sessionData);
         
         setSessions(sessionsWithAttempts);
-        setFilteredSessions(sessionsWithAttempts);
 
       } catch (error) {
         console.error('💥 Error in fetchInterviewData:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch interview data');
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
-    };
-
-    fetchInterviewData();
-    fetchUserLimits();
   }, [supabase]);
+
+  useEffect(() => {
+    fetchInterviewData(true); // Show loading on initial load
+    fetchUserLimits();
+  }, [fetchInterviewData, fetchUserLimits]);
+
+  // Fallback periodic checking for status updates (less aggressive)
+  useEffect(() => {
+    // Only set up periodic checking if we have preparing sessions
+    const hasPreparingSessions = sessions.some(s => s.status === 'preparing');
+    
+    if (!hasPreparingSessions) {
+      return; // No need for periodic checking
+    }
+    
+    console.log('🔄 Setting up fallback status checking for preparing sessions');
+    
+    const intervalId = setInterval(() => {
+      // Only check status updates for preparing sessions
+      const preparingSessions = sessions.filter(s => s.status === 'preparing');
+      if (preparingSessions.length > 0) {
+        console.log('🔄 Fallback check: Found', preparingSessions.length, 'preparing sessions');
+        console.log('🔄 Preparing sessions:', preparingSessions.map(s => ({
+          id: s.id.substring(0, 8) + '***',
+          title: s.title,
+          status: s.status
+        })));
+        
+        // Fetch only session status updates without full refresh
+        fetchInterviewData(false);
+      } else {
+        console.log('🔄 Fallback check: No preparing sessions found, skipping fetch');
+      }
+    }, 6000); // Check every 6 seconds for faster updates
+    
+    return () => {
+      console.log('🔄 Cleaning up fallback status checking');
+      clearInterval(intervalId);
+    };
+  }, [sessions, fetchInterviewData]);
 
   // Real-time subscription for mock_interview table changes
   useEffect(() => {
@@ -251,72 +301,173 @@ const InterviewSessionsContent = () => {
         const userId = authSession.user.id;
         console.log('🔔 Setting up real-time subscription for user:', userId?.substring(0, 8) + '***');
         console.log('🔔 Listening for status_prep changes in mock_interview table');
+        console.log('🔔 Subscription timestamp:', new Date().toISOString());
 
         // Subscribe to changes in mock_interview table for current user
         channel = supabase
-          .channel('mock_interview_status_prep_changes')
+          .channel('mock_interview_realtime_updates')
           .on(
             'postgres_changes',
             {
-              event: 'UPDATE',
+              event: '*', // Listen to INSERT, UPDATE, DELETE
               schema: 'public',
               table: 'mock_interview',
               filter: `user_id=eq.${userId}`
             },
             (payload) => {
-              console.log('🔔 Real-time UPDATE received for mock_interview:', {
-                sessionId: payload.new?.id,
-                oldStatusPrep: payload.old?.status_prep,
-                newStatusPrep: payload.new?.status_prep,
-                oldStatus: payload.old?.status,
-                newStatus: payload.new?.status
+              const newData = payload.new as any;
+              const oldData = payload.old as any;
+              
+              console.log('🔔 Real-time event received for mock_interview:', {
+                eventType: payload.eventType,
+                sessionId: newData?.id,
+                oldStatusPrep: oldData?.status_prep,
+                newStatusPrep: newData?.status_prep,
+                oldStatus: oldData?.status,
+                newStatus: newData?.status,
+                timestamp: new Date().toISOString(),
+                isStatusPrepChange: oldData?.status_prep !== newData?.status_prep,
+                isPrepToDone: oldData?.status_prep !== 'DONE' && newData?.status_prep === 'DONE'
               });
               
-              if (payload.new && payload.old) {
-                const updatedSession = payload.new;
-                const oldSession = payload.old;
+              // Special logging for the important transition
+              if (oldData?.status_prep !== 'DONE' && newData?.status_prep === 'DONE') {
+                console.log('🎉 CRITICAL UPDATE: Status prep changed to DONE!', {
+                  sessionId: newData?.id,
+                  oldPrep: oldData?.status_prep,
+                  newPrep: newData?.status_prep,
+                  expectedTransition: 'preparing → ready'
+                });
+              }
+              
+              // Handle INSERT events (new sessions created)
+              if (payload.eventType === 'INSERT' && newData) {
+                console.log('🎉 New session created via real-time:', {
+                  sessionId: newData.id,
+                  title: newData.title,
+                  status: newData.status,
+                  status_prep: newData.status_prep
+                });
                 
-                // Check specifically if status_prep changed to DONE
-                if (oldSession.status_prep !== 'DONE' && updatedSession.status_prep === 'DONE') {
-                  console.log('🎉 Session preparation completed! status_prep: PENDING → DONE', {
-                    sessionId: updatedSession.id,
-                    title: updatedSession.title
-                  });
-                  
-                  // Update the specific session in state to show "Ready to Start"
-                  setSessions(prevSessions => {
-                    return prevSessions.map(session => {
-                      if (session.id === updatedSession.id) {
-                        console.log('📝 Updating session status: preparing → ready');
-                        return {
-                          ...session,
-                          status: 'ready' as const // Change from preparing to ready
-                        };
-                      }
-                      return session;
+                // Transform backend session to frontend format
+                const backendSession = newData;
+                const sessionAttempts: MockInterviewAttempt[] = []; // New sessions have no attempts yet
+                const calculatedScore = calculateScoreFromAttempts(sessionAttempts);
+                
+                const newSession: InterviewSession = {
+                  id: backendSession.id,
+                  title: backendSession.title || generateSessionTitle(backendSession),
+                  type: backendSession.interview_type || 'behavioral',
+                  duration: backendSession.duration_minutes || 30,
+                  status: mapBackendStatusToFrontend(backendSession.status, backendSession.status_prep, sessionAttempts),
+                  score: calculatedScore,
+                  date: new Date(backendSession.created_at),
+                  companyUrl: backendSession.company_url || undefined,
+                  companyName: backendSession.company_name || undefined,
+                  role: backendSession.position || undefined,
+                  feedback: undefined,
+                  attempts: sessionAttempts,
+                  latestAttempt: undefined
+                };
+                
+                // Add or update session in state
+                setSessions(prevSessions => {
+                  // Try to find by real ID first, then by temp ID pattern
+                  const existingIndex = prevSessions.findIndex(s => 
+                    s.id === newSession.id || s.id.startsWith('temp-')
+                  );
+                  if (existingIndex >= 0) {
+                    // Replace optimistic session with real data but preserve the title
+                    console.log('🔄 Replacing optimistic session with real data');
+                    const existingSession = prevSessions[existingIndex];
+                    console.log('📝 Preserving original title during INSERT:', {
+                      originalTitle: existingSession.title,
+                      backendTitle: newSession.title,
+                      sessionId: newSession.id,
+                      existingSessionId: existingSession.id
                     });
-                  });
-                  
-                  // Also update filtered sessions
-                  setFilteredSessions(prevFiltered => {
-                    return prevFiltered.map(session => {
-                      if (session.id === updatedSession.id) {
-                        return {
-                          ...session,
-                          status: 'ready' as const
-                        };
+                    const updatedSessions = [...prevSessions];
+                    updatedSessions[existingIndex] = {
+                      ...newSession,
+                      // Preserve the original title to prevent visual changes
+                      title: existingSession.title
+                    };
+                    return updatedSessions;
+                  } else {
+                    // Add new session to the beginning
+                    console.log('✅ Adding new session to state');
+                    return [newSession, ...prevSessions];
+                  }
+                });
+              }
+              
+              // Handle UPDATE events (status changes, etc.)
+              else if (payload.eventType === 'UPDATE' && newData && oldData) {
+                const updatedSession = newData;
+                const oldSession = oldData;
+                
+                console.log('🔔 Analyzing UPDATE event:', {
+                  sessionId: updatedSession.id,
+                  oldStatusPrep: oldSession.status_prep,
+                  newStatusPrep: updatedSession.status_prep,
+                  oldStatus: oldSession.status,
+                  newStatus: updatedSession.status
+                });
+
+                // Always update the session to ensure real-time sync
+                setSessions(prevSessions => {
+                  return prevSessions.map(session => {
+                    if (session.id === updatedSession.id) {
+                      // Calculate new status based on updated backend data
+                      const newStatus = mapBackendStatusToFrontend(
+                        updatedSession.status, 
+                        updatedSession.status_prep, 
+                        session.attempts
+                      );
+                      
+                      console.log('🔄 Updating session in real-time:', {
+                        sessionId: updatedSession.id,
+                        oldFrontendStatus: session.status,
+                        newFrontendStatus: newStatus,
+                        backendStatus: updatedSession.status,
+                        backendStatusPrep: updatedSession.status_prep,
+                        preservingTitle: session.status === 'preparing',
+                        currentTitle: session.title,
+                        backendTitle: updatedSession.title,
+                        statusWillChange: session.status !== newStatus,
+                        importantUpdate: session.status === 'preparing' && newStatus === 'ready'
+                      });
+                      
+                      // Log important status transitions
+                      if (session.status === 'preparing' && newStatus === 'ready') {
+                        console.log('🎉 IMPORTANT: Session ready for interview!', {
+                          sessionId: updatedSession.id,
+                          title: session.title,
+                          transition: 'preparing → ready'
+                        });
                       }
-                      return session;
-                    });
+                      
+                      const willPreserveTitle = session.status === 'preparing';
+                      if (willPreserveTitle) {
+                        console.log('📝 Preserving title during UPDATE (preparing stage):', {
+                          sessionId: session.id,
+                          preservedTitle: session.title,
+                          backendTitle: updatedSession.title
+                        });
+                      }
+                      
+                      return {
+                        ...session,
+                        status: newStatus,
+                        // Don't update title during preparing stage to prevent visual changes
+                        title: willPreserveTitle ? session.title : (updatedSession.title || session.title),
+                        companyName: willPreserveTitle ? session.companyName : (updatedSession.company_name || session.companyName),
+                        role: willPreserveTitle ? session.role : (updatedSession.position || session.role)
+                      };
+                    }
+                    return session;
                   });
-                } else {
-                  console.log('🔔 Other mock_interview update (not status_prep to DONE):', {
-                    sessionId: updatedSession.id,
-                    changes: Object.keys(payload.new).filter(key => 
-                      JSON.stringify(payload.old[key]) !== JSON.stringify(payload.new[key])
-                    )
-                  });
-                }
+                });
               }
             }
           )
@@ -324,8 +475,59 @@ const InterviewSessionsContent = () => {
             console.log('🔔 Real-time subscription status:', status);
             if (status === 'SUBSCRIBED') {
               console.log('✅ Successfully subscribed to mock_interview table changes');
+              console.log('🔔 Subscription details:', {
+                channel: 'mock_interview_realtime_updates',
+                event: '*',
+                table: 'mock_interview',
+                filter: `user_id=eq.${userId}`,
+                userId: userId?.substring(0, 8) + '***',
+                timestamp: new Date().toISOString()
+              });
+              
+              // Add global test functions for manual testing
+              (window as any).testRealtimeSubscription = () => {
+                console.log('🧪 Testing real-time subscription...');
+                console.log('🧪 Current sessions with preparing status:', 
+                  sessions.filter(s => s.status === 'preparing').map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    status: s.status
+                  }))
+                );
+              };
+              
+              (window as any).testStatusMapping = (sessionId: string) => {
+                const session = sessions.find(s => s.id === sessionId);
+                if (session) {
+                  console.log('🧪 Testing status mapping for session:', sessionId);
+                  const newStatus = mapBackendStatusToFrontend('created', 'DONE', session.attempts);
+                  console.log('🧪 Mapped status (with DONE):', newStatus);
+                } else {
+                  console.log('🧪 Session not found:', sessionId);
+                }
+              };
+              
+              (window as any).forceStatusUpdate = (sessionId: string) => {
+                console.log('🧪 Forcing status update for session:', sessionId);
+                setSessions(prevSessions => 
+                  prevSessions.map(session => {
+                    if (session.id === sessionId && session.status === 'preparing') {
+                      console.log('🧪 Updating session status: preparing → ready');
+                      return { ...session, status: 'ready' as const };
+                    }
+                    return session;
+                  })
+                );
+              };
+              
+              console.log('🧪 Test functions available:');
+              console.log('🧪   - window.testRealtimeSubscription()');
+              console.log('🧪   - window.testStatusMapping(sessionId)');
+              console.log('🧪   - window.forceStatusUpdate(sessionId)');
             } else if (status === 'CHANNEL_ERROR') {
               console.error('❌ Real-time subscription error');
+            } else {
+              console.log('🔔 Subscription status change:', status);
             }
           });
 
@@ -424,24 +626,35 @@ const InterviewSessionsContent = () => {
   };
 
   // Helper function to map backend status to frontend status
-  const mapBackendStatusToFrontend = (backendStatus: string, statusPrep?: string): 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done' => {
-    switch (backendStatus?.toLowerCase()) {
-      case 'completed':
-        return 'completed';
-      case 'active':
-      case 'in-progress':
-        return 'in-progress';
-      case 'done':
-        return 'done';
-      case 'ready':
-        // Check status_prep to determine if truly ready or still preparing
-        return statusPrep === 'DONE' ? 'ready' : 'scheduled';
-      case 'scheduled':
-      case 'created':
-      default:
-        // Check status_prep to determine if preparing or scheduled
-        return statusPrep === 'DONE' ? 'ready' : 'scheduled';
+  const mapBackendStatusToFrontend = (backendStatus: string, statusPrep?: string, attempts: MockInterviewAttempt[] = []): 'completed' | 'ready' | 'preparing' => {
+    console.log('🎯 Status mapping input:', {
+      backendStatus,
+      statusPrep,
+      attemptsCount: attempts.length,
+      attempts: attempts.map(a => ({ id: a.id, status: a.status }))
+    });
+    
+    // Priority 1: Check if 3 attempts reached - session is complete
+    if (attempts.length >= 3) {
+      console.log('🎯 Status mapping result: completed (3+ attempts)');
+      return 'completed'; // Session finished - no more attempts allowed
     }
+    
+    // Priority 2: Check if ready to start/continue based on agent preparation
+    if (statusPrep === 'DONE') {
+      console.log('🎯 Status mapping result: ready (status_prep = DONE) ✅');
+      return 'ready'; // Can start new attempt or continue
+    }
+    
+    // Check other possible "ready" indicators
+    if (statusPrep === 'READY' || backendStatus === 'ready') {
+      console.log('🎯 Status mapping result: ready (alternative ready state) ✅');
+      return 'ready';
+    }
+    
+    // Priority 3: Still preparing
+    console.log('🎯 Status mapping result: preparing (status_prep =', statusPrep, ')');
+    return 'preparing'; // Agent still setting up
   };
 
   // Helper function to calculate score from attempts - return as rating out of 10
@@ -476,11 +689,14 @@ const InterviewSessionsContent = () => {
     return `${Math.round(averageScore * 10) / 10}/10`;
   };
 
-  useEffect(() => {
+  // Memoized filtered sessions - only recalculates when dependencies change
+  const filteredSessions = useMemo(() => {
     let filtered = sessions;
 
     // Apply search filter
     if (searchTerm) {
+      const searchTermLower = searchTerm.toLowerCase();
+      
       filtered = filtered.filter(session => {
         const extractDomain = (url: string) => {
           try {
@@ -490,9 +706,12 @@ const InterviewSessionsContent = () => {
           }
         };
         
-        return session.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (session.companyUrl && extractDomain(session.companyUrl).toLowerCase().includes(searchTerm.toLowerCase())) ||
-          session.role?.toLowerCase().includes(searchTerm.toLowerCase());
+        const titleMatch = session.title.toLowerCase().includes(searchTermLower);
+        const urlMatch = session.companyUrl && extractDomain(session.companyUrl).toLowerCase().includes(searchTermLower);
+        const roleMatch = session.role?.toLowerCase().includes(searchTermLower);
+        const companyNameMatch = session.companyName?.toLowerCase().includes(searchTermLower);
+        
+        return titleMatch || urlMatch || roleMatch || companyNameMatch;
       });
     }
 
@@ -506,61 +725,73 @@ const InterviewSessionsContent = () => {
       filtered = filtered.filter(session => session.type === typeFilter);
     }
 
-    setFilteredSessions(filtered);
+    return filtered;
   }, [sessions, searchTerm, statusFilter, typeFilter]);
 
-  const stats = {
-    total: sessions.length,
-    completed: (() => {
-      // Count sessions that have at least one completed attempt
-      return sessions.filter(s => 
-        s.attempts && s.attempts.some(attempt => attempt.status === 'PROCESSED')
-      ).length;
-    })(),
-    avgScore: (() => {
-      // Calculate average from all completed attempts across all sessions - return as rating
-      const allCompletedAttempts = sessions.flatMap(s => 
-        s.attempts?.filter(attempt => 
-          attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
-        ) || []
-      );
-      
-      if (allCompletedAttempts.length === 0) return "0/10";
-      
-      const scores = allCompletedAttempts.map(attempt => {
-        if (attempt.feedback?.Score) {
-          // Parse "7.5/10" format - keep as rating out of 10
-          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-          return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
-        }
-        // Convert evaluation_score to rating out of 10
-        const evalScore = attempt.evaluation_score || 0;
-        if (evalScore <= 10) {
-          return evalScore;
-        } else {
-          // Convert percentage to rating out of 10
-          return (evalScore / 100) * 10;
-        }
-      });
-      
-      const averageScore = scores.reduce((acc, score) => acc + score, 0) / scores.length;
-      return `${Math.round(averageScore * 10) / 10}/10`;
-    })(),
-    totalTime: (() => {
-      // Calculate total time from actual completed attempts
-      const allCompletedAttempts = sessions.flatMap(s => 
-        s.attempts?.filter(attempt => 
-          attempt.status === 'PROCESSED' && attempt.actual_duration_minutes
-        ) || []
-      );
-      
-      return allCompletedAttempts.reduce((acc, attempt) => 
-        acc + (attempt.actual_duration_minutes || 0), 0
-      );
-    })()
-  };
+  // Helper functions for stats calculations (extracted for better performance)
+  const calculateAvgScoreFromAttempts = useCallback((allCompletedAttempts: MockInterviewAttempt[]): string => {
+    if (allCompletedAttempts.length === 0) return "0/10";
+    
+    const scores = allCompletedAttempts.map(attempt => {
+      if (attempt.feedback?.Score) {
+        // Parse "7.5/10" format - keep as rating out of 10
+        const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+        return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
+      }
+      // Convert evaluation_score to rating out of 10
+      const evalScore = attempt.evaluation_score || 0;
+      if (evalScore <= 10) {
+        return evalScore;
+      } else {
+        // Convert percentage to rating out of 10
+        return (evalScore / 100) * 10;
+      }
+    });
+    
+    const averageScore = scores.reduce((acc, score) => acc + score, 0) / scores.length;
+    return `${Math.round(averageScore * 10) / 10}/10`;
+  }, []);
 
-  const handleNewSession = async (sessionData: any) => {
+  const calculateTotalTimeFromAttempts = useCallback((allCompletedAttempts: MockInterviewAttempt[]): number => {
+    return allCompletedAttempts.reduce((acc, attempt) => 
+      acc + (attempt.actual_duration_minutes || 0), 0
+    );
+  }, []);
+
+  // Memoized stats calculation - only recalculates when sessions change
+  const stats = useMemo(() => {
+    // Get all completed attempts across all sessions (expensive operation)
+    const allCompletedAttempts = sessions.flatMap(s => 
+      s.attempts?.filter(attempt => 
+        attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
+      ) || []
+    );
+    
+    // Get completed attempts with duration data
+    const allCompletedAttemptsWithDuration = sessions.flatMap(s => 
+      s.attempts?.filter(attempt => 
+        attempt.status === 'PROCESSED' && attempt.actual_duration_minutes
+      ) || []
+    );
+    
+    // Count completed sessions
+    const completedSessionsCount = sessions.filter(s => 
+      s.attempts && s.attempts.some(attempt => attempt.status === 'PROCESSED')
+    ).length;
+    
+    // Get avgScore and strip "/10" for stats display
+    const avgScoreRating = calculateAvgScoreFromAttempts(allCompletedAttempts);
+    const avgScoreNumeric = avgScoreRating ? avgScoreRating.replace('/10', '') : '0';
+    
+    return {
+      total: sessions.length,
+      completed: completedSessionsCount,
+      avgScore: avgScoreNumeric, // Just the number, no "/10"
+      totalTime: calculateTotalTimeFromAttempts(allCompletedAttemptsWithDuration)
+    };
+  }, [sessions, calculateAvgScoreFromAttempts, calculateTotalTimeFromAttempts]);
+
+  const handleNewSession = useCallback(async (sessionData: any) => {
     console.log('🚀 handleNewSession received data:', sessionData);
     console.log('🏢 Company URL field mapping:', {
       company: sessionData.company,
@@ -569,17 +800,49 @@ const InterviewSessionsContent = () => {
       finalValue: sessionData.company || sessionData.company_name || ''
     });
     
+    // Generate temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create optimistic session immediately
+    const optimisticSession: InterviewSession = {
+      id: tempId,
+      title: sessionData.title,
+      type: sessionData.type || 'behavioral',
+      duration: 15, // Always 15 minutes per backend
+      status: 'preparing', // Start as preparing since status_prep will be PENDING initially
+      score: undefined,
+      date: new Date(),
+      companyUrl: sessionData.company || sessionData.company_name || '',
+      companyName: sessionData.company || sessionData.company_name || '',
+      role: sessionData.role || 'Software Engineer',
+      feedback: undefined,
+      attempts: [],
+      latestAttempt: undefined
+    };
+    
+    // Add optimistic session to state immediately
+    console.log('⚡ Adding optimistic session:', optimisticSession);
+    setSessions(prevSessions => [optimisticSession, ...prevSessions]);
+    
+    // Close modal immediately for better UX
+    setIsNewSessionModalOpen(false);
+    
     try {
       // Get user session for authentication
       const { data: authData, error: authError } = await supabase.auth.getSession();
       if (authError || !authData?.session?.access_token) {
+        // Remove optimistic session on auth error
+        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
         setError('Authentication required');
+        setIsNewSessionModalOpen(true); // Reopen modal
         return;
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
+        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
         setError('Backend URL not configured');
+        setIsNewSessionModalOpen(true);
         return;
       }
 
@@ -613,23 +876,59 @@ const InterviewSessionsContent = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create session');
+        
+        // Remove optimistic session on error
+        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
+        
+        // Handle specific error types
+        if (errorData.limit_reached) {
+          console.log('🚫 Session limit reached:', errorData);
+          setError(`Session limit reached (${errorData.current_count}/${errorData.limit}). Please upgrade your plan.`);
+        } else {
+          setError(errorData.error || 'Failed to create session');
+        }
+        
+        setIsNewSessionModalOpen(true); // Reopen modal for retry
+        return;
       }
 
       const result = await response.json();
-      console.log('Session created successfully:', result);
+      console.log('✅ Session created successfully:', result);
 
-      // Close modal and refresh data
-      setIsNewSessionModalOpen(false);
+      // Update optimistic session with real data (will be replaced by real-time event)
+      setSessions(prevSessions => 
+        prevSessions.map(session => {
+          if (session.id === tempId) {
+            console.log('🔄 Updating optimistic session with backend response');
+            return {
+              ...session,
+              id: result.session_id, // Replace temp ID with real ID
+              title: session.title, // Keep the original user-entered title
+              type: result.interview_type || session.type,
+              duration: result.duration_minutes || 15,
+              companyUrl: result.company_url || session.companyUrl,
+              companyName: result.company_name || session.companyName,
+              role: result.position || session.role,
+              status: 'preparing' // Backend starts with status:'created' and status_prep:'PENDING'
+            };
+          }
+          return session;
+        })
+      );
+
+      // Real-time subscription will handle status updates automatically
+      console.log('🎉 Session creation complete - waiting for real-time status updates');
       
-      // Refresh sessions (will optimize for real-time updates later)
-      window.location.reload();
-
     } catch (error) {
-      console.error('Error creating session:', error);
+      console.error('❌ Error creating session:', error);
+      
+      // Remove optimistic session on network/server error
+      setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
+      
       setError(error instanceof Error ? error.message : 'Failed to create session');
+      setIsNewSessionModalOpen(true); // Reopen modal for retry
     }
-  };
+  }, [supabase]);
 
   if (isLoading) {
     return (
@@ -746,10 +1045,8 @@ const InterviewSessionsContent = () => {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="done">Ready to Start</SelectItem>
-                  <SelectItem value="ready">Preparing</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={setTypeFilter}>

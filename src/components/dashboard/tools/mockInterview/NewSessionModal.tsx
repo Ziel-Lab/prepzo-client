@@ -120,9 +120,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
         throw new Error("Backend URL is not configured.");
       }
 
-      // Fetch ALL documents using mock interview specific endpoint
+      // Fetch ALL documents using the upload blueprint endpoint
       try {
-        const requestUrl = `${backendUrl}/mockInterview/user-documents`;
+        const requestUrl = `${backendUrl}/get-documents`;
         console.log('📡 Fetching from:', requestUrl);
 
         const response = await fetch(requestUrl, {
@@ -135,7 +135,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
         if (response.ok) {
           const responseData = await response.json();
-          const allDocuments = responseData.documents || [];
+          const allDocuments = responseData || []; // Response is directly an array, not wrapped in documents
           
           console.log('📄 Raw documents received:', {
             total: allDocuments.length,
@@ -143,27 +143,22 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
               id: doc.id,
               name: doc.document_name,
               type: doc.document_type,
-              uid: doc.uid?.substring(0, 8) + '***',
               url_exists: !!doc.document_url
             }))
           });
 
           // Improved filtering with better logging and case-insensitive matching
+          // Note: uid is filtered server-side, so all documents belong to the current user
           const resumes = allDocuments
-            .filter((doc: { uid: string; document_type: string; id: number; document_name: string; document_url: string; }) => {
+            .filter((doc: { document_type: string; id: number; document_name: string; document_url: string; }) => {
               const docType = (doc.document_type || '').toLowerCase().trim();
               const fileName = (doc.document_name || '').toLowerCase();
-              const belongsToUser = doc.uid === userId;
               
               console.log('🔍 Resume filter check:', {
                 docId: doc.id,
                 docName: doc.document_name,
                 docType: doc.document_type,
                 normalizedType: docType,
-                belongsToUser,
-                userIdMatch: doc.uid === userId,
-                currentUserId: userId?.substring(0, 8) + '***',
-                docUserId: doc.uid?.substring(0, 8) + '***',
                 fileName: fileName
               });
               
@@ -191,21 +186,20 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                  !fileName.toLowerCase().includes('letter'))
               );
               
-                             console.log('📄 Filename analysis:', {
-                 fileName,
-                 hasResumeInFilename,
-                 isPdfFile: fileName.endsWith('.pdf'),
-                 looksLikePersonalFile: /^[a-z]+[a-z0-9]*\.(pdf|doc|docx)$/i.test(fileName),
-                 isResumeType,
-                 finalDecision: belongsToUser && (isResumeType || hasResumeInFilename),
-                 reasons: {
-                   belongsToUser,
-                   matchesResumeType: isResumeType,
-                   matchesFilename: hasResumeInFilename
-                 }
-               });
+              console.log('📄 Filename analysis:', {
+                fileName,
+                hasResumeInFilename,
+                isPdfFile: fileName.endsWith('.pdf'),
+                looksLikePersonalFile: /^[a-z]+[a-z0-9]*\.(pdf|doc|docx)$/i.test(fileName),
+                isResumeType,
+                finalDecision: isResumeType || hasResumeInFilename,
+                reasons: {
+                  matchesResumeType: isResumeType,
+                  matchesFilename: hasResumeInFilename
+                }
+              });
                
-               return belongsToUser && (isResumeType || hasResumeInFilename);
+              return isResumeType || hasResumeInFilename;
             })
             .map((doc: any) => {
               const docType = (doc.document_type || '').toLowerCase().trim();
@@ -221,18 +215,16 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             });
           
           // Improved filtering for cover letters
+          // Note: uid is filtered server-side, so all documents belong to the current user
           const coverLetters = allDocuments
-            .filter((doc: { uid: string; document_type: string; id: number; document_name: string; document_url: string; }) => {
+            .filter((doc: { document_type: string; id: number; document_name: string; document_url: string; }) => {
               const docType = (doc.document_type || '').toLowerCase().trim();
-              const belongsToUser = doc.uid === userId;
               
               console.log('💌 Cover letter filter check:', {
                 docId: doc.id,
                 docName: doc.document_name,
                 docType: doc.document_type,
-                normalizedType: docType,
-                belongsToUser,
-                userIdMatch: doc.uid === userId
+                normalizedType: docType
               });
               
               // Case-insensitive document type matching for cover letters
@@ -242,7 +234,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                 docType === 'Cover Letter' || docType === 'Cover_Letter'
               );
               
-              return belongsToUser && isCoverLetterType;
+              return isCoverLetterType;
             })
             .map((doc: any) => ({
               id: doc.id,
@@ -251,16 +243,16 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             }));
 
           // Check for potential misclassified documents
+          // Note: uid is filtered server-side, so all documents belong to the current user
           const potentialResumes = allDocuments.filter((doc: any) => {
             const fileName = (doc.document_name || '').toLowerCase();
-            const belongsToUser = doc.uid === userId;
             const currentType = (doc.document_type || '').toLowerCase();
             
             // Look for resume-like filenames that might be misclassified
             const hasResumeInName = fileName.includes('resume') || fileName.includes('cv') || 
                                    fileName.includes('curriculum');
             
-            return belongsToUser && hasResumeInName && currentType !== 'resume' && currentType !== 'cv';
+            return hasResumeInName && currentType !== 'resume' && currentType !== 'cv';
           });
 
           console.log('✅ Document filtering results:', {
@@ -272,8 +264,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             coverLetters: coverLetters.map((c: UserDocument) => ({ id: c.id, title: c.title })),
             allDocTypes: allDocuments.map((doc: any) => ({ 
               name: doc.document_name, 
-              type: doc.document_type,
-              belongsToUser: doc.uid === userId 
+              type: doc.document_type
             })),
             potentialMisclassified: potentialResumes.map((doc: any) => ({
               name: doc.document_name,

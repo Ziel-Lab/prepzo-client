@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { Loader2, AlertCircle, Wand2, FileText, Linkedin, BarChart2, ArrowRight, Briefcase } from 'lucide-react';
+import { Loader2, AlertCircle, Wand2, FileText, Linkedin, BarChart2, ArrowRight, Briefcase, MessageSquare } from 'lucide-react';
 
 interface OverviewContentProps {
   userName: string | null;
@@ -34,6 +34,12 @@ const tools = [
     description: 'Enhance your LinkedIn profile to attract recruiters and opportunities.',
     link: '/dashboard/tools/linkedin-optimizer',
     icon: <Linkedin className="h-8 w-8 text-sky-600" />,
+  },
+  {
+    title: 'Mock Interview',
+    description: 'Practice interviews with AI and get detailed feedback to improve.',
+    link: '/dashboard/tools/mock-Interview',
+    icon: <MessageSquare className="h-8 w-8 text-emerald-500" />,
   },
   {
     title: 'Applications',
@@ -64,16 +70,21 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
     },
     {
+      name: "Mock Interview Sessions",
+      used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
+      limit: (subscription.subscription_plans as any)?.mock_interview_session ?? 0,
+    },
+    {
       name: "Job Reveals",
       used: subscription.usage.job_search_results_period_count ?? 0,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ] : [];
 
-  // Filter metrics for Premium users (plan_id = 3) - only show Job Reveals since they have unlimited access to others
+  // Filter metrics for Premium users (plan_id = 3) - only show Job Reveals and Mock Interview Sessions since they have unlimited access to others
   if (subscription?.subscription_plans?.id === 3) {
     usageMetrics = usageMetrics.filter(
-      (metric) => metric.name === "Job Reveals"
+      (metric) => metric.name === "Job Reveals" || metric.name === "Mock Interview Sessions"
     );
   }
 
@@ -139,7 +150,7 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                 Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.name || '...'}</span>
                 {subscription?.subscription_plans?.id === 3 && (
                   <div className="text-xs text-green-600 mt-1">
-                    ✨ Unlimited Resume, Cover Letter & LinkedIn access
+                    ✨ Unlimited Resume, Cover Letter, LinkedIn & Mock Interview access
                   </div>
                 )}
               </CardDescription>
@@ -176,10 +187,10 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                       <div className="flex justify-between items-center mb-1">
                         <p className="text-sm font-medium">{m.name}</p>
                         <p className="text-sm text-gray-500">
-                          {m.used} / {m.limit}
+                          {m.used} / {subscription?.subscription_plans?.id === 3 ? "unlimited" : m.limit}
                         </p>
                       </div>
-                      <Progress value={typeof m.limit === 'number' && m.limit > 0 ? (m.used / m.limit) * 100 : 0} />
+                      <Progress value={subscription?.subscription_plans?.id === 3 ? 0 : (typeof m.limit === 'number' && m.limit > 0 ? (m.used / m.limit) * 100 : 0)} />
                     </div>
                   ))}
                 </div>

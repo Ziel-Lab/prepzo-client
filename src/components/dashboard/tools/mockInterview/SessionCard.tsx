@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Play, MoreVertical, Award, Building2, Briefcase, ChevronDown, ChevronUp, Eye, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, Play, Award, Building2, Briefcase, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
@@ -33,7 +33,7 @@ interface InterviewSession {
   title: string; // Direct from database column
   type: string;
   duration: number;
-  status: 'completed' | 'in-progress' | 'scheduled' | 'ready' | 'done';
+  status: 'completed' | 'ready' | 'preparing';
   score?: string; // Calculated from attempts - now in rating format like "8/10"
   date: Date;
   companyUrl?: string;
@@ -61,29 +61,22 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-700 border-green-200';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'done':
       case 'ready':
         return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'scheduled':
+      case 'preparing':
         return 'bg-orange-100 text-orange-700 border-orange-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
-  const getStatusDisplayText = (status: string) => {
+  const getStatusDisplayText = (status: string, attemptCount: number) => {
     switch (status) {
       case 'completed':
-        return 'Completed';
-      case 'in-progress':
-        return 'In Progress';
-      case 'done':
-        return 'Ready to Start';
+        return `Session Complete (${attemptCount}/3)`;
       case 'ready':
-        return 'Ready to Start';
-      case 'scheduled':
+        return attemptCount === 0 ? 'Ready to Start' : 'Ready to Continue';
+      case 'preparing':
         return 'Preparing...';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
@@ -120,8 +113,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
     return session.attempts?.filter(attempt => attempt.status === 'PROCESSED').length || 0;
   };
 
+  const getTotalAttemptsCount = () => {
+    return session.attempts?.length || 0;
+  };
+
   const hasReachedAttemptLimit = () => {
-    return getCompletedAttemptsCount() >= 3;
+    return getTotalAttemptsCount() >= 3; // Check total attempts, not just processed
   };
 
   const getTypeColor = (type: string) => {
@@ -191,11 +188,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
     }
   };
 
-  const handleCompanyClick = () => {
-    if (session.companyUrl) {
-      window.open(session.companyUrl, '_blank');
-    }
-  };
+
 
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
@@ -248,21 +241,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       }
     }
     setShowAttempts(!showAttempts);
-  };
-
-  const handleAction = async (action: string) => {
-    switch (action) {
-      case 'start':
-      case 'continue':
-        await handleStartInterview();
-        break;
-      case 'duplicate':
-        console.log('Duplicate session:', session.id);
-        break;
-      case 'delete':
-        console.log('Delete session:', session.id);
-        break;
-    }
   };
 
   const handleStartInterview = async () => {
@@ -326,7 +304,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{session.title}</h3>
               <Badge className={`text-xs ${getStatusColor(session.status)}`}>
-                {getStatusDisplayText(session.status)}
+                {getStatusDisplayText(session.status, getTotalAttemptsCount())}
               </Badge>
               <Badge variant="outline" className={`text-xs ${getTypeColor(session.type)}`}>
                 {formatType(session.type)}
@@ -346,16 +324,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                   <Building2 size={14} />
                   <span>{session.companyName}</span>
                 </div>
-              )}
-              {session.companyUrl && (
-                <button
-                  onClick={handleCompanyClick}
-                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                  title="View job posting"
-                >
-                  <ExternalLink size={14} />
-                  <span>View Job Posting</span>
-                </button>
               )}
             </div>
           </div>
@@ -405,30 +373,19 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               <span className="ml-1">Attempts</span>
             </Button>
 
-            {/* Primary Action Button */}
-            {session.status === 'in-progress' && !hasReachedAttemptLimit() && (
+            {/* Primary Action Button - Only show if haven't reached 3 attempts */}
+            {session.status === 'ready' && !hasReachedAttemptLimit() && (
               <Button
                 size="sm"
-                onClick={() => handleAction('continue')}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Play size={14} className="mr-1" />
-                Continue
-              </Button>
-            )}
-
-            {session.status === 'done' && !hasReachedAttemptLimit() && (
-              <Button
-                size="sm"
-                onClick={() => handleAction('start')}
+                onClick={handleStartInterview}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <Play size={14} className="mr-1" />
-                Start Interview
+                Begin Interview ({getTotalAttemptsCount() + 1}/3)
               </Button>
             )}
 
-            {session.status === 'scheduled' && !hasReachedAttemptLimit() && (
+            {session.status === 'preparing' && (
               <Button
                 size="sm"
                 disabled
@@ -439,60 +396,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               </Button>
             )}
 
-            {session.status === 'ready' && !hasReachedAttemptLimit() && (
-              <Button
-                size="sm"
-                onClick={() => handleAction('start')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <Play size={14} className="mr-1" />
-                Start Interview
-              </Button>
-            )}
-            
-            {session.status === 'completed' && !hasReachedAttemptLimit() && (
-              <Button
-                size="sm"
-                onClick={() => handleAction('start')}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Play size={14} className="mr-1" />
-                Practice Again
-              </Button>
-            )}
-
-            {/* Show completion message when attempt limit is reached */}
-            {hasReachedAttemptLimit() && (
+            {/* Show completion message when 3 attempts reached */}
+            {session.status === 'completed' && (
               <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-full">
                 <Award size={14} className="text-green-600" />
                 <span className="text-sm font-medium text-green-700">
-                  Session Complete ({getCompletedAttemptsCount()}/3 attempts)
+                  All Attempts Complete ({getTotalAttemptsCount()}/3)
                 </span>
               </div>
             )}
-            
-            {/* More Options Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical size={14} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleAction('duplicate')}>
-                  <RotateCcw size={14} className="mr-2" />
-                  Duplicate Session
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => handleAction('delete')}
-                  className="text-red-600"
-                >
-                  <Trash2 size={14} className="mr-2" />
-                  Delete Session
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
 

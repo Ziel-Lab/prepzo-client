@@ -192,6 +192,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   };
 
   const parseAdditionalQA = (qaText: string) => {
+    console.log('🔍 parseAdditionalQA: Starting to parse:', qaText.substring(0, 200) + '...');
     const results = [];
     let currentIndex = 0;
     let questionNumber = 1;
@@ -209,6 +210,8 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         `### Question ${questionNumber}:`
       ];
       
+      console.log(`🔍 Looking for question ${questionNumber} with markers:`, questionMarkers);
+      
       let questionIndex = -1;
       let usedMarker = '';
       let isNewFormat = false;
@@ -221,11 +224,13 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           usedMarker = marker;
           // Check if this is the new format (no closing colon immediately)
           isNewFormat = marker === `**Question ${questionNumber}:`;
+          console.log(`✅ Found marker "${usedMarker}" at index ${questionIndex}`);
           break;
         }
       }
       
       if (questionIndex === -1) {
+        console.log(`❌ No marker found for question ${questionNumber}, stopping parse`);
         break;
       }
       
@@ -240,13 +245,18 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           question = qaText.substring(questionTextStart, questionEndIndex).trim();
           // Update questionTextStart to be after the closing **
           questionTextStart = questionEndIndex + 2;
+          console.log(`📝 New format question extracted: "${question}"`);
         }
       } else {
         // Old format: question text is after the marker and before response
         const responseMarker = '**Appropriate Response:**';
         const responseIndex = qaText.indexOf(responseMarker, questionTextStart);
+        console.log(`🔍 Looking for response marker at index ${responseIndex} starting from ${questionTextStart}`);
         if (responseIndex !== -1) {
           question = qaText.substring(questionTextStart, responseIndex).trim();
+          console.log(`📝 Old format question extracted: "${question.substring(0, 100)}..."`);
+        } else {
+          console.log(`❌ Could not find response marker "**Appropriate Response:**"`);
         }
       }
       
@@ -289,13 +299,85 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       response = response.replace(/^['"`''""]|['"`''""]$/g, '').trim();
       
       if (question && response) {
+        console.log(`✅ Successfully parsed Q&A ${questionNumber}:`, { 
+          question: question.substring(0, 50) + '...', 
+          response: response.substring(0, 50) + '...' 
+        });
         results.push({ question, response });
+      } else {
+        console.log(`❌ Failed to parse Q&A ${questionNumber}:`, { question, response });
       }
       
       questionNumber++;
       currentIndex = responseTextStart;
     }
     
+    console.log(`🎯 Parse complete. Found ${results.length} Q&A pairs`);
+    return results;
+  };
+
+  // Robust fallback parsing - creates dropdowns even when main parsing fails
+  const parseWithFallback = (qaText: string) => {
+    console.log('🔄 Starting parseWithFallback...');
+    
+    // Try main parsing first
+    let parsed = parseAdditionalQA(qaText);
+    
+    // If main parsing found results, return them
+    if (parsed.length > 0) {
+      console.log('✅ Main parsing successful, returning results');
+      return parsed;
+    }
+    
+    console.log('🔄 Main parsing failed, trying fallback...');
+    
+    // Fallback: Split by patterns and create basic Q&A structure
+    const sections = qaText.split(/(?=###\s*(?:Additional\s*)?Question|\*\*(?:Additional\s*)?Question)/i);
+    const results = [];
+    
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i].trim();
+      if (!section) continue;
+      
+      console.log(`🔍 Processing section ${i}:`, section.substring(0, 100) + '...');
+      
+      // Extract question (everything before **Appropriate Response:**)
+      const responseMarkerIndex = section.indexOf('**Appropriate Response:**');
+      if (responseMarkerIndex === -1) {
+        console.log(`❌ No response marker found in section ${i}`);
+        continue;
+      }
+      
+      let questionPart = section.substring(0, responseMarkerIndex).trim();
+      let responsePart = section.substring(responseMarkerIndex + '**Appropriate Response:**'.length).trim();
+      
+      // Clean up question: remove markdown headers and question markers
+      questionPart = questionPart
+        .replace(/^###\s*(?:Additional\s*)?Question\s*\d*:?\s*/i, '')
+        .replace(/^\*\*(?:Additional\s*)?Question\s*\d*:?\s*\*\*/i, '')
+        .trim();
+      
+      // If question is still empty, create a generic one
+      if (!questionPart) {
+        questionPart = `Question ${results.length + 1}`;
+      }
+      
+      // Clean up response
+      responsePart = responsePart.replace(/^['"`''""]|['"`''""]$/g, '').trim();
+      
+      if (questionPart && responsePart) {
+        console.log(`✅ Fallback parsed Q&A ${results.length + 1}:`, {
+          question: questionPart.substring(0, 50) + '...',
+          response: responsePart.substring(0, 50) + '...'
+        });
+        results.push({ 
+          question: questionPart, 
+          response: responsePart 
+        });
+      }
+    }
+    
+    console.log(`🎯 Fallback complete. Found ${results.length} Q&A pairs`);
     return results;
   };
 
@@ -519,10 +601,11 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
               <CardContent className="space-y-4">
                 {(() => {
                   const qaData = structuredFeedback["additional_questions_and_answers"] || "";
-                  const parsedQA = parseAdditionalQA(qaData);
+                  const parsedQA = parseWithFallback(qaData);
                   
-                  // If parsing failed but we have data, show clean raw format
+                  // If both main and fallback parsing failed, show clean raw format
                   if (parsedQA.length === 0 && qaData) {
+                    console.log('🚨 Both parsing methods failed, showing raw format');
                     return (
                       <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
                         <h4 className="font-semibold text-emerald-900 mb-4 flex items-center gap-2">
@@ -537,6 +620,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                   }
                   
                   // Return parsed Q&A as collapsible components
+                  console.log(`🎉 Displaying ${parsedQA.length} Q&A dropdowns`);
                   return (
                     <div className="space-y-3">
                       {parsedQA.map((qa, index) => (
