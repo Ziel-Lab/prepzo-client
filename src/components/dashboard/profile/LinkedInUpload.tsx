@@ -212,6 +212,9 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let extracted: any = null;
 
+      // Wait 20 seconds before the first attempt to give the backend some processing time
+      await new Promise(res => setTimeout(res, 20000));
+
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         // eslint-disable-next-line no-await-in-loop
         const profRes = await fetch(REMOTE_PROFILE_ENDPOINT, {

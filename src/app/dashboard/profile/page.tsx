@@ -1166,7 +1166,7 @@ const Profile = () => {
                         </div>
                       ) : (
                         <>
-                          <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white bg-clip-text text-transparent mb-1 sm:mb-2 lg:mb-3">
+                          <h2 className="text-xl sm:text-2xl lg:text-4xl font-bold text-prepzo-700 md:text-white mb-1 sm:mb-2 lg:mb-3">
                             {profile.name}
                           </h2>
                           <p className="text-base sm:text-lg lg:text-xl text-prepzo-600 font-medium mb-2 sm:mb-3 md:mt-8 lg:mb-4">{profile.title}</p>
