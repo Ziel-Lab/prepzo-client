@@ -12,7 +12,7 @@ import {
   SidebarFooter,
   SidebarProvider 
 } from "@/components/ui/sidebar";
-import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle, CreditCard, Bot, User as UserIcon } from "lucide-react";
+import { BarChart, FileText, Wrench, TrendingUp, Settings, MessageSquare, Home, LogOut, Menu, AlertTriangle, CreditCard, Bot, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,6 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Image from 'next/image'
-import AutoAuthFix from "@/components/AutoAuthFix";
-import '@/utils/forceAuthRefresh'; // Auto-executes token refresh
-import { useAuth } from '@/hooks/use-auth';
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -38,7 +35,6 @@ const staticSidebarItems = [
   { icon: BarChart, label: "Goals", href: "/dashboard/goals" },
   { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
   { icon: FileText, label: "Documents", href: "/dashboard/documents" },
-  { icon: UserIcon, label: "Profile", href: "/dashboard/profile" },
   { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
   { icon: CreditCard, label: "My Subscription", href: "/dashboard/settings/subscription" },
 ];
@@ -147,7 +143,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
-    const { logout: authLogout } = useAuth();
     const supabase = createClient();
 
     useEffect(() => {
@@ -159,9 +154,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     }, [supabase]);
 
     const handleLogout = useCallback(async () => {
-      await authLogout(); // Use centralized logout
+      await supabase.auth.signOut();
       router.push('/');
-    }, [authLogout, router]);
+    }, [supabase, router]);
 
     const handleNavigateToDashboard = useCallback(() => {
       router.push('/dashboard');
@@ -176,7 +171,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <TooltipProvider>
         <SubscriptionProvider>
           <SidebarProvider>
-            <AutoAuthFix />
             <div className="h-screen flex w-full overflow-hidden">
               {/* Desktop sidebar - hidden on small screens */}
               <Sidebar className="bg-[#12231B] border-r border-[#1e3529] fixed top-0 bottom-0 left-0 z-40 hidden md:block">

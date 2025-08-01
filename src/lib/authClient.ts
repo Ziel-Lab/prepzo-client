@@ -1,6 +1,6 @@
 /**
- * Enterprise-grade auth client for Supabase + Stateless Backend
- * Handles automatic token refresh and 401 retries like big companies
+ * Production auth client for Supabase + Stateless Backend
+ * Handles automatic token refresh and 401 retries
  */
 import { createClient } from '@/utils/supabase/client';
 import { authStateManager, withAuthOperationCheck, createSafeRefreshTimer } from '@/utils/authStateManager';
@@ -36,13 +36,12 @@ class AuthClient {
       throw new AuthError('No valid session found', 401);
     }
 
-    // Check if token expires within 20 minutes (very aggressive)
+    // Check if token expires within 20 minutes
     if (session.expires_at) {
       const expiresAt = session.expires_at * 1000;
       const twentyMinutes = 20 * 60 * 1000;
       
       if (Date.now() > (expiresAt - twentyMinutes) && !authStateManager.shouldBlockAuthOperations()) {
-        console.log('🔄 Token expiring soon, refreshing...');
         return this.refreshToken();
       }
     }
@@ -74,28 +73,17 @@ class AuthClient {
 
       // Handle 401 with automatic retry
       if (response.status === 401 && attempt < maxRetries) {
-        console.log(`401 detected on attempt ${attempt + 1}, refreshing token...`);
-        
         // Force refresh and retry
         await this.forceRefresh();
         return this.executeWithRetry(url, options, attempt + 1);
       }
 
-      // Log successful requests for monitoring
-      if (response.ok) {
-        this.logSuccess(url, response.status);
-      } else {
-        this.logError(url, response.status);
-      }
-
       return response;
     } catch (error) {
       if (attempt < maxRetries) {
-        console.log(`Request failed on attempt ${attempt + 1}, retrying...`);
         return this.executeWithRetry(url, options, attempt + 1);
       }
       
-      this.logError(url, 0, error);
       throw error;
     }
   }
@@ -119,8 +107,6 @@ class AuthClient {
       if (error || !data.session?.access_token) {
         throw new AuthError('Token refresh failed', 401);
       }
-
-      console.log('Token refreshed successfully');
       
       // Wait 1 second for token to propagate to backend (only if not logging out)
       if (!authStateManager.shouldBlockAuthOperations()) {
@@ -147,7 +133,7 @@ class AuthClient {
   }
 
   /**
-   * Background refresh every minute (AWS pattern)
+   * Background refresh every 30 seconds
    */
   private startBackgroundRefresh() {
     const backgroundRefreshCallback = async () => {
@@ -163,14 +149,13 @@ class AuthClient {
           const now = Date.now();
           const timeLeft = expiresAt - now;
           
-          // Refresh if less than 15 minutes left (more aggressive)
+          // Refresh if less than 15 minutes left
           if (timeLeft < 15 * 60 * 1000 && timeLeft > 0) {
-            console.log('Background token refresh triggered');
             await this.refreshToken();
           }
         }
       } catch (error) {
-        console.error('Background refresh failed:', error);
+        // Silent fail for background refresh
       }
       
       // Schedule next refresh using safe timer
@@ -181,7 +166,7 @@ class AuthClient {
   }
 
   /**
-   * Refresh when tab becomes visible (mobile pattern)
+   * Refresh when tab becomes visible
    */
   private setupVisibilityListener() {
     if (typeof document !== 'undefined') {
@@ -193,7 +178,7 @@ class AuthClient {
               await this.getValidToken(); // This will refresh if needed
             }
           } catch (error) {
-            console.error('Visibility refresh failed:', error);
+            // Silent fail for visibility refresh
           }
         }
       });
@@ -209,19 +194,6 @@ class AuthClient {
       this.refreshTimer = null;
     }
   }
-
-  /**
-   * Monitoring and logging
-   */
-  private logSuccess(url: string, status: number) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ ${new URL(url).pathname} - ${status}`);
-    }
-  }
-
-  private logError(url: string, status: number, error?: any) {
-    console.error(`❌ ${new URL(url).pathname} - ${status}`, error);
-  }
 }
 
 class AuthError extends Error {
@@ -231,7 +203,7 @@ class AuthError extends Error {
   }
 }
 
-// Global singleton instance (enterprise pattern)
+// Global singleton instance
 export const authClient = new AuthClient();
 
 // Convenience export for direct use

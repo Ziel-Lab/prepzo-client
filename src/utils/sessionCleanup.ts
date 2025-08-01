@@ -5,12 +5,10 @@ import { clearAnalyticsUserId } from '@/utils/analytics';
 
 /**
  * Comprehensive session cleanup utility
- * This handles all aspects of logout to prevent "zombie sessions" that cause re-signup issues
+ * Handles all aspects of logout to prevent zombie sessions that cause re-signup issues
  */
 export async function performCompleteLogout(): Promise<void> {
   try {
-    console.log('🧹 Starting comprehensive session cleanup...');
-    
     // 1. Clear analytics first
     clearAnalyticsUserId();
     
@@ -30,7 +28,7 @@ export async function performCompleteLogout(): Promise<void> {
       try {
         localStorage.removeItem(key);
       } catch (e) {
-        console.warn(`Failed to remove localStorage key: ${key}`, e);
+        // Silent fail for localStorage errors
       }
     });
     
@@ -41,15 +39,15 @@ export async function performCompleteLogout(): Promise<void> {
       );
       sessionKeys.forEach(key => sessionStorage.removeItem(key));
     } catch (e) {
-      console.warn('Failed to clear sessionStorage:', e);
+      // Silent fail for sessionStorage errors
     }
     
-    // 4. Sign out from Supabase and wait for completion
+    // 4. Sign out from Supabase
     const supabase = createClient();
     const { error } = await supabase.auth.signOut({ scope: 'global' });
     
     if (error) {
-      console.error('Supabase signOut error:', error);
+      throw error;
     }
     
     // 5. Clear any IndexedDB Supabase data
@@ -69,14 +67,10 @@ export async function performCompleteLogout(): Promise<void> {
                 await new Promise<void>((resolve, reject) => {
                   deleteRequest.onsuccess = () => resolve();
                   deleteRequest.onerror = () => reject(deleteRequest.error);
-                  deleteRequest.onblocked = () => {
-                    console.warn(`IndexedDB deletion blocked for: ${db.name}`);
-                    resolve(); // Continue even if blocked
-                  };
+                  deleteRequest.onblocked = () => resolve(); // Continue even if blocked
                 });
-                console.log(`✅ Cleared IndexedDB: ${db.name}`);
               } catch (dbError) {
-                console.warn(`Failed to delete IndexedDB ${db.name}:`, dbError);
+                // Silent fail for IndexedDB errors
               }
             }
           }
@@ -100,7 +94,7 @@ export async function performCompleteLogout(): Promise<void> {
         }
       }
     } catch (e) {
-      console.warn('Failed to clear IndexedDB:', e);
+      // Silent fail for IndexedDB errors
     }
     
     // 6. Clear any cookies (client-side accessible ones)
@@ -125,20 +119,16 @@ export async function performCompleteLogout(): Promise<void> {
         });
       }
     } catch (e) {
-      console.warn('Failed to clear cookies:', e);
+      // Silent fail for cookie clearing errors
     }
     
-    // 7. Force garbage collection of any remaining auth state
+    // 7. Clear any global auth variables
     if (typeof window !== 'undefined') {
-      // Clear any global auth variables
       (window as any).supabaseSession = null;
       (window as any).authToken = null;
     }
     
-    console.log('✅ Session cleanup completed successfully');
-    
   } catch (error) {
-    console.error('❌ Error during session cleanup:', error);
     throw error;
   }
 }
@@ -148,8 +138,6 @@ export async function performCompleteLogout(): Promise<void> {
  */
 export async function emergencySessionReset(): Promise<void> {
   try {
-    console.log('🚨 Performing emergency session reset...');
-    
     // Perform complete logout first
     await performCompleteLogout();
     
@@ -159,14 +147,14 @@ export async function emergencySessionReset(): Promise<void> {
       try {
         localStorage.clear();
       } catch (e) {
-        console.warn('Failed to clear all localStorage:', e);
+        // Silent fail
       }
       
       // Clear ALL sessionStorage
       try {
         sessionStorage.clear();
       } catch (e) {
-        console.warn('Failed to clear all sessionStorage:', e);
+        // Silent fail
       }
       
       // Force page reload to ensure clean state
@@ -176,7 +164,6 @@ export async function emergencySessionReset(): Promise<void> {
     }
     
   } catch (error) {
-    console.error('❌ Emergency session reset failed:', error);
     // As last resort, force redirect
     if (typeof window !== 'undefined') {
       window.location.href = '/auth/login?emergency=true';
@@ -200,14 +187,9 @@ export function detectZombieSession(): boolean {
     // If we have auth tokens but no clear session, it might be a zombie
     const isZombie = (hasLocalAuth || hasSessionAuth) && hasSignupSource;
     
-    if (isZombie) {
-      console.warn('🧟 Zombie session detected - cleanup recommended');
-    }
-    
     return isZombie;
     
   } catch (error) {
-    console.error('Error detecting zombie session:', error);
     return false;
   }
 }

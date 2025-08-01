@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Global auth state manager to prevent race conditions during logout
- * This helps stop aggressive auto-refresh mechanisms that might interfere with logout
+ * Production auth state manager to prevent race conditions during logout
  */
 class AuthStateManager {
   private isLoggingOut = false;
@@ -13,7 +12,6 @@ class AuthStateManager {
    * Start logout process - this stops all refresh operations
    */
   startLogout(): void {
-    console.log('🛑 Starting logout - stopping all auth operations');
     this.isLoggingOut = true;
     
     // Clear all active refresh timers
@@ -22,7 +20,7 @@ class AuthStateManager {
     });
     this.refreshTimers.clear();
     
-    // Cancel pending auth operations (if possible)
+    // Cancel pending auth operations
     this.authOperations.clear();
   }
 
@@ -30,7 +28,6 @@ class AuthStateManager {
    * Complete logout process
    */
   completeLogout(): void {
-    console.log('✅ Logout completed - auth operations can resume');
     this.isLoggingOut = false;
   }
 
@@ -64,7 +61,6 @@ class AuthStateManager {
    */
   registerAuthOperation<T>(operation: Promise<T>): Promise<T | null> {
     if (this.isLoggingOut) {
-      console.log('🚫 Blocking auth operation - logout in progress');
       return Promise.resolve(null);
     }
     
@@ -91,7 +87,6 @@ class AuthStateManager {
    * Emergency stop - cancel everything
    */
   emergencyStop(): void {
-    console.log('🚨 Emergency stop - cancelling all auth operations');
     this.isLoggingOut = true;
     
     this.refreshTimers.forEach(timer => {

@@ -1,5 +1,5 @@
 /**
- * Enhanced fetch utility with automatic JWT refresh and 401 handling
+ * Production-ready auth fetch utility with automatic JWT refresh and 401 handling
  */
 import { createClient } from '@/utils/supabase/client';
 
@@ -33,7 +33,7 @@ export async function authFetch(
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        throw new AuthError('Failed to get session', 401);
+        throw new AuthError('Authentication session error', 401);
       }
 
       if (!session?.access_token) {
@@ -45,13 +45,12 @@ export async function authFetch(
       const now = Math.floor(Date.now() / 1000);
       const timeUntilExpiry = expiresAt - now;
 
-      if (expiresAt > 0 && timeUntilExpiry < 300) { // 5 minutes
-        console.log('Token expires soon, refreshing...');
+      if (expiresAt > 0 && timeUntilExpiry < 300) {
         const { data: { session: refreshedSession }, error: refreshError } = 
           await supabase.auth.refreshSession();
         
         if (refreshError || !refreshedSession) {
-          throw new AuthError('Failed to refresh token', 401);
+          throw new AuthError('Token refresh failed', 401);
         }
 
         headers['Authorization'] = `Bearer ${refreshedSession.access_token}`;
@@ -67,14 +66,12 @@ export async function authFetch(
 
     // Handle 401 errors with retry logic
     if (response.status === 401 && !skipAuth && attemptNumber < maxRetries) {
-      console.log(`401 error on attempt ${attemptNumber + 1}, refreshing token and retrying...`);
-      
       // Force refresh the session
       const { data: { session: refreshedSession }, error: refreshError } = 
         await supabase.auth.refreshSession();
       
       if (refreshError || !refreshedSession) {
-        throw new AuthError('Failed to refresh token after 401', 401);
+        throw new AuthError('Authentication failed after retry', 401);
       }
 
       // Retry with new token
