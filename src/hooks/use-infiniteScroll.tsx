@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { authFetch } from '@/lib/authClient';
 
 /**
  * Manual pagination hook for loading data with Load More button
@@ -53,8 +53,6 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const supabase = createClient();
 
   // Helper function to map backend status to display properties
   const mapSessionForDisplay = useCallback((backendSession: any): Session => {
@@ -107,13 +105,6 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
       setInitialLoading(true);
       setError(null);
 
-      // Get user session for authentication
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session?.access_token) {
-        setError('Authentication required');
-        return;
-      }
-
       // Get backend URL
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
@@ -121,13 +112,8 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
         return;
       }
 
-      const response = await fetch(`${backendUrl}${endpoint}?limit=10`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Use enterprise auth client with automatic token refresh
+      const response = await authFetch(`${backendUrl}${endpoint}?limit=10`);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -152,7 +138,7 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
     } finally {
       setInitialLoading(false);
     }
-  }, [endpoint, supabase, mapSessionForDisplay]);
+  }, [endpoint, mapSessionForDisplay]);
 
   // Load more sessions (infinite scroll)
   const loadMoreSessions = useCallback(async () => {
@@ -162,13 +148,6 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
       setLoading(true);
       setError(null);
 
-      // Get user session for authentication
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session?.access_token) {
-        setError('Authentication required');
-        return;
-      }
-
       // Get backend URL
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
@@ -177,13 +156,8 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
       }
       
       const url = `${backendUrl}${endpoint}?limit=10&cursor=${pagination.next_cursor}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Use enterprise auth client with automatic token refresh
+      const response = await authFetch(url);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -208,7 +182,7 @@ export const useInfiniteScroll = (endpoint = '/mockInterview/sessions'): UseInfi
     } finally {
       setLoading(false);
     }
-  }, [endpoint, pagination, loading, supabase, mapSessionForDisplay]);
+  }, [endpoint, pagination, loading, mapSessionForDisplay]);
 
   // Removed scroll detection - using manual Load More button only
 

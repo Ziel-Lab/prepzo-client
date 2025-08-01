@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Linkedin, Github, Globe } from 'lucide-react';
@@ -56,7 +58,7 @@ async function getProfile(slug: string): Promise<PublicProfile | null> {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/public/${slug}`,
-      { next: { revalidate: 60 } },
+      { cache: 'no-store' },
     );
     if (!res.ok) return null;
 
@@ -94,7 +96,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const data = await getProfile(params.slug);
   if (!data) return {};
   return {
-    title: `${data.name || 'Profile'} | Prepzo`,
+    title: `${data.name || 'Profile'} | ${data.title || ''}`,
     description: data.bio || `${data.name}'s public profile on Prepzo`,
   };
 }

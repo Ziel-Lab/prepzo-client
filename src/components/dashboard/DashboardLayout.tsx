@@ -25,6 +25,9 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Image from 'next/image'
+import AutoAuthFix from "@/components/AutoAuthFix";
+import '@/utils/forceAuthRefresh'; // Auto-executes token refresh
+import { useAuth } from '@/hooks/use-auth';
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
@@ -143,6 +146,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
+    const { logout: authLogout } = useAuth();
     const supabase = createClient();
 
     useEffect(() => {
@@ -154,9 +158,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     }, [supabase]);
 
     const handleLogout = useCallback(async () => {
-      await supabase.auth.signOut();
+      await authLogout(); // Use centralized logout
       router.push('/');
-    }, [supabase, router]);
+    }, [authLogout, router]);
 
     const handleNavigateToDashboard = useCallback(() => {
       router.push('/dashboard');
@@ -171,6 +175,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       <TooltipProvider>
         <SubscriptionProvider>
           <SidebarProvider>
+            <AutoAuthFix />
             <div className="h-screen flex w-full overflow-hidden">
               {/* Desktop sidebar - hidden on small screens */}
               <Sidebar className="bg-[#12231B] border-r border-[#1e3529] fixed top-0 bottom-0 left-0 z-40 hidden md:block">

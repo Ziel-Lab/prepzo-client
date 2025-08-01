@@ -42,10 +42,11 @@ const SignUpForm = () => {
   }, [searchParams]);
 
   const handleOAuthSignUp = async (provider: 'google' | 'linkedin') => {
-    // Persist chosen source so we can use it after the OAuth redirect
+    // Persist chosen source and mark as new user so we can distinguish signup from login
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('signup_source', provider);
+        localStorage.setItem('is_new_user', 'true'); // Mark as genuine signup
       }
     } catch (e) {
       // Ignore storage errors (e.g., disabled storage)
