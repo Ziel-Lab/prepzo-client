@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { createClient } from '@/utils/supabase/client';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { 
   Award, 
   Clock, 
@@ -25,7 +27,8 @@ import {
   MessageSquare,
   Building2,
   Briefcase,
-  Calendar
+  Calendar,
+  Bell
 } from 'lucide-react';
 
 interface StructuredFeedback {
@@ -65,19 +68,179 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
 }) => {
   const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
+  
+  // Real-time monitoring state
+  const [currentAttemptData, setCurrentAttemptData] = useState(attemptData);
+  const [showNotification, setShowNotification] = useState(false);
+  const subscriptionRef = useRef<any>(null);
+  const supabase = createClient();
 
-  // Extract data from attemptData
-  const feedback = attemptData.feedback;
-  const score = attemptData.evaluation_score;
-  const duration = attemptData.actual_duration_minutes;
-  const status = attemptData.status;
-  const attemptId = attemptData.id;
+  // Extract data from current attempt data (which may be updated via real-time)
+  const feedback = currentAttemptData.feedback;
+  const score = currentAttemptData.evaluation_score;
+  const duration = currentAttemptData.actual_duration_minutes;
+  const status = currentAttemptData.status;
+  const attemptId = currentAttemptData.id;
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
+  };
+
+  // Real-time subscription setup
+  const setupAttemptSubscription = async (attemptId: string) => {
+    try {
+      // Get user session for authentication
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        console.log('No authenticated session for real-time subscription');
+        return null;
+      }
+
+      const userToken = sessionData.session.access_token;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      
+      if (!backendUrl) {
+        console.log('Backend URL not configured for real-time subscription');
+        return null;
+      }
+
+      // Get subscription configuration from backend
+      const response = await fetch(`${backendUrl}/mockInterview/attempt/${attemptId}/subscribe`, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.log('Failed to get subscription configuration');
+        return null;
+      }
+
+      const { subscription_config, supabase_config } = await response.json();
+
+      // Initialize Supabase client for real-time
+      const realtimeClient = createSupabaseClient(
+        supabase_config.url, 
+        supabase_config.anon_key
+      );
+
+      // Subscribe to attempt updates
+      const channel = realtimeClient
+        .channel(subscription_config.channel_name)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public', 
+            table: 'mock_interview_attempts',
+            filter: `id=eq.${attemptId}`
+          },
+          (payload) => {
+            console.log('🔔 Attempt updated via real-time!', payload);
+            handleAttemptUpdate(payload.new, payload.old);
+          }
+        )
+        .subscribe();
+
+      return { channel, realtimeClient };
+
+    } catch (error) {
+      console.error('Failed to setup real-time subscription:', error);
+      return null;
+    }
+  };
+
+  // Handle attempt updates from real-time subscription
+  const handleAttemptUpdate = (newData: any, oldData: any) => {
+    console.log('📡 Processing attempt update:', { newData, oldData });
+
+    // Update current attempt data
+    setCurrentAttemptData(prevData => ({
+      ...prevData,
+      ...newData
+    }));
+
+    // Check if status changed to PROCESSED
+    if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
+      console.log('🎉 Feedback is now available!');
+      
+      // Show notification to user
+      showFeedbackAvailableNotification();
+      
+      // Auto-reload page to show feedback after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+
+    // Handle other status changes
+    if (newData.status !== oldData.status) {
+      console.log(`📊 Status changed: ${oldData.status} → ${newData.status}`);
+    }
+
+    // Handle score updates
+    if (newData.evaluation_score !== oldData.evaluation_score) {
+      console.log(`🎯 Score updated: ${oldData.evaluation_score} → ${newData.evaluation_score}`);
+    }
+  };
+
+  // Show feedback available notification
+  const showFeedbackAvailableNotification = () => {
+    setShowNotification(true);
+    
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => {
+      setShowNotification(false);
+    }, 5000);
+  };
+
+  // Setup subscription when component mounts (only if not processed)
+  useEffect(() => {
+    let subscriptionCleanup: any = null;
+
+    if (currentAttemptData.status !== 'PROCESSED') {
+      console.log('🔄 Setting up real-time subscription for attempt:', currentAttemptData.id);
+      
+      setupAttemptSubscription(currentAttemptData.id).then((subscription) => {
+        if (subscription) {
+          subscriptionRef.current = subscription;
+          console.log('✅ Real-time subscription established');
+        }
+      });
+
+      // Auto-cleanup after 1 hour (feedback usually processes within minutes)
+      subscriptionCleanup = setTimeout(() => {
+        if (subscriptionRef.current) {
+          subscriptionRef.current.channel.unsubscribe();
+          subscriptionRef.current = null;
+          console.log('🧹 Auto-cleaned up subscription after 1 hour');
+        }
+      }, 3600000); // 1 hour
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.channel.unsubscribe();
+        console.log('🧹 Cleaned up real-time subscription on unmount');
+      }
+      if (subscriptionCleanup) {
+        clearTimeout(subscriptionCleanup);
+      }
+    };
+  }, []);
+
+  // Manual cleanup function
+  const cleanupSubscription = () => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.channel.unsubscribe();
+      subscriptionRef.current = null;
+      console.log('🧹 Manually cleaned up subscription');
+    }
   };
 
   const getScoreColor = (scoreData: {numeric: number, maxScore: number} | null) => {
@@ -107,7 +270,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   // Parse structured feedback - feedback will always come in the expected format
   const parseStructuredFeedback = (): StructuredFeedback | null => {
     // Only show feedback if attempt status is PROCESSED
-    if (attemptData.status !== 'PROCESSED') {
+    if (currentAttemptData.status !== 'PROCESSED') {
       return null;
     }
     
@@ -120,12 +283,12 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   // Standardized score parsing and display - NEVER show percentages, always ratings
   const parseAndDisplayScore = () => {
     // Only show score if attempt status is PROCESSED
-    if (attemptData.status !== 'PROCESSED') {
+    if (currentAttemptData.status !== 'PROCESSED') {
       return null;
     }
     
     const structuredScore = structuredFeedback?.Score;
-    const evaluationScore = attemptData.evaluation_score;
+    const evaluationScore = currentAttemptData.evaluation_score;
 
     // If we have structured feedback score, use it
     if (structuredScore) {
@@ -376,6 +539,44 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-6">
+      {/* Real-time Feedback Notification */}
+      {showNotification && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+          <Card className="border-green-200 bg-green-50 shadow-lg max-w-sm">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-green-600 rounded-full">
+                  <Bell className="text-white" size={16} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-green-900 mb-1">🎉 Feedback Ready!</h4>
+                  <p className="text-sm text-green-800 mb-3">
+                    Your interview has been processed. The page will refresh automatically.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={() => window.location.reload()}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      View Now
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowNotification(false)}
+                      className="border-green-300 text-green-700 hover:bg-green-100"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button 
@@ -387,8 +588,8 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           Back to Sessions
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
-          <p className="text-gray-600">Attempt #{attemptData.attempt_number}</p>
+                      <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
+            <p className="text-gray-600">Attempt #{currentAttemptData.attempt_number}</p>
         </div>
       </div>
 
@@ -408,29 +609,29 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h3 className="font-semibold text-gray-900">{attemptData.mock_interview.title}</h3>
+              <h3 className="font-semibold text-gray-900">{currentAttemptData.mock_interview.title}</h3>
               <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <Building2 size={14} />
-                  <span>{attemptData.mock_interview.company_name}</span>
+                  <span>{currentAttemptData.mock_interview.company_name}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Briefcase size={14} />
-                  <span>{attemptData.mock_interview.position}</span>
+                  <span>{currentAttemptData.mock_interview.position}</span>
                 </div>
               </div>
               <Badge variant="outline" className="mt-2">
-                {attemptData.mock_interview.interview_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {currentAttemptData.mock_interview.interview_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar size={14} />
-                <span>{formatDate(attemptData.started_at)}</span>
+                <span>{formatDate(currentAttemptData.started_at)}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Clock size={14} />
-                <span>{attemptData.actual_duration_minutes} minutes</span>
+                <span>{currentAttemptData.actual_duration_minutes} minutes</span>
               </div>
               {scoreData && (
                 <div className="flex items-center gap-2 text-sm">
@@ -443,8 +644,8 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm">
-                <Badge className={`text-sm ${attemptData.status === 'PROCESSED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {attemptData.status}
+                <Badge className={`text-sm ${currentAttemptData.status === 'PROCESSED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {currentAttemptData.status}
                 </Badge>
               </div>
             </div>
@@ -453,7 +654,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       </Card>
 
       {/* Processing Status Message */}
-      {attemptData.status !== 'PROCESSED' && (
+      {currentAttemptData.status !== 'PROCESSED' && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-6 text-center">
             <div className="text-orange-600 mb-4">
@@ -463,19 +664,39 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
             <p className="text-orange-800 mb-4">
               Your interview feedback is being processed. This usually takes a few minutes.
             </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-orange-700">
+            <div className="flex items-center justify-center gap-2 text-sm text-orange-700 mb-4">
               <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                Status: {attemptData.status}
+                Status: {currentAttemptData.status}
               </Badge>
+              {subscriptionRef.current && (
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                  <Bell size={12} className="mr-1" />
+                  Live Monitoring
+                </Badge>
+              )}
             </div>
-            <Button 
-              onClick={() => window.location.reload()}
-              variant="outline"
-              className="mt-4 border-orange-300 text-orange-700 hover:bg-orange-100"
-            >
-              <RotateCcw size={16} className="mr-2" />
-              Refresh Page
-            </Button>
+            
+            {subscriptionRef.current ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-center gap-2 text-blue-800 mb-2">
+                  <Bell size={16} className="animate-pulse" />
+                  <span className="font-semibold">Real-time monitoring active</span>
+                </div>
+                <p className="text-sm text-blue-700">
+                  You'll be notified automatically when your feedback is ready. No need to refresh manually!
+                </p>
+              </div>
+            ) : (
+              <Button 
+                onClick={() => window.location.reload()}
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                <RotateCcw size={16} className="mr-2" />
+                Refresh Page
+              </Button>
+            )}
+            
             <p className="text-xs text-orange-600 mt-3">
               Feedback usually takes 2-3 minutes to process after completing the interview.
             </p>
@@ -671,7 +892,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       {/* Note: Legacy feedback format removed - feedback always comes in structured format */}
 
       {/* Transcript */}
-      {attemptData.transcript && attemptData.status === 'PROCESSED' && (
+      {currentAttemptData.transcript && currentAttemptData.status === 'PROCESSED' && (
         <Card className="border-gray-200 shadow-md">
           <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
             <CardTitle className="flex items-center gap-3">
@@ -686,13 +907,13 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           </CardHeader>
           <CardContent className="p-6">
             <div className="bg-gradient-to-br from-gray-50 to-gray-100/80 border border-gray-200 rounded-xl p-6 max-h-96 overflow-y-auto shadow-sm">
-              {typeof attemptData.transcript === 'string' ? (
+              {typeof currentAttemptData.transcript === 'string' ? (
                 <div className="text-gray-900 whitespace-pre-wrap text-sm leading-relaxed font-mono">
-                  {attemptData.transcript}
+                  {currentAttemptData.transcript}
                 </div>
               ) : (
                 <pre className="text-sm text-gray-900 font-mono leading-relaxed">
-                  {JSON.stringify(attemptData.transcript, null, 2)}
+                  {JSON.stringify(currentAttemptData.transcript, null, 2)}
                 </pre>
               )}
             </div>
