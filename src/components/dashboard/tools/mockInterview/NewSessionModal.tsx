@@ -30,6 +30,19 @@ interface UserLimits {
   plan_name: string;
 }
 
+interface FeatureUsage {
+  mock_interview_session_period_count: number;
+  mock_interview_session_lifetime_count: number;
+  plan_id: number;
+}
+
+interface SubscriptionPlan {
+  mock_interview_session: number;
+  mock_interview_attempts: number;
+  plan_id: number;
+  name: string;
+}
+
 interface NewSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -68,12 +81,17 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Usage tracking state
+  const [featureUsage, setFeatureUsage] = useState<FeatureUsage | null>(null);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan | null>(null);
+  const [usageLimitReached, setUsageLimitReached] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     if (isOpen) {
-      console.log('🎭 NewSessionModal opened - fetching documents...');
+      // Modal opened - loading data
       // Reset state when modal opens
       setResumeDocuments([]);
       setCoverLetterDocuments([]);
@@ -82,13 +100,17 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       setError(null);
       
       fetchDocuments();
+      fetchUsageData();
     } else {
       // Clear state when modal closes to prevent stale data
-      console.log('🎭 NewSessionModal closed - clearing state...');
+      // Modal closed - cleaning up
       setResumeDocuments([]);
       setCoverLetterDocuments([]);
       setSelectedResumeUrl('');
       setSelectedCoverLetterUrl('');
+      setFeatureUsage(null);
+      setSubscriptionPlan(null);
+      setUsageLimitReached(false);
       setError(null);
       setLoading(false);
     }
@@ -314,6 +336,59 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     }
   };
 
+  const fetchUsageData = async () => {
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.user?.id) {
+        // Silent fallback - no usage check without auth
+        return;
+      }
+
+      const userId = sessionData.session.user.id;
+      
+      // Fetch user's feature usage
+      const { data: usageData, error: usageError } = await supabase
+        .from('feature_usage')
+        .select('mock_interview_session_period_count, mock_interview_session_lifetime_count, plan_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (usageError) {
+        // Silent fallback - continue without usage data
+        return;
+      }
+
+      setFeatureUsage(usageData);
+
+      // Fetch subscription plan limits
+      if (usageData?.plan_id) {
+        const { data: planData, error: planError } = await supabase
+          .from('subscription_plans')
+          .select('mock_interview_session, mock_interview_attempts, plan_id, name')
+          .eq('plan_id', usageData.plan_id)
+          .single();
+
+        if (planError) {
+          // Silent fallback - continue without plan data
+          return;
+        }
+
+        setSubscriptionPlan(planData);
+
+        // Check if usage limit reached
+        const currentUsage = usageData.mock_interview_session_period_count || 0;
+        const limit = planData.mock_interview_session || 0;
+        const isLimitReached = limit > 0 && currentUsage >= limit; // limit > 0 means it's not unlimited
+        
+        setUsageLimitReached(isLimitReached);
+
+        // Silent usage check completed
+      }
+    } catch (error) {
+      // Silent fallback - continue without usage checking
+    }
+  };
+
   const interviewTypes = [
     { value: 'behavioral', label: 'Behavioral' },
     { value: 'technical', label: 'Technical' },
@@ -437,17 +512,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       }
     }
 
-    // Enhanced validation logging
-    console.log('🔍 Form Validation Results:', {
-      hasTitle: !!formData.title.trim(),
-      hasType: !!formData.type,
-      hasCompanyUrl: !!formData.companyUrl.trim(),
-      hasJobDescription: !!formData.jobDescription.trim(),
-      hasResume: !!(selectedResumeUrl || newResumeFile),
-      errors: Object.keys(newErrors),
-      totalErrors: Object.keys(newErrors).length,
-      isValid: Object.keys(newErrors).length === 0
-    });
+    // Validation completed silently
 
     setErrors(newErrors);
     
@@ -557,6 +622,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       setCoverLetterMethod('select');
       setCustomInterviewType('');
       setError(null);
+      // Usage data persists to show updated counts
     } catch (error) {
       setError('An error occurred. Please try again.');
     } finally {
@@ -583,6 +649,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     setCoverLetterMethod('select');
     setCustomInterviewType('');
     setError(null);
+    setFeatureUsage(null);
+    setSubscriptionPlan(null);
+    setUsageLimitReached(false);
     onClose();
   };
 
@@ -946,7 +1015,9 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           <Button variant="outline" onClick={handleClose} disabled={isLoading || loading}>
             Cancel
           </Button>
-          {(userLimits?.plan_id === 1 || userLimits?.plan_name === 'Free') ? (
+          {/* Plan-based access control */}
+          {userLimits?.plan_id === 1 ? (
+            // Free plan users see upgrade button
             <Button 
               onClick={() => window.location.href = '/dashboard/settings/subscription'}
               className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -954,36 +1025,42 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
               <Star className="mr-2 h-4 w-4" />
               Upgrade to Pro
             </Button>
-          ) : (
+          ) : (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) && usageLimitReached ? (
+            // Premium users who hit their limit see upgrade button
             <Button 
-              onClick={() => {
-                console.log('🎯 Create Session clicked - Form validation will run');
-                console.log('📝 Current form data:', {
-                  title: formData.title,
-                  type: formData.type,
-                  companyUrl: formData.companyUrl,
-                  jobDescription: formData.jobDescription?.substring(0, 50) + '...',
-                  hasResume: !!(selectedResumeUrl || newResumeFile)
-                });
-                handleSubmit();
-              }}
-              disabled={
-                isLoading || 
-                loading || 
-                (
-                  !userLimits?.can_create_session && 
-                  !userLimits?.is_unlimited_sessions && 
-                  !(userLimits?.plan_id && userLimits.plan_id >= 2) // Premium users (plan_id 2+) can create sessions
-                )
-              }
+              onClick={() => window.location.href = '/dashboard/settings/subscription'}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Star className="mr-2 h-4 w-4" />
+              Upgrade Plan - Limit Reached
+            </Button>
+          ) : (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) ? (
+            // Premium users (plan_id 2 and 3) see create session button
+            <Button 
+              onClick={handleSubmit}
+              disabled={isLoading || loading}
               className="bg-green-600 hover:bg-green-700 text-white"
               title={
-                (!userLimits?.can_create_session && !userLimits?.is_unlimited_sessions && !(userLimits?.plan_id && userLimits.plan_id >= 2))
-                  ? `Session limit reached (${userLimits?.sessions_used}/${userLimits?.session_limit})`
-                  : isLoading || loading 
-                    ? 'Loading...' 
-                    : 'Create new interview session'
+                isLoading || loading 
+                  ? 'Loading...' 
+                  : 'Create new interview session'
               }
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Session'
+              )}
+            </Button>
+          ) : (
+            // Fallback for any other plan IDs - show create session
+            <Button 
+              onClick={handleSubmit}
+              disabled={isLoading || loading}
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {loading ? (
                 <>
@@ -996,16 +1073,13 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             </Button>
           )}
           
-          {/* Debug Info (remove in production) */}
+          {/* Debug Info - Development Only */}
           {process.env.NODE_ENV === 'development' && (
-            <div className="absolute bottom-0 left-0 text-xs text-gray-500 bg-gray-100 p-2 rounded max-w-md">
-              Debug: isLoading={String(isLoading)}, loading={String(loading)}, 
-              can_create={String(userLimits?.can_create_session)}, 
-              is_unlimited={String(userLimits?.is_unlimited_sessions)},
-              plan_id={userLimits?.plan_id}, plan_name={userLimits?.plan_name}, 
-              sessions={userLimits?.sessions_used}/{userLimits?.session_limit},
-              isFree={String(userLimits?.plan_id === 1 || userLimits?.plan_name === 'Free')},
-              premiumOverride={String(userLimits?.plan_id && userLimits.plan_id >= 2)}
+            <div className="absolute bottom-0 left-0 text-xs text-gray-400 bg-gray-50 p-1 rounded text-[10px]">
+              Dev: plan={userLimits?.plan_id}, 
+              button={userLimits?.plan_id === 1 ? 'upgrade' : 
+                     (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) && usageLimitReached ? 'limit-reached' :
+                     (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) ? 'create' : 'fallback'}
             </div>
           )}
         </div>
