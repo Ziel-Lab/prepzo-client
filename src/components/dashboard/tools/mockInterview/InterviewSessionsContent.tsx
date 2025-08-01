@@ -75,7 +75,7 @@ interface InterviewSession {
 }
 
 const InterviewSessionsContent = () => {
-  const [sessions, setSessions] = useState<InterviewSession[]>([]);
+  const [sessions, setSessions] = useState<InterviewSession[]>([]); // Sessions for both display and stats
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -84,7 +84,14 @@ const InterviewSessionsContent = () => {
   const [error, setError] = useState<string | null>(null);
   const [userLimits, setUserLimits] = useState<any>(null);
   const [limitsLoading, setLimitsLoading] = useState(true);
+  
+  // Cursor-based pagination state for session display
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const supabase = createClient();
+  const SESSIONS_PER_PAGE = 10;
 
   // Fetch user limits from backend
   const fetchUserLimits = useCallback(async () => {
@@ -126,25 +133,23 @@ const InterviewSessionsContent = () => {
     }
   }, [supabase]);
 
-  // Fetch data from backend API instead of direct Supabase
-  const fetchInterviewData = useCallback(async (showLoading: boolean = false) => {
+  // Fetch sessions with pagination
+  const fetchInterviewData = useCallback(async (cursor: string | null = null, isRefresh: boolean = false) => {
       try {
-        if (showLoading) {
+        // Determine loading state
+        if (!cursor || isRefresh) {
           setIsLoading(true);
+        } else {
+          setLoadingMore(true);
         }
         setError(null);
-
-        console.log('🔍 Starting to fetch interview data via backend API...');
 
         // Get user session for authentication
         const { data: { session }, error: authError } = await supabase.auth.getSession();
         if (authError || !session?.access_token) {
-          console.error('❌ Authentication error:', authError);
           setError('Authentication required');
           return;
         }
-
-        console.log('✅ User authenticated');
 
         // Get backend URL
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
@@ -153,10 +158,20 @@ const InterviewSessionsContent = () => {
           return;
         }
 
-        console.log('🌐 Using backend URL:', backendUrl);
+        // Build URL with cursor-based pagination
+        // Always include attempts for accurate stats calculation
+        const params = new URLSearchParams({
+          include_attempts: 'true', // Always include for stats
+          limit: SESSIONS_PER_PAGE.toString()
+        });
+        
+        if (cursor) {
+          params.append('cursor', cursor);
+        }
 
-        // Fetch sessions from backend API (with attempts for stats calculation)
-        const response = await fetch(`${backendUrl}/mockInterview/sessions?include_attempts=true`, {
+        const url = `${backendUrl}/mockInterview/sessions?${params.toString()}`;
+
+        const response = await fetch(url, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -170,25 +185,31 @@ const InterviewSessionsContent = () => {
         }
 
         const result = await response.json();
-        console.log('📊 Backend response:', result);
 
         const sessionsFromBackend = result.sessions || [];
-        console.log('📊 Sessions from backend:', sessionsFromBackend.length, sessionsFromBackend);
+        const returnedCount = sessionsFromBackend.length;
+        
+        // Extract cursor-based pagination metadata
+        // If no pagination metadata in response, use fallback logic
+        const backendHasMore = result.has_more !== undefined ? result.has_more : (returnedCount === SESSIONS_PER_PAGE);
+        const backendNextCursor = result.next_cursor || null;
+        
+        // If backend doesn't support cursor pagination, use the last session's created_at as cursor
+        let effectiveNextCursor = backendNextCursor;
+        if (!effectiveNextCursor && returnedCount === SESSIONS_PER_PAGE && sessionsFromBackend.length > 0) {
+          const lastSession = sessionsFromBackend[sessionsFromBackend.length - 1];
+          effectiveNextCursor = lastSession.created_at;
+        }
 
-        if (sessionsFromBackend.length === 0) {
-                  console.log('📭 No sessions found');
-        setSessions([]);
-        return;
+        if ((!cursor || isRefresh) && sessionsFromBackend.length === 0) {
+          setSessions([]);
+          setHasMore(false);
+          setNextCursor(null);
+          return;
         }
 
         // Transform backend data to frontend format
         const sessionData: InterviewSession[] = sessionsFromBackend.map((backendSession: any) => {
-          console.log(`📝 Processing backend session:`, {
-            id: backendSession.id,
-            title: backendSession.title,
-            status: backendSession.status,
-            display_status: backendSession.display_status
-          });
 
           // Fetch attempts for this session to calculate score
           const sessionAttempts: MockInterviewAttempt[] = backendSession.attempts || [];
@@ -213,43 +234,59 @@ const InterviewSessionsContent = () => {
             latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
           };
           
-          // Log status mapping for debugging
-          if (backendSession.status_prep) {
-            console.log('📊 Session status mapping during fetch:', {
-              sessionId: backendSession.id.substring(0, 8) + '***',
-              title: sessionItem.title,
-              backendStatus: backendSession.status,
-              statusPrep: backendSession.status_prep,
-              mappedStatus: mappedStatus,
-              attemptsCount: sessionAttempts.length
-            });
-          }
-
-          console.log('✅ Transformed session item:', sessionItem);
           return sessionItem;
         });
 
-        console.log('🎯 Final session data:', sessionData.length, sessionData);
-
-        // Ensure all sessions have attempts data for accurate stats
-        const sessionsWithAttempts = await ensureAttemptsForStats(sessionData);
+        // Ensure all sessions have complete attempts data for accurate stats
+        const finalSessionData = await ensureAttemptsForStats(sessionData);
         
-        setSessions(sessionsWithAttempts);
+        // Update sessions state based on cursor
+        if (!cursor || isRefresh) {
+          // First load or refresh - replace all sessions
+          setSessions(finalSessionData);
+        } else {
+          // Load more - append to existing sessions
+          setSessions(prevSessions => [...prevSessions, ...finalSessionData]);
+        }
+
+        // Update pagination state based on backend response
+        setHasMore(backendHasMore);
+        setNextCursor(effectiveNextCursor);
 
       } catch (error) {
-        console.error('💥 Error in fetchInterviewData:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch interview data');
       } finally {
-        if (showLoading) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
+        setLoadingMore(false);
       }
   }, [supabase]);
 
+  // Load more function for cursor-based pagination
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+
+    if (nextCursor) {
+      fetchInterviewData(nextCursor);
+    } else {
+      // Fallback: use the last session's created_at as cursor
+      if (sessions.length > 0) {
+        const lastSession = sessions[sessions.length - 1];
+        fetchInterviewData(lastSession.date.toISOString());
+      }
+    }
+  }, [loadingMore, hasMore, nextCursor, fetchInterviewData, sessions]);
+
+  // Refresh function to reload sessions
+  const refreshSessions = useCallback(() => {
+    setNextCursor(null);
+    setHasMore(true);
+    fetchInterviewData(null, true); // Refresh from beginning
+  }, [fetchInterviewData]);
+
   useEffect(() => {
-    fetchInterviewData(true); // Show loading on initial load
+    fetchInterviewData(null); // Load first batch of sessions
     fetchUserLimits();
-  }, [fetchInterviewData, fetchUserLimits]);
+  }, []);
 
   // Fallback periodic checking for status updates (less aggressive)
   useEffect(() => {
@@ -273,8 +310,8 @@ const InterviewSessionsContent = () => {
           status: s.status
         })));
         
-        // Fetch only session status updates without full refresh
-        fetchInterviewData(false);
+        // Refresh sessions to get status updates
+        refreshSessions();
       } else {
         console.log('🔄 Fallback check: No preparing sessions found, skipping fetch');
       }
@@ -284,7 +321,7 @@ const InterviewSessionsContent = () => {
       console.log('🔄 Cleaning up fallback status checking');
       clearInterval(intervalId);
     };
-  }, [sessions, fetchInterviewData]);
+  }, [sessions, refreshSessions]);
 
   // Real-time subscription for mock_interview table changes
   useEffect(() => {
@@ -300,8 +337,6 @@ const InterviewSessionsContent = () => {
 
         const userId = authSession.user.id;
         console.log('🔔 Setting up real-time subscription for user:', userId?.substring(0, 8) + '***');
-        console.log('🔔 Listening for status_prep changes in mock_interview table');
-        console.log('🔔 Subscription timestamp:', new Date().toISOString());
 
         // Subscribe to changes in mock_interview table for current user
         channel = supabase
@@ -323,146 +358,39 @@ const InterviewSessionsContent = () => {
                 sessionId: newData?.id,
                 oldStatusPrep: oldData?.status_prep,
                 newStatusPrep: newData?.status_prep,
-                oldStatus: oldData?.status,
-                newStatus: newData?.status,
-                timestamp: new Date().toISOString(),
-                isStatusPrepChange: oldData?.status_prep !== newData?.status_prep,
-                isPrepToDone: oldData?.status_prep !== 'DONE' && newData?.status_prep === 'DONE'
+                timestamp: new Date().toISOString()
               });
-              
-              // Special logging for the important transition
-              if (oldData?.status_prep !== 'DONE' && newData?.status_prep === 'DONE') {
-                console.log('🎉 CRITICAL UPDATE: Status prep changed to DONE!', {
-                  sessionId: newData?.id,
-                  oldPrep: oldData?.status_prep,
-                  newPrep: newData?.status_prep,
-                  expectedTransition: 'preparing → ready'
-                });
-              }
               
               // Handle INSERT events (new sessions created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log('🎉 New session created via real-time:', {
-                  sessionId: newData.id,
-                  title: newData.title,
-                  status: newData.status,
-                  status_prep: newData.status_prep
-                });
+                console.log('🎉 New session created via real-time, refreshing sessions');
                 
-                // Transform backend session to frontend format
-                const backendSession = newData;
-                const sessionAttempts: MockInterviewAttempt[] = []; // New sessions have no attempts yet
-                const calculatedScore = calculateScoreFromAttempts(sessionAttempts);
-                
-                const newSession: InterviewSession = {
-                  id: backendSession.id,
-                  title: backendSession.title || generateSessionTitle(backendSession),
-                  type: backendSession.interview_type || 'behavioral',
-                  duration: backendSession.duration_minutes || 30,
-                  status: mapBackendStatusToFrontend(backendSession.status, backendSession.status_prep, sessionAttempts),
-                  score: calculatedScore,
-                  date: new Date(backendSession.created_at),
-                  companyUrl: backendSession.company_url || undefined,
-                  companyName: backendSession.company_name || undefined,
-                  role: backendSession.position || undefined,
-                  feedback: undefined,
-                  attempts: sessionAttempts,
-                  latestAttempt: undefined
-                };
-                
-                // Add or update session in state
-                setSessions(prevSessions => {
-                  // Try to find by real ID first, then by temp ID pattern
-                  const existingIndex = prevSessions.findIndex(s => 
-                    s.id === newSession.id || s.id.startsWith('temp-')
-                  );
-                  if (existingIndex >= 0) {
-                    // Replace optimistic session with real data but preserve the title
-                    console.log('🔄 Replacing optimistic session with real data');
-                    const existingSession = prevSessions[existingIndex];
-                    console.log('📝 Preserving original title during INSERT:', {
-                      originalTitle: existingSession.title,
-                      backendTitle: newSession.title,
-                      sessionId: newSession.id,
-                      existingSessionId: existingSession.id
-                    });
-                    const updatedSessions = [...prevSessions];
-                    updatedSessions[existingIndex] = {
-                      ...newSession,
-                      // Preserve the original title to prevent visual changes
-                      title: existingSession.title
-                    };
-                    return updatedSessions;
-                  } else {
-                    // Add new session to the beginning
-                    console.log('✅ Adding new session to state');
-                    return [newSession, ...prevSessions];
-                  }
-                });
+                // Refresh sessions to show new session
+                refreshSessions();
               }
               
               // Handle UPDATE events (status changes, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                const updatedSession = newData;
-                const oldSession = oldData;
+                console.log('🔔 Session updated via real-time, updating display');
                 
-                console.log('🔔 Analyzing UPDATE event:', {
-                  sessionId: updatedSession.id,
-                  oldStatusPrep: oldSession.status_prep,
-                  newStatusPrep: updatedSession.status_prep,
-                  oldStatus: oldSession.status,
-                  newStatus: updatedSession.status
-                });
-
-                // Always update the session to ensure real-time sync
+                // Update the current display inline for immediate UI feedback
                 setSessions(prevSessions => {
                   return prevSessions.map(session => {
-                    if (session.id === updatedSession.id) {
-                      // Calculate new status based on updated backend data
+                    if (session.id === newData.id) {
                       const newStatus = mapBackendStatusToFrontend(
-                        updatedSession.status, 
-                        updatedSession.status_prep, 
+                        newData.status, 
+                        newData.status_prep, 
                         session.attempts
                       );
                       
-                      console.log('🔄 Updating session in real-time:', {
-                        sessionId: updatedSession.id,
-                        oldFrontendStatus: session.status,
-                        newFrontendStatus: newStatus,
-                        backendStatus: updatedSession.status,
-                        backendStatusPrep: updatedSession.status_prep,
-                        preservingTitle: session.status === 'preparing',
-                        currentTitle: session.title,
-                        backendTitle: updatedSession.title,
-                        statusWillChange: session.status !== newStatus,
-                        importantUpdate: session.status === 'preparing' && newStatus === 'ready'
-                      });
-                      
-                      // Log important status transitions
-                      if (session.status === 'preparing' && newStatus === 'ready') {
-                        console.log('🎉 IMPORTANT: Session ready for interview!', {
-                          sessionId: updatedSession.id,
-                          title: session.title,
-                          transition: 'preparing → ready'
-                        });
-                      }
-                      
                       const willPreserveTitle = session.status === 'preparing';
-                      if (willPreserveTitle) {
-                        console.log('📝 Preserving title during UPDATE (preparing stage):', {
-                          sessionId: session.id,
-                          preservedTitle: session.title,
-                          backendTitle: updatedSession.title
-                        });
-                      }
                       
                       return {
                         ...session,
                         status: newStatus,
-                        // Don't update title during preparing stage to prevent visual changes
-                        title: willPreserveTitle ? session.title : (updatedSession.title || session.title),
-                        companyName: willPreserveTitle ? session.companyName : (updatedSession.company_name || session.companyName),
-                        role: willPreserveTitle ? session.role : (updatedSession.position || session.role)
+                        title: willPreserveTitle ? session.title : (newData.title || session.title),
+                        companyName: willPreserveTitle ? session.companyName : (newData.company_name || session.companyName),
+                        role: willPreserveTitle ? session.role : (newData.position || session.role)
                       };
                     }
                     return session;
@@ -473,62 +401,6 @@ const InterviewSessionsContent = () => {
           )
           .subscribe((status) => {
             console.log('🔔 Real-time subscription status:', status);
-            if (status === 'SUBSCRIBED') {
-              console.log('✅ Successfully subscribed to mock_interview table changes');
-              console.log('🔔 Subscription details:', {
-                channel: 'mock_interview_realtime_updates',
-                event: '*',
-                table: 'mock_interview',
-                filter: `user_id=eq.${userId}`,
-                userId: userId?.substring(0, 8) + '***',
-                timestamp: new Date().toISOString()
-              });
-              
-              // Add global test functions for manual testing
-              (window as any).testRealtimeSubscription = () => {
-                console.log('🧪 Testing real-time subscription...');
-                console.log('🧪 Current sessions with preparing status:', 
-                  sessions.filter(s => s.status === 'preparing').map(s => ({
-                    id: s.id,
-                    title: s.title,
-                    status: s.status
-                  }))
-                );
-              };
-              
-              (window as any).testStatusMapping = (sessionId: string) => {
-                const session = sessions.find(s => s.id === sessionId);
-                if (session) {
-                  console.log('🧪 Testing status mapping for session:', sessionId);
-                  const newStatus = mapBackendStatusToFrontend('created', 'DONE', session.attempts);
-                  console.log('🧪 Mapped status (with DONE):', newStatus);
-                } else {
-                  console.log('🧪 Session not found:', sessionId);
-                }
-              };
-              
-              (window as any).forceStatusUpdate = (sessionId: string) => {
-                console.log('🧪 Forcing status update for session:', sessionId);
-                setSessions(prevSessions => 
-                  prevSessions.map(session => {
-                    if (session.id === sessionId && session.status === 'preparing') {
-                      console.log('🧪 Updating session status: preparing → ready');
-                      return { ...session, status: 'ready' as const };
-                    }
-                    return session;
-                  })
-                );
-              };
-              
-              console.log('🧪 Test functions available:');
-              console.log('🧪   - window.testRealtimeSubscription()');
-              console.log('🧪   - window.testStatusMapping(sessionId)');
-              console.log('🧪   - window.forceStatusUpdate(sessionId)');
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error('❌ Real-time subscription error');
-            } else {
-              console.log('🔔 Subscription status change:', status);
-            }
           });
 
       } catch (error) {
@@ -538,7 +410,6 @@ const InterviewSessionsContent = () => {
 
     setupRealtimeSubscription();
 
-    // Cleanup subscription on unmount
     return () => {
       console.log('🔔 Cleaning up real-time subscription');
       if (channel) {
@@ -758,9 +629,20 @@ const InterviewSessionsContent = () => {
     );
   }, []);
 
-  // Memoized stats calculation - only recalculates when sessions change
+  // Memoized stats calculation based on currently loaded sessions
   const stats = useMemo(() => {
-    // Get all completed attempts across all sessions (expensive operation)
+    // Count completed sessions based on status
+    const completedSessionsCount = sessions.filter(s => s.status === 'completed').length;
+    
+    // Alternative: count sessions with any completed attempts
+    const sessionsWithCompletedAttempts = sessions.filter(s => 
+      s.attempts && s.attempts.some(attempt => attempt.status === 'PROCESSED')
+    ).length;
+    
+    // Use the higher count for more accurate representation
+    const finalCompletedCount = Math.max(completedSessionsCount, sessionsWithCompletedAttempts);
+    
+    // Get all completed attempts across loaded sessions
     const allCompletedAttempts = sessions.flatMap(s => 
       s.attempts?.filter(attempt => 
         attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
@@ -774,55 +656,26 @@ const InterviewSessionsContent = () => {
       ) || []
     );
     
-    // Count completed sessions
-    const completedSessionsCount = sessions.filter(s => 
-      s.attempts && s.attempts.some(attempt => attempt.status === 'PROCESSED')
-    ).length;
+    // Calculate average score
+    let avgScoreNumeric = '0';
+    if (allCompletedAttempts.length > 0) {
+      const avgScoreRating = calculateAvgScoreFromAttempts(allCompletedAttempts);
+      avgScoreNumeric = avgScoreRating ? avgScoreRating.replace('/10', '') : '0';
+    }
     
-    // Get avgScore and strip "/10" for stats display
-    const avgScoreRating = calculateAvgScoreFromAttempts(allCompletedAttempts);
-    const avgScoreNumeric = avgScoreRating ? avgScoreRating.replace('/10', '') : '0';
+    // Calculate total time
+    const totalTime = calculateTotalTimeFromAttempts(allCompletedAttemptsWithDuration);
     
     return {
       total: sessions.length,
-      completed: completedSessionsCount,
-      avgScore: avgScoreNumeric, // Just the number, no "/10"
-      totalTime: calculateTotalTimeFromAttempts(allCompletedAttemptsWithDuration)
+      completed: finalCompletedCount,
+      avgScore: avgScoreNumeric,
+      totalTime: totalTime
     };
   }, [sessions, calculateAvgScoreFromAttempts, calculateTotalTimeFromAttempts]);
 
   const handleNewSession = useCallback(async (sessionData: any) => {
     console.log('🚀 handleNewSession received data:', sessionData);
-    console.log('🏢 Company URL field mapping:', {
-      company: sessionData.company,
-      company_name: sessionData.company_name,
-      companyUrl: sessionData.companyUrl,
-      finalValue: sessionData.company || sessionData.company_name || ''
-    });
-    
-    // Generate temporary ID for optimistic update
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Create optimistic session immediately
-    const optimisticSession: InterviewSession = {
-      id: tempId,
-      title: sessionData.title,
-      type: sessionData.type || 'behavioral',
-      duration: 15, // Always 15 minutes per backend
-      status: 'preparing', // Start as preparing since status_prep will be PENDING initially
-      score: undefined,
-      date: new Date(),
-      companyUrl: sessionData.company || sessionData.company_name || '',
-      companyName: sessionData.company || sessionData.company_name || '',
-      role: sessionData.role || 'Software Engineer',
-      feedback: undefined,
-      attempts: [],
-      latestAttempt: undefined
-    };
-    
-    // Add optimistic session to state immediately
-    console.log('⚡ Adding optimistic session:', optimisticSession);
-    setSessions(prevSessions => [optimisticSession, ...prevSessions]);
     
     // Close modal immediately for better UX
     setIsNewSessionModalOpen(false);
@@ -831,17 +684,14 @@ const InterviewSessionsContent = () => {
       // Get user session for authentication
       const { data: authData, error: authError } = await supabase.auth.getSession();
       if (authError || !authData?.session?.access_token) {
-        // Remove optimistic session on auth error
-        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
-        setError('Authentication required');
+        console.error('Authentication required');
         setIsNewSessionModalOpen(true); // Reopen modal
         return;
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
-        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
-        setError('Backend URL not configured');
+        console.error('Backend URL not configured');
         setIsNewSessionModalOpen(true);
         return;
       }
@@ -862,7 +712,6 @@ const InterviewSessionsContent = () => {
       };
       
       console.log('📤 Sending to backend:', requestBody);
-      console.log('🏢 Company URL being sent:', requestBody.company_url);
 
       // Call backend create-session endpoint
       const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
@@ -877,15 +726,11 @@ const InterviewSessionsContent = () => {
       if (!response.ok) {
         const errorData = await response.json();
         
-        // Remove optimistic session on error
-        setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
-        
         // Handle specific error types
         if (errorData.limit_reached) {
           console.log('🚫 Session limit reached:', errorData);
-          setError(`Session limit reached (${errorData.current_count}/${errorData.limit}). Please upgrade your plan.`);
         } else {
-          setError(errorData.error || 'Failed to create session');
+          console.error('Failed to create session:', errorData.error);
         }
         
         setIsNewSessionModalOpen(true); // Reopen modal for retry
@@ -895,40 +740,14 @@ const InterviewSessionsContent = () => {
       const result = await response.json();
       console.log('✅ Session created successfully:', result);
 
-      // Update optimistic session with real data (will be replaced by real-time event)
-      setSessions(prevSessions => 
-        prevSessions.map(session => {
-          if (session.id === tempId) {
-            console.log('🔄 Updating optimistic session with backend response');
-            return {
-              ...session,
-              id: result.session_id, // Replace temp ID with real ID
-              title: session.title, // Keep the original user-entered title
-              type: result.interview_type || session.type,
-              duration: result.duration_minutes || 15,
-              companyUrl: result.company_url || session.companyUrl,
-              companyName: result.company_name || session.companyName,
-              role: result.position || session.role,
-              status: 'preparing' // Backend starts with status:'created' and status_prep:'PENDING'
-            };
-          }
-          return session;
-        })
-      );
-
-      // Real-time subscription will handle status updates automatically
-      console.log('🎉 Session creation complete - waiting for real-time status updates');
+      // Refresh sessions data
+      refreshSessions();
       
     } catch (error) {
       console.error('❌ Error creating session:', error);
-      
-      // Remove optimistic session on network/server error
-      setSessions(prevSessions => prevSessions.filter(s => s.id !== tempId));
-      
-      setError(error instanceof Error ? error.message : 'Failed to create session');
       setIsNewSessionModalOpen(true); // Reopen modal for retry
     }
-  }, [supabase]);
+  }, [supabase, refreshSessions]);
 
   if (isLoading) {
     return (
@@ -1023,6 +842,8 @@ const InterviewSessionsContent = () => {
           />
         </div>
 
+
+
         {/* Filters and Search */}
         <Card>
           <CardContent className="p-6">
@@ -1092,9 +913,50 @@ const InterviewSessionsContent = () => {
               </CardContent>
             </Card>
           ) : (
-            filteredSessions.map((session) => (
-              <SessionCard key={session.id} session={session} />
-            ))
+            <>
+                            {filteredSessions.map((session) => (
+                <SessionCard key={session.id} session={session} />
+              ))}
+              
+              {/* Loading More Indicator */}
+              {loadingMore && (
+                <Card className="border-green-100 bg-green-50/30">
+                  <CardContent className="p-8">
+                    <div className="flex justify-center items-center">
+                      <div className="flex items-center space-x-4 px-6 py-4 bg-white/80 rounded-xl border border-green-200 shadow-sm">
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-500 border-t-transparent"></div>
+                        <span className="text-green-700 font-medium text-lg">Loading more sessions...</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Pretty Load More Button */}
+              {hasMore && !loadingMore && sessions.length > 0 && nextCursor && (
+                <Card className="border-green-100 bg-gradient-to-br from-green-50/50 to-emerald-50/30">
+                  <CardContent className="p-8">
+                    <div className="flex justify-center">
+                      <button
+                        onClick={loadMore}
+                        className="group relative inline-flex items-center justify-center px-10 py-4 text-base font-semibold text-white transition-all duration-300 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:shadow-green-500/25 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:-translate-y-1 active:translate-y-0"
+                      >
+                        <svg 
+                          className="w-5 h-5 mr-3 transition-transform group-hover:translate-y-1" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        Load More Sessions
+                        <div className="absolute inset-0 rounded-xl bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
 
