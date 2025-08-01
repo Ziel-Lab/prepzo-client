@@ -421,20 +421,13 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       newErrors.jobDescription = 'Job description is required';
     }
 
-            if (!formData.companyUrl.trim()) {
-          newErrors.companyUrl = 'Company URL is required';
-        }
+    if (!formData.companyUrl.trim()) {
+      newErrors.companyUrl = 'Company URL is required';
+    }
 
-        if (formData.companyUrl && !formData.companyUrl.match(/^https?:\/\/.+\..+/)) {
-          newErrors.companyUrl = 'Please enter a valid company website URL (e.g., https://company.com)';
-        }
-
-        console.log('🏢 Company URL validation:', {
-          companyUrl: formData.companyUrl,
-          length: formData.companyUrl.length,
-          trimmed: formData.companyUrl.trim(),
-          isValid: formData.companyUrl.match(/^https?:\/\/.+\..+/) !== null
-        });
+    if (formData.companyUrl && !formData.companyUrl.match(/^https?:\/\/.+\..+/)) {
+      newErrors.companyUrl = 'Please enter a valid company website URL (e.g., https://company.com)';
+    }
 
     if (includeCoverLetter) {
       if (coverLetterMethod === 'select' && !selectedCoverLetterUrl) {
@@ -444,7 +437,28 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
       }
     }
 
+    // Enhanced validation logging
+    console.log('🔍 Form Validation Results:', {
+      hasTitle: !!formData.title.trim(),
+      hasType: !!formData.type,
+      hasCompanyUrl: !!formData.companyUrl.trim(),
+      hasJobDescription: !!formData.jobDescription.trim(),
+      hasResume: !!(selectedResumeUrl || newResumeFile),
+      errors: Object.keys(newErrors),
+      totalErrors: Object.keys(newErrors).length,
+      isValid: Object.keys(newErrors).length === 0
+    });
+
     setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      // Scroll to first error
+      const firstErrorElement = document.querySelector('.border-red-300');
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
     return Object.keys(newErrors).length === 0;
   };
 
@@ -932,7 +946,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           <Button variant="outline" onClick={handleClose} disabled={isLoading || loading}>
             Cancel
           </Button>
-          {(userLimits?.plan_id === 1) ? (
+          {(userLimits?.plan_id === 1 || userLimits?.plan_name === 'Free') ? (
             <Button 
               onClick={() => window.location.href = '/dashboard/settings/subscription'}
               className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -942,7 +956,17 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             </Button>
           ) : (
             <Button 
-              onClick={handleSubmit}
+              onClick={() => {
+                console.log('🎯 Create Session clicked - Form validation will run');
+                console.log('📝 Current form data:', {
+                  title: formData.title,
+                  type: formData.type,
+                  companyUrl: formData.companyUrl,
+                  jobDescription: formData.jobDescription?.substring(0, 50) + '...',
+                  hasResume: !!(selectedResumeUrl || newResumeFile)
+                });
+                handleSubmit();
+              }}
               disabled={
                 isLoading || 
                 loading || 
