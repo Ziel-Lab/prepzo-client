@@ -198,7 +198,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const [hasSearched, setHasSearched] = useState<boolean>(false);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     posted_at_max_age_days: 15,
-    job_country_code_or: ["IN"],
+    job_country_code_or: ["US"],
   });
   // Track job IDs that the user has already revealed in past sessions
   const [revealedJobs, setRevealedJobs] = useState<Set<number>>(new Set());
@@ -251,7 +251,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         posted_at_max_age_days: searchFilters.posted_at_max_age_days || 15,
         blur_company_data: true,
         order_by: [{ desc: true, field: "date_posted" }],
-        job_country_code_or: searchFilters.job_country_code_or || ["IN"],
+        job_country_code_or: searchFilters.job_country_code_or || ["US"],
         include_total_results: false,
         ...(searchFilters.job_description_contains_or && searchFilters.job_description_contains_or.length > 0 && { job_description_contains_or: searchFilters.job_description_contains_or }),
         ...(searchFilters.job_seniority_or && searchFilters.job_seniority_or.length > 0 && { job_seniority_or: searchFilters.job_seniority_or }),

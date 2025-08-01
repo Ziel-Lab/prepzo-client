@@ -465,7 +465,10 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                 </h3>
                 <p className="text-prepzo-600 mb-6">
                   Export your LinkedIn profile as PDF and upload it here to automatically populate your profile
+                  <br/>
+                  <span className="underline text-sm text-prepzo-600"><Link href="https://www.youtube.com/watch?v=HJMeP06Esg8" target="_blank">How to export your LinkedIn profile as a PDF?</Link></span>
                 </p>
+                
               </div>
 
               <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-8 text-center hover:border-prepzo-400 transition-colors">
@@ -520,16 +523,16 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
                 <h4 className="font-medium text-blue-900 mb-2">How to prepare your files:</h4>
                 <div className="space-y-3">
                   <div>
-                    <h5 className="text-sm font-medium text-blue-800 mb-1">LinkedIn Export:</h5>
+                    {/* <h5 className="text-sm font-medium text-blue-800 mb-1">LinkedIn Export:</h5>
                     <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
                       <li>Go to your LinkedIn profile page</li>
                       <li>Click "More" button near your profile picture</li>
                       <li>Select "Save to PDF" option</li>
                       <li>Download the generated PDF</li>
-                    </ol>
+                    </ol> */}
                   </div>
                   <div>
-                    <h5 className="text-sm font-medium text-blue-800 mb-1">Resume Upload:</h5>
+                    {/* <h5 className="text-sm font-medium text-blue-800 mb-1">Resume Upload:</h5> */}
                     <ul className="text-xs sm:text-sm text-blue-800 space-y-1 list-disc list-inside">
                       <li>Ensure your resume is in PDF format</li>
                       <li>File size should be under 10MB</li>

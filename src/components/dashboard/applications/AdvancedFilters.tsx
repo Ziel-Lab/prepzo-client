@@ -33,7 +33,7 @@ const AdvancedFilters = ({ onFiltersChange, activeFilters }: AdvancedFiltersProp
   const filterOptions: FilterOption[] = [
     { key: 'postedDate', label: 'Posted Date', icon: Calendar, type: 'date' },
     { key: 'discoveredDate', label: 'Discovered Date', icon: Calendar, type: 'date' },
-    { key: 'jobCountry', label: 'Job Country', icon: Globe, type: 'select', options: ['India', 'United States', 'United Kingdom', 'Canada', 'Australia'] },
+    { key: 'jobCountry', label: 'Job Country', icon: Globe, type: 'select', options: ['United States', 'United Kingdom', 'Canada', 'Australia'] },
     { key: 'jobTitle', label: 'Job Title', icon: Briefcase, type: 'text' },
     { key: 'jobDescription', label: 'Job Description', icon: Briefcase, type: 'text' },
     { key: 'jobLocation', label: 'Job Location', icon: MapPin, type: 'text' },

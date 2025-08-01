@@ -65,6 +65,12 @@ const TagInput: React.FC<TagInputProps> = ({ value, onChange, placeholder, label
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
+          onBlur={() => {
+            if (input.trim()) {
+              addTag(input);
+              setInput("");
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
         />
