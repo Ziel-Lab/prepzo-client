@@ -932,7 +932,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           <Button variant="outline" onClick={handleClose} disabled={isLoading || loading}>
             Cancel
           </Button>
-          {userLimits?.plan_name === 'Free' ? (
+          {(userLimits?.plan_id === 1) ? (
             <Button 
               onClick={() => window.location.href = '/dashboard/settings/subscription'}
               className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -943,8 +943,23 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           ) : (
             <Button 
               onClick={handleSubmit}
-              disabled={isLoading || loading || !userLimits?.can_create_session}
+              disabled={
+                isLoading || 
+                loading || 
+                (
+                  !userLimits?.can_create_session && 
+                  !userLimits?.is_unlimited_sessions && 
+                  !(userLimits?.plan_id && userLimits.plan_id >= 2) // Premium users (plan_id 2+) can create sessions
+                )
+              }
               className="bg-green-600 hover:bg-green-700 text-white"
+              title={
+                (!userLimits?.can_create_session && !userLimits?.is_unlimited_sessions && !(userLimits?.plan_id && userLimits.plan_id >= 2))
+                  ? `Session limit reached (${userLimits?.sessions_used}/${userLimits?.session_limit})`
+                  : isLoading || loading 
+                    ? 'Loading...' 
+                    : 'Create new interview session'
+              }
             >
               {loading ? (
                 <>
@@ -955,6 +970,19 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
                 'Create Session'
               )}
             </Button>
+          )}
+          
+          {/* Debug Info (remove in production) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="absolute bottom-0 left-0 text-xs text-gray-500 bg-gray-100 p-2 rounded max-w-md">
+              Debug: isLoading={String(isLoading)}, loading={String(loading)}, 
+              can_create={String(userLimits?.can_create_session)}, 
+              is_unlimited={String(userLimits?.is_unlimited_sessions)},
+              plan_id={userLimits?.plan_id}, plan_name={userLimits?.plan_name}, 
+              sessions={userLimits?.sessions_used}/{userLimits?.session_limit},
+              isFree={String(userLimits?.plan_id === 1 || userLimits?.plan_name === 'Free')},
+              premiumOverride={String(userLimits?.plan_id && userLimits.plan_id >= 2)}
+            </div>
           )}
         </div>
       </DialogContent>
