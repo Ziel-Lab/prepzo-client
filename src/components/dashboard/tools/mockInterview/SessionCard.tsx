@@ -470,7 +470,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                       <div className="text-xs text-gray-500">
                         {new Date(attempt.created_at).toLocaleDateString()}
                       </div>
-                      {(attempt.status === 'PROCESSED' || attempt.status === 'completed') && (
+                      {attempt.status === 'PROCESSED' && (
                         <Button
                           size="sm"
                           variant="outline"

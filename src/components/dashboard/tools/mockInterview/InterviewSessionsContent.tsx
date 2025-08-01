@@ -288,6 +288,91 @@ const InterviewSessionsContent = () => {
     fetchUserLimits();
   }, []);
 
+  // Targeted status checking for preparing sessions only
+  const checkPreparingSessionsStatus = useCallback(async () => {
+    const preparingSessions = sessions.filter(s => s.status === 'preparing');
+    if (preparingSessions.length === 0) return;
+
+    try {
+      const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+      if (authError || !authSession?.access_token) return;
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) return;
+
+      // Check status for each preparing session individually
+      const statusChecks = preparingSessions.map(async (prepSession) => {
+        try {
+          // Try session-specific endpoint first, fallback to general sessions endpoint with filter
+          let response = await fetch(`${backendUrl}/mockInterview/session/${prepSession.id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authSession.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const sessionData = await response.json();
+            return { sessionId: prepSession.id, statusData: sessionData.session || sessionData };
+          }
+        } catch (error) {
+          console.log('Failed to check status for session:', prepSession.id);
+        }
+        return null;
+      });
+
+      const results = await Promise.all(statusChecks);
+      
+      // Batch all session updates into a single state update
+      const updatedSessions = results.filter(result => {
+        if (!result || !result.statusData) return false;
+        
+        const { sessionId, statusData } = result;
+        const newStatus = mapBackendStatusToFrontend(
+          statusData.status, 
+          statusData.status_prep, 
+          []
+        );
+        
+        // Only include sessions that actually changed status
+        const currentSession = sessions.find(s => s.id === sessionId);
+        return currentSession && currentSession.status !== newStatus;
+      });
+
+      if (updatedSessions.length > 0) {
+        console.log('🔄 Updating status for', updatedSessions.length, 'sessions');
+        
+        setSessions(prevSessions => {
+          return prevSessions.map(session => {
+            const update = updatedSessions.find(u => u && u.sessionId === session.id);
+            if (update && update.statusData) {
+              const { statusData } = update;
+              const newStatus = mapBackendStatusToFrontend(
+                statusData.status, 
+                statusData.status_prep, 
+                []
+              );
+              
+              console.log('🔄 Status changed for session:', session.id, 'from', session.status, 'to', newStatus);
+              
+              return {
+                ...session,
+                status: newStatus,
+                title: statusData.title || session.title,
+                companyName: statusData.company_name || session.companyName,
+                role: statusData.position || session.role
+              };
+            }
+            return session;
+          });
+        });
+      }
+    } catch (error) {
+      console.log('Error checking preparing sessions status:', error);
+    }
+  }, [sessions, supabase]);
+
   // Fallback periodic checking for status updates (less aggressive)
   useEffect(() => {
     // Only set up periodic checking if we have preparing sessions
@@ -297,31 +382,17 @@ const InterviewSessionsContent = () => {
       return; // No need for periodic checking
     }
     
-    console.log('🔄 Setting up fallback status checking for preparing sessions');
+    console.log('🔄 Setting up targeted status checking for preparing sessions');
     
     const intervalId = setInterval(() => {
-      // Only check status updates for preparing sessions
-      const preparingSessions = sessions.filter(s => s.status === 'preparing');
-      if (preparingSessions.length > 0) {
-        console.log('🔄 Fallback check: Found', preparingSessions.length, 'preparing sessions');
-        console.log('🔄 Preparing sessions:', preparingSessions.map(s => ({
-          id: s.id.substring(0, 8) + '***',
-          title: s.title,
-          status: s.status
-        })));
-        
-        // Refresh sessions to get status updates
-        refreshSessions();
-      } else {
-        console.log('🔄 Fallback check: No preparing sessions found, skipping fetch');
-      }
-    }, 6000); // Check every 6 seconds for faster updates
+      checkPreparingSessionsStatus();
+    }, 12000); // Check every 12 seconds, optimized for performance
     
     return () => {
-      console.log('🔄 Cleaning up fallback status checking');
+      console.log('🔄 Cleaning up targeted status checking');
       clearInterval(intervalId);
     };
-  }, [sessions, refreshSessions]);
+  }, [sessions, checkPreparingSessionsStatus]);
 
   // Real-time subscription for mock_interview table changes
   useEffect(() => {
@@ -363,10 +434,27 @@ const InterviewSessionsContent = () => {
               
               // Handle INSERT events (new sessions created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log('🎉 New session created via real-time, refreshing sessions');
+                console.log('🎉 New session created via real-time, adding to list');
                 
-                // Refresh sessions to show new session
-                refreshSessions();
+                // Create new session object and add to beginning of list
+                const newSession = {
+                  id: newData.id,
+                  title: newData.title || generateSessionTitle(newData),
+                  type: newData.interview_type || 'behavioral',
+                  duration: newData.duration_minutes || 30,
+                  status: mapBackendStatusToFrontend(newData.status, newData.status_prep, []) as 'completed' | 'ready' | 'preparing',
+                  score: undefined,
+                  date: new Date(newData.created_at),
+                  companyUrl: newData.company_url || undefined,
+                  companyName: newData.company_name || undefined,
+                  role: newData.position || undefined,
+                  feedback: undefined,
+                  attempts: [],
+                  latestAttempt: undefined
+                };
+                
+                // Add new session to the beginning of the list
+                setSessions(prevSessions => [newSession, ...prevSessions]);
               }
               
               // Handle UPDATE events (status changes, etc.)
