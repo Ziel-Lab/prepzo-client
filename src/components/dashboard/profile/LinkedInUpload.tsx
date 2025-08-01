@@ -28,12 +28,9 @@ import {
   Plus,
   PlusCircle,
   Calendar,
-  X,
-  ArrowRight,
-  Sparkles
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link';
 
 interface LinkedInExtractedData {
   name?: string;
@@ -171,25 +168,16 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      // Modified progress simulation with slower initial progress
+      // Simulate progress while we upload / poll
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
-          // Initial phase (0-30%): Fast
-          if (prev < 30) {
-            return prev + 5;
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
-          // Middle phase (30-60%): Slower
-          else if (prev < 60) {
-            return prev + 2;
-          }
-          // Final phase (60-85%): Very slow
-          else if (prev < 85) {
-            return prev + 0.5;
-          }
-          // Stop at 85% and wait for actual response
-          return 85;
+          return prev + 10;
         });
-      }, 200); // Reduced interval frequency for smoother animation
+      }, 300);
 
       // 1. Upload PDF to remote backend
       const uploadRes = await fetch(REMOTE_UPLOAD_ENDPOINT, {
@@ -211,9 +199,6 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       const DELAY_MS = 1500;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let extracted: any = null;
-
-      // Wait 20 seconds before the first attempt to give the backend some processing time
-      await new Promise(res => setTimeout(res, 20000));
 
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         // eslint-disable-next-line no-await-in-loop
@@ -240,11 +225,7 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
       }
 
       clearInterval(progressInterval);
-      
-      // Add a small delay before showing 100% to make the transition smoother
-      setTimeout(() => {
-        setUploadProgress(100);
-      }, 300);
+      setUploadProgress(100);
 
       // Normalisation (mirrors previous API route logic)
       const normaliseData = (raw: any): LinkedInExtractedData => {
@@ -389,11 +370,11 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
         <CardHeader className="border-b bg-gradient-to-r from-prepzo-50 to-prepzo-100/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Linkedin className="w-6 h-6 text-white" />
-              </div> */}
+              </div>
               <div>
-                <CardTitle className="text-xl text-prepzo-900">Import from LinkedIn/Resume</CardTitle>
+                <CardTitle className="text-xl text-prepzo-900">Import from LinkedIn</CardTitle>
                 <p className="text-sm text-prepzo-600">Extract your profile data from LinkedIn PDF export</p>
               </div>
             </div>
@@ -431,44 +412,16 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
           {/* Upload Step */}
           {currentStep === 'upload' && (
             <div className="space-y-6">
-              {/* Add LinkedIn Optimizer suggestion */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">
-                      Want to improve your LinkedIn profile first?
-                    </h4>
-                    <p className="text-xs text-blue-700 mb-3">
-                      Use our LinkedIn Optimizer tool to enhance your profile before importing.
-                    </p>
-                    <Link 
-                      href="/dashboard/tools/linkedin-optimizer"
-                      target="_blank"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors"
-                    >
-                      Optimize my LinkedIn Profile
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
               <div className="text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Upload className="w-8 h-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-prepzo-900 mb-2">
-                  Upload Your Resume or LinkedIn PDF Export
+                  Upload Your LinkedIn PDF Export
                 </h3>
                 <p className="text-prepzo-600 mb-6">
                   Export your LinkedIn profile as PDF and upload it here to automatically populate your profile
-                  <br/>
-                  <span className="underline text-sm text-prepzo-600"><Link href="https://www.youtube.com/watch?v=HJMeP06Esg8" target="_blank">How to export your LinkedIn profile as a PDF?</Link></span>
                 </p>
-                
               </div>
 
               <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-4 sm:p-8 text-center hover:border-prepzo-400 transition-colors">
@@ -520,26 +473,14 @@ const LinkedInUpload: React.FC<LinkedInUploadProps> = ({
 
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <h4 className="font-medium text-blue-900 mb-2">How to prepare your files:</h4>
-                <div className="space-y-3">
-                  <div>
-                    {/* <h5 className="text-sm font-medium text-blue-800 mb-1">LinkedIn Export:</h5>
-                    <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                      <li>Go to your LinkedIn profile page</li>
-                      <li>Click "More" button near your profile picture</li>
-                      <li>Select "Save to PDF" option</li>
-                      <li>Download the generated PDF</li>
-                    </ol> */}
-                  </div>
-                  <div>
-                    {/* <h5 className="text-sm font-medium text-blue-800 mb-1">Resume Upload:</h5> */}
-                    <ul className="text-xs sm:text-sm text-blue-800 space-y-1 list-disc list-inside">
-                      <li>Ensure your resume is in PDF format</li>
-                      <li>File size should be under 10MB</li>
-                      <li>Make sure text is selectable (not scanned)</li>
-                    </ul>
-                  </div>
-                </div>
+                <h4 className="font-medium text-blue-900 mb-2">How to export from LinkedIn:</h4>
+                <ol className="text-xs sm:text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>Go to your LinkedIn profile page</li>
+                  <li>Click "More" button near your profile picture</li>
+                  <li>Select "Save to PDF" option</li>
+                  <li>Download the generated PDF</li>
+                  <li>Upload it here to extract your data</li>
+                </ol>
               </div>
             </div>
           )}

@@ -3,8 +3,10 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
-import { fetchWithCredentials } from '@/utils/fetchWithCredentials'; // Assuming this utility exists
+import { authFetch } from '@/lib/authClient';
 import { setAnalyticsUserId, clearAnalyticsUserId } from '@/utils/analytics';
+import { performCompleteLogout } from '@/utils/sessionCleanup';
+import { authStateManager } from '@/utils/authStateManager';
 
 // Define backend URL (make sure NEXT_PUBLIC_BACKEND_URL is set in your .env.local)
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -37,20 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let flaskAuthSuccess = false;
     try {
-      const response = await fetchWithCredentials(`${BACKEND_URL}/api/check-auth`);
-      if (response.ok) {
-        const data = await response.json();
-
-        if (data.authenticated && data.password_recently_verified) {
-          flaskAuthSuccess = true;
-        } else {
-          console.log('useAuth: Flask password session is invalid or expired. User is NOT authenticated.');
-        }
-      } else {
-        console.warn('useAuth: Flask check-auth request failed with status:', response.status, '. User is NOT authenticated.');
+      // Skip Flask check-auth since it doesn't exist - just use Supabase session
+      if (currentSupabaseSession?.access_token) {
+        flaskAuthSuccess = true;
       }
     } catch (error) {
-      console.error('useAuth: Error calling Flask check-auth:', error, '. User is NOT authenticated.');
+      console.error('useAuth: Error checking auth:', error);
     }
 
     // Update final state based on Flask check result
@@ -90,28 +84,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, updateAuthState]);
 
-  // Logout function
+  // Logout function with comprehensive cleanup
   const logout = useCallback(async () => {
     setIsLoading(true);
     
-    // Clear analytics before logging out
-    clearAnalyticsUserId();
-    
-    const { error: signOutError } = await supabase.auth.signOut(); 
-    if (signOutError) {
-        console.error("useAuth: Error logging out from Supabase:", signOutError);
-    }
     try {
-        await fetchWithCredentials(`${BACKEND_URL}/api/logout`, { method: 'POST' });
-    } catch (logoutError) {
+      // Start logout process - this stops all auto-refresh operations
+      authStateManager.startLogout();
+      
+      // Perform comprehensive session cleanup
+      await performCompleteLogout();
+      
+      // Try to call Flask logout if it exists
+      try {
+        await authFetch(`${BACKEND_URL}/api/logout`, { method: 'POST' });
+      } catch (logoutError) {
         console.warn('useAuth: Failed to call Flask logout endpoint (might not exist):', logoutError);
+      }
+      
+    } catch (error) {
+      console.error('useAuth: Error during logout:', error);
+    } finally {
+      // Ensure state is cleared regardless of errors
+      setIsAuthenticated(false);
+      setAuthMethod(null);
+      setSession(null);
+      setIsLoading(false);
+      
+      // Complete logout process
+      authStateManager.completeLogout();
     }
-    
-    // Explicitly update state to logged out immediately
-    setIsAuthenticated(false);
-    setAuthMethod(null);
-    setSession(null);
-    setIsLoading(false); 
   }, [supabase]);
 
   // Define the trigger function

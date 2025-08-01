@@ -47,6 +47,7 @@ interface SubscriptionPlan {
   linkedin_optimize_limit_per_month: number;
   job_application_limit_per_month: number;
   job_search_results_limit_per_month?: number;
+  mock_interview_session?: number;
 }
 
 interface FeatureUsage {
@@ -54,6 +55,7 @@ interface FeatureUsage {
   cover_letter_period_count: number;
   linkedin_optimize_period_count: number;
   job_search_results_period_count: number;
+  mock_interview_session_lifetime_count: number;
 }
 
 interface SubscriptionStatus {
@@ -113,7 +115,6 @@ const SubscriptionContent = () => {
           ? "https://buy.stripe.com/dRm7sKazu1bK6sK7WW00000"  // Pro plan
           : "https://buy.stripe.com/4gM9ASgXSaMk3gy0uu00001"; // Premium plan
       
-      console.log(`🔗 Using ${plan} payment link:`, paymentLink);
 
       if (!paymentLink) {
         throw new Error(
@@ -294,6 +295,11 @@ const SubscriptionContent = () => {
       limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
     },
     {
+      name: "Mock Interview Sessions",
+      used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
+      limit: (subscription.subscription_plans as any).mock_interview_session ?? 0,
+    },
+    {
       name: "Job Reveals",
       used: subscription.usage.job_search_results_period_count,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
@@ -302,7 +308,7 @@ const SubscriptionContent = () => {
 
   if (subscription.subscription_plans.id == 3) {
     usageMetrics = usageMetrics.filter(
-      (metric) => metric.name === "Job Reveals"
+      (metric) => metric.name === "Job Reveals" || metric.name === "Mock Interview Sessions"
     );
   }
 
@@ -368,11 +374,11 @@ const SubscriptionContent = () => {
                   <div className="flex justify-between items-center mb-1">
                     <p className="text-sm font-medium">{m.name}</p>
                     <p className="text-sm text-gray-500">
-                      {m.used} / {m.limit ?? "—"}
+                      {m.used} / {subscription.subscription_plans.id === 3 ? "unlimited" : (m.limit ?? "—")}
                     </p>
                   </div>
                   <Progress
-                    value={m.limit > 0 ? (m.used / m.limit) * 100 : 0}
+                    value={subscription.subscription_plans.id === 3 ? 0 : (m.limit > 0 ? (m.used / m.limit) * 100 : 0)}
                   />
                 </div>
               ))}
@@ -385,7 +391,7 @@ const SubscriptionContent = () => {
                     <span className="font-semibold">Premium Benefits</span>
                   </div>
                   <p className="text-sm text-green-600 mt-1">
-                    ✨ You have unlimited access to Resume Analyses, Cover Letter Generation, and LinkedIn Optimizations
+                    ✨ You have unlimited access to Resume Analyses, Cover Letter Generation, LinkedIn Optimizations, and Mock Interview Sessions
                   </p>
                 </div>
               )}

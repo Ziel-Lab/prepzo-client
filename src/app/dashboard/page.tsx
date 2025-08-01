@@ -85,7 +85,17 @@ const DashboardContent = () => {
     useEffect(() => {
       if (!user) return;
 
+      // Only track signup if this is actually a NEW signup, not just a login
       if (searchParams.get('login') === 'success') {
+        // Check if this is a genuine new signup vs returning user login
+        const isNewSignup = localStorage.getItem('signup_source') && 
+                           localStorage.getItem('is_new_user') === 'true';
+        
+        if (!isNewSignup) {
+          console.log('Login detected but not a new signup - skipping amplitude signup event');
+          return;
+        }
+
         // Determine the OAuth provider used during signup
         let storedSource: string | null = 'Google';
         try {
@@ -104,6 +114,8 @@ const DashboardContent = () => {
 
         const subscription_plan = subscription?.subscription_plans?.name || 'Free';
 
+        console.log('Tracking genuine new signup event for user:', user.id);
+        
         fetch('/api/amplitude-signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,6 +127,12 @@ const DashboardContent = () => {
             subscription_status,
             subscription_plan,
           }),
+        }).then(() => {
+          // Clear the signup markers after successful tracking
+          localStorage.removeItem('signup_source');
+          localStorage.removeItem('is_new_user');
+        }).catch(error => {
+          console.error('Failed to track signup event:', error);
         });
       }
     }, [searchParams, user, subscription]);

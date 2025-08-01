@@ -1,63 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
+import { withOptionalAuth, withRateLimit, validateRequired, sanitizeString, AuthContext } from '@/lib/auth-middleware';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const rateLimitedHandler = withRateLimit(10, 15 * 60 * 1000); // 10 feedback submissions per 15 minutes
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { stars, comments, room_id, submit } = body;
+  return rateLimitedHandler(request, async (req) => {
+    return withOptionalAuth(req, async (request, auth?: AuthContext) => {
+      const supabase = await createClient();
 
-    // Validate room_id and submit
-    if (!room_id || typeof submit !== 'boolean') {
-      return new NextResponse(
-        JSON.stringify({ error: 'room_id and submit are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+      try {
+        const body = await request.json();
+        const { stars, comments, room_id, submit } = body;
 
-    // If submit is true, validate stars
-    if (submit) {
-      if (typeof stars !== 'number' || stars < 1 || stars > 5) {
-        return new NextResponse(
-          JSON.stringify({ error: 'Stars must be a number between 1 and 5' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        // Validate required fields
+        const missing = validateRequired({ room_id, submit });
+        if (missing.length > 0) {
+          return NextResponse.json(
+            { error: `Missing required fields: ${missing.join(', ')}` },
+            { status: 400 }
+          );
+        }
+
+        // Validate submit is boolean
+        if (typeof submit !== 'boolean') {
+          return NextResponse.json(
+            { error: 'submit must be a boolean value' },
+            { status: 400 }
+          );
+        }
+
+        // Sanitize room_id
+        const sanitizedRoomId = sanitizeString(room_id, 255);
+
+        // If submit is true, validate stars and comments
+        let sanitizedComments: string | undefined;
+        if (submit) {
+          if (typeof stars !== 'number' || stars < 1 || stars > 5) {
+            return NextResponse.json(
+              { error: 'Stars must be a number between 1 and 5' },
+              { status: 400 }
+            );
+          }
+          
+          if (comments) {
+            sanitizedComments = sanitizeString(comments, 1000);
+          }
+        }
+
+        // Prepare insert object with sanitized values
+        const insertObj: any = { 
+          room_id: sanitizedRoomId, 
+          submit
+        };
+        
+        // Include user_id only if authenticated
+        if (auth) {
+          insertObj.user_id = auth.userId;
+        }
+        
+        if (submit) {
+          insertObj.stars = stars;
+          insertObj.comments = sanitizedComments || null;
+        }
+
+        const { data, error } = await supabase
+          .from('feedback')
+          .insert([insertObj])
+          .select();
+
+        if (error) {
+          console.error('Supabase insert error:', error);
+          return NextResponse.json(
+            { error: 'Failed to store feedback. Please try again.' },
+            { status: 500 }
+          );
+        }
+
+        const logMessage = auth 
+          ? `Feedback stored successfully for user ${auth.userId}:` 
+          : 'Anonymous feedback stored successfully:';
+        console.log(logMessage, { room_id: sanitizedRoomId, submit });
+        return NextResponse.json(
+          { message: 'Feedback stored successfully', data },
+          { status: 200 }
+        );
+
+      } catch (error: any) {
+        console.error('Error processing feedback:', error);
+        return NextResponse.json(
+          { error: 'Internal server error. Please try again later.' },
+          { status: 500 }
         );
       }
-    }
-
-    // Prepare insert object
-    const insertObj: any = { room_id, submit };
-    if (submit) {
-      insertObj.stars = stars;
-      insertObj.comments = comments;
-    }
-
-    const { data, error } = await supabase
-      .from('feedback')
-      .insert([insertObj])
-      .select();
-
-    if (error) {
-      console.error('Supabase insert error:', error);
-      return new NextResponse(
-        JSON.stringify({ error: 'Failed to store feedback', details: error.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new NextResponse(
-      JSON.stringify({ message: 'Feedback stored successfully', data }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('Error processing feedback:', error);
-    return new NextResponse(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
+    });
+  });
 }

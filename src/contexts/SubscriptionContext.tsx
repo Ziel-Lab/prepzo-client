@@ -2,6 +2,7 @@
 
 import { createContext, useState, useEffect, useCallback, useContext, ReactNode, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { authFetch } from '@/lib/authClient';
 
 // Interfaces based on the backend schema, shared across components
 export interface SubscriptionPlan {
@@ -86,9 +87,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) throw new Error("Backend URL is not configured.");
 
-      const response = await fetch(`${backendUrl}/subscription/status`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const response = await authFetch(`${backendUrl}/subscription/status`);
       
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to fetch subscription status.");
