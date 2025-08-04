@@ -2049,7 +2049,12 @@ const Profile = () => {
                         <p className="text-sm sm:text-base text-prepzo-700 font-medium mb-2">No resume uploaded</p>
                         <p className="text-xs sm:text-sm text-prepzo-600 mb-3 sm:mb-4">Upload your current resume to get started</p>
                         <div className="border-2 border-dashed border-prepzo-300 rounded-lg p-3 sm:p-4 lg:p-6 hover:border-prepzo-400 transition-colors cursor-pointer">
-                          <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto mb-2" />
+                          <Button
+                            className="bg-white border flex justify-center w-full" 
+                            onClick={() => setShowLinkedInUpload(true)}
+                          >
+                          <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-prepzo-600 mx-auto" />
+                          </Button>
                           <p className="text-sm sm:text-base text-prepzo-700 font-medium">Upload Resume</p>
                           <p className="text-xs sm:text-sm text-prepzo-600">PDF, DOC, or DOCX files only</p>
                         </div>
