@@ -369,12 +369,12 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     console.log('🔍 parseAdditionalQA: Starting optimized parsing...');
     const results = [];
     
-    // Split on the pattern "Question:" to get individual Q&A blocks
-    const sections = qaText.split(/\n\n(?=Question:)/);
+    // Split on various question patterns to get individual Q&A blocks
+    const sections = qaText.split(/\n\n(?=\*\*Question|\n\nQuestion:)/);
     
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i].trim();
-      if (!section || !section.startsWith('Question:')) continue;
+      if (!section) continue;
       
       console.log(`🔍 Processing section ${i + 1}:`, section.substring(0, 100) + '...');
       
@@ -385,16 +385,24 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         continue;
       }
       
-      // Extract question (remove "Question: " prefix and trim)
+      // Extract question part
       let question = section.substring(0, responseMarkerIndex).trim();
-      question = question.replace(/^Question:\s*/, '').trim();
+      
+      // Clean up question: remove various question markers and asterisks
+      question = question
+        .replace(/^\*\*Question\s*\d*:?\s*\*\*/i, '') // Remove **Question X:**
+        .replace(/^Question\s*\d*:?\s*/i, '') // Remove Question X:
+        .replace(/^\*\*/, '') // Remove leading **
+        .replace(/\*\*$/, '') // Remove trailing **
+        .replace(/^\d+\.\s*/, '') // Remove leading numbers
+        .trim();
       
       // Extract response (remove "Appropriate Response: " prefix and quotes)
       let response = section.substring(responseMarkerIndex).trim();
       response = response.replace(/^Appropriate Response:\s*/, '').trim();
       
       // Remove surrounding quotes from response
-      response = response.replace(/^["']|["']$/g, '').trim();
+      response = response.replace(/^["'`''""„]|["'`''""„]$/g, '').trim();
       
       if (question && response) {
         console.log(`✅ Successfully parsed Q&A ${results.length + 1}:`, {
@@ -446,19 +454,27 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       let questionPart = section.substring(0, responseMarkerIndex).trim();
       let responsePart = section.substring(responseMarkerIndex + '**Appropriate Response:**'.length).trim();
       
-      // Clean up question: remove markdown headers and question markers
+      // Clean up question: remove markdown headers, question markers, and asterisks
       questionPart = questionPart
-        .replace(/^###\s*(?:Additional\s*)?Question\s*\d*:?\s*/i, '')
-        .replace(/^\*\*(?:Additional\s*)?Question\s*\d*:?\s*\*\*/i, '')
+        .replace(/^###\s*(?:Additional\s*)?Question\s*\d*:?\s*/i, '') // Remove ### Question headers
+        .replace(/^\*\*(?:Additional\s*)?Question\s*\d*:?\s*\*\*/i, '') // Remove **Question X:**
+        .replace(/^\*\*/, '') // Remove leading **
+        .replace(/\*\*$/, '') // Remove trailing **
+        .replace(/^\d+\.\s*/, '') // Remove leading numbers
+        .replace(/^Question\s*\d*:?\s*/i, '') // Remove plain Question X:
         .trim();
       
       // If question is still empty, create a generic one
       if (!questionPart) {
-        questionPart = `Question ${results.length + 1}`;
+        questionPart = `Practice Question ${results.length + 1}`;
       }
       
-      // Clean up response
-      responsePart = responsePart.replace(/^['"`''""]|['"`''""]$/g, '').trim();
+      // Clean up response: remove quotes and asterisks
+      responsePart = responsePart
+        .replace(/^["'`''""„\*]|["'`''""„\*]$/g, '') // Remove quotes and asterisks
+        .replace(/^\*\*/, '') // Remove leading **
+        .replace(/\*\*$/, '') // Remove trailing **
+        .trim();
       
       if (questionPart && responsePart) {
         console.log(`✅ Fallback parsed Q&A ${results.length + 1}:`, {
@@ -476,7 +492,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     return results;
   };
 
-  // Enhanced function to format markdown text with better paragraph handling
+  // Enhanced function to format markdown text with better paragraph handling and typography
   const formatMarkdownText = (text: string) => {
     // Split into paragraphs (double line breaks)
     const paragraphs = text.split('\n\n');
@@ -490,32 +506,94 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         if (line.trim().startsWith('### ')) {
           const headerText = line.replace(/^### /, '').trim();
           return (
-            <h3 key={lineIndex} className="text-lg font-bold mt-4 mb-3 first:mt-0">
+            <h3 key={lineIndex} className="text-xl font-bold mt-6 mb-4 first:mt-0 text-slate-900 border-b border-slate-200/50 pb-2">
               {headerText}
             </h3>
           );
         }
         
-        // Handle ** bold text within the line
+        // Handle ## headers
+        if (line.trim().startsWith('## ')) {
+          const headerText = line.replace(/^## /, '').trim();
+          return (
+            <h2 key={lineIndex} className="text-2xl font-bold mt-8 mb-5 first:mt-0 text-slate-900">
+              {headerText}
+            </h2>
+          );
+        }
+        
+        // Handle bullet points
+        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+          const bulletText = line.replace(/^[\-\*]\s+/, '').trim();
+          const parts = bulletText.split(/(\*\*[^*]+\*\*)/g);
+          const formattedBullet = parts.map((part, partIndex) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              const boldText = part.slice(2, -2);
+              return <strong key={partIndex} className="font-bold text-slate-900">{boldText}</strong>;
+            }
+            return part;
+          });
+          
+          return (
+            <div key={lineIndex} className="flex items-start gap-3 mb-2">
+              <div className="w-1.5 h-1.5 bg-current rounded-full mt-2.5 shrink-0 opacity-60"></div>
+              <span className="flex-1 leading-relaxed">{formattedBullet}</span>
+            </div>
+          );
+        }
+        
+        // Handle numbered lists
+        const numberedMatch = line.trim().match(/^(\d+)\.\s+(.+)$/);
+        if (numberedMatch) {
+          const [, number, text] = numberedMatch;
+          const parts = text.split(/(\*\*[^*]+\*\*)/g);
+          const formattedText = parts.map((part, partIndex) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              const boldText = part.slice(2, -2);
+              return <strong key={partIndex} className="font-bold text-slate-900">{boldText}</strong>;
+            }
+            return part;
+          });
+          
+          return (
+            <div key={lineIndex} className="flex items-start gap-3 mb-2">
+              <span className="flex items-center justify-center w-6 h-6 bg-slate-200 text-slate-700 text-sm font-bold rounded-full shrink-0 mt-1">
+                {number}
+              </span>
+              <span className="flex-1 leading-relaxed">{formattedText}</span>
+            </div>
+          );
+        }
+        
+        // Handle ** bold text within regular lines and clean up stray asterisks
         const parts = line.split(/(\*\*[^*]+\*\*)/g);
         const formattedLine = parts.map((part, partIndex) => {
           if (part.startsWith('**') && part.endsWith('**')) {
             const boldText = part.slice(2, -2);
-            return <strong key={partIndex} className="font-semibold">{boldText}</strong>;
+            return <strong key={partIndex} className="font-bold text-slate-900">{boldText}</strong>;
           }
-          return part;
+          // Clean up isolated asterisks and markdown artifacts
+          const cleanedPart = part
+            .replace(/^\*\*|\*\*$/g, '') // Remove isolated ** at start/end
+            .replace(/\*{3,}/g, '') // Remove 3+ consecutive asterisks
+            .trim();
+          return cleanedPart;
         });
         
+        // Skip empty lines
+        if (line.trim() === '') {
+          return null;
+        }
+        
         return (
-          <span key={lineIndex}>
+          <span key={lineIndex} className="block mb-1 leading-relaxed">
             {formattedLine}
-            {lineIndex < lines.length - 1 && <br />}
           </span>
         );
-      });
+      }).filter(Boolean); // Remove null entries
       
       return (
-        <div key={paragraphIndex} className={paragraphIndex > 0 ? "mt-4" : ""}>
+        <div key={paragraphIndex} className={paragraphIndex > 0 ? "mt-6" : ""}>
           {processedLines}
         </div>
       );
@@ -538,409 +616,513 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 p-6">
-      {/* Real-time Feedback Notification */}
-      {showNotification && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-          <Card className="border-green-200 bg-green-50 shadow-lg max-w-sm">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-green-600 rounded-full">
-                  <Bell className="text-white" size={16} />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-green-900 mb-1">🎉 Feedback Ready!</h4>
-                  <p className="text-sm text-green-800 mb-3">
-                    Your interview has been processed. The page will refresh automatically.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      onClick={() => window.location.reload()}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      View Now
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setShowNotification(false)}
-                      className="border-green-300 text-green-700 hover:bg-green-100"
-                    >
-                      Dismiss
-                    </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <div className="max-w-5xl mx-auto space-y-8 p-4 sm:p-6 lg:p-8">
+        {/* Real-time Feedback Notification */}
+        {showNotification && (
+          <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
+            <Card className="border-green-200 bg-green-50 shadow-xl max-w-sm backdrop-blur-sm">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-gradient-to-r from-green-600 to-green-700 rounded-full shadow-sm">
+                    <Bell className="text-white" size={16} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-green-900 mb-1 text-lg">🎉 Feedback Ready!</h4>
+                    <p className="text-sm text-green-800 mb-4 leading-relaxed">
+                      Your interview has been processed. The page will refresh automatically.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => window.location.reload()}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm font-medium"
+                      >
+                        View Now
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setShowNotification(false)}
+                        className="border-green-300 text-green-700 hover:bg-green-100 font-medium"
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button 
-          onClick={() => router.push('/dashboard/tools/mock-Interview')} 
-          variant="outline"
-          size="sm"
-        >
-          <ArrowLeft size={16} className="mr-2" />
-          Back to Sessions
-        </Button>
-        <div>
-                      <h1 className="text-2xl font-bold text-gray-900">Interview Feedback</h1>
-            <p className="text-gray-600">Attempt #{currentAttemptData.attempt_number}</p>
-        </div>
-      </div>
-
-      {/* Session Overview */}
-      <Card className="border-green-200 shadow-md">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-green-100/50 border-b border-green-200">
-          <CardTitle className="flex items-center gap-3">
-            <div className="p-2 bg-green-600 rounded-lg">
-              <MessageSquare className="text-white" size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-green-900">Session Overview</h2>
-              <p className="text-sm text-green-700 font-normal mt-1">Interview session details and performance</p>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-semibold text-gray-900">{currentAttemptData.mock_interview.title}</h3>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                <div className="flex items-center gap-1">
-                  <Building2 size={14} />
-                  <span>{currentAttemptData.mock_interview.company_name}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Briefcase size={14} />
-                  <span>{currentAttemptData.mock_interview.position}</span>
-                </div>
-              </div>
-              <Badge variant="outline" className="mt-2">
-                {currentAttemptData.mock_interview.interview_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar size={14} />
-                <span>{formatDate(currentAttemptData.started_at)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Clock size={14} />
-                <span>{currentAttemptData.actual_duration_minutes} minutes</span>
-              </div>
-              {scoreData && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Award size={14} className="text-yellow-600" />
-                  <span className="font-semibold text-gray-900">
-                    <span className={getScoreColor(scoreData)}>
-                      {scoreData.display}
-                    </span>
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-sm">
-                <Badge className={`text-sm ${currentAttemptData.status === 'PROCESSED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {currentAttemptData.status}
-                </Badge>
-              </div>
+        {/* Header */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            <Button 
+              onClick={() => router.push('/dashboard/tools/mock-Interview')} 
+              variant="outline"
+              size="sm"
+              className="self-start bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-slate-50 shadow-sm font-medium"
+            >
+              <ArrowLeft size={16} className="mr-2" />
+              Back to Sessions
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent mb-2">
+                Interview Feedback
+              </h1>
+              <p className="text-slate-600 text-lg font-medium">Attempt #{currentAttemptData.attempt_number}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Processing Status Message */}
-      {currentAttemptData.status !== 'PROCESSED' && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-6 text-center">
-            <div className="text-orange-600 mb-4">
-              <Clock size={48} className="mx-auto mb-4" />
-            </div>
-            <h3 className="text-lg font-semibold text-orange-900 mb-2">Feedback Processing</h3>
-            <p className="text-orange-800 mb-4">
-              Your interview feedback is being processed. This usually takes a few minutes.
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-orange-700 mb-4">
-              <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                Status: {currentAttemptData.status}
-              </Badge>
-              {subscriptionRef.current && (
-                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                  <Bell size={12} className="mr-1" />
-                  Live Monitoring
-                </Badge>
-              )}
-            </div>
-            
-            {subscriptionRef.current ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-center gap-2 text-blue-800 mb-2">
-                  <Bell size={16} className="animate-pulse" />
-                  <span className="font-semibold">Real-time monitoring active</span>
-                </div>
-                <p className="text-sm text-blue-700">
-                  You'll be notified automatically when your feedback is ready. No need to refresh manually!
-                </p>
+        {/* Session Overview */}
+        <Card className="border-green-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-green-50/80 to-emerald-50/80 border-b border-green-200/50 rounded-t-xl">
+            <CardTitle className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl shadow-lg">
+                <MessageSquare className="text-white" size={22} />
               </div>
-            ) : (
-              <Button 
-                onClick={() => window.location.reload()}
-                variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-100"
-              >
-                <RotateCcw size={16} className="mr-2" />
-                Refresh Page
-              </Button>
-            )}
-            
-            <p className="text-xs text-orange-600 mt-3">
-              Feedback usually takes 2-3 minutes to process after completing the interview.
-            </p>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-green-900 to-emerald-800 bg-clip-text text-transparent">
+                  Session Overview
+                </h2>
+                <p className="text-sm text-green-700/80 font-medium mt-1">Interview session details and performance</p>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 lg:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{currentAttemptData.mock_interview.title}</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 rounded-lg border border-slate-200/50">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building2 size={16} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Company</p>
+                      <p className="font-semibold text-slate-900">{currentAttemptData.mock_interview.company_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 rounded-lg border border-slate-200/50">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Briefcase size={16} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Position</p>
+                      <p className="font-semibold text-slate-900">{currentAttemptData.mock_interview.position}</p>
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="outline" className="mt-4 bg-green-50 border-green-200 text-green-800 font-medium px-3 py-1">
+                  {currentAttemptData.mock_interview.interview_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </Badge>
+              </div>
+              <div className="space-y-4">
+                <div className="grid gap-3">
+                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 rounded-lg border border-slate-200/50">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <Calendar size={16} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Date & Time</p>
+                      <p className="font-semibold text-slate-900">{formatDate(currentAttemptData.started_at)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50/80 rounded-lg border border-slate-200/50">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Clock size={16} className="text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Duration</p>
+                      <p className="font-semibold text-slate-900">{currentAttemptData.actual_duration_minutes} minutes</p>
+                    </div>
+                  </div>
+                  {scoreData && (
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200/50">
+                      <div className="p-2 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-lg">
+                        <Award size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Score</p>
+                        <p className={`text-lg font-bold ${getScoreColor(scoreData)}`}>
+                          {scoreData.display}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-center pt-2">
+                  <Badge 
+                    className={`text-sm font-medium px-4 py-2 ${
+                      currentAttemptData.status === 'PROCESSED' 
+                        ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-green-200' 
+                        : 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-200'
+                    }`}
+                  >
+                    {currentAttemptData.status}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Structured Feedback */}
-      {structuredFeedback && (
-        <div className="space-y-6">
-          {/* Feedback Analysis */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-2 bg-gray-700 rounded-lg">
-                  <TrendingUp className="text-white" size={20} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-700 font-normal mt-1">Comprehensive interview assessment</p>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <Tabs defaultValue="strengths" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="strengths" className="text-xs sm:text-sm">Strengths</TabsTrigger>
-                  <TabsTrigger value="weaknesses" className="text-xs sm:text-sm">Weaknesses</TabsTrigger>
-                  <TabsTrigger value="opportunities" className="text-xs sm:text-sm">Opportunities</TabsTrigger>
-                  <TabsTrigger value="threats" className="text-xs sm:text-sm">Threats</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="strengths" className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle className="text-green-600" size={20} />
-                    <h3 className="font-semibold text-green-800 text-lg">What You Did Well</h3>
-                  </div>
-                  <div className="bg-gradient-to-br from-green-50 to-green-100/80 border-l-4 border-green-400 rounded-lg p-6 shadow-sm">
-                    <div className="text-green-900 leading-relaxed space-y-3">
-                      {formatMarkdownText(structuredFeedback["Strengths of the interview"])}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="weaknesses" className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="text-red-600" size={20} />
-                    <h3 className="font-semibold text-red-800 text-lg">Areas for Improvement</h3>
-                  </div>
-                  <div className="bg-gradient-to-br from-red-50 to-red-100/80 border-l-4 border-red-400 rounded-lg p-6 shadow-sm">
-                    <div className="text-red-900 leading-relaxed space-y-3">
-                      {formatMarkdownText(structuredFeedback["Weaknesses of the interview"])}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="opportunities" className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Lightbulb className="text-blue-600" size={20} />
-                    <h3 className="font-semibold text-blue-800 text-lg">Growth Opportunities</h3>
-                  </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100/80 border-l-4 border-blue-400 rounded-lg p-6 shadow-sm">
-                    <div className="text-blue-900 leading-relaxed space-y-3">
-                      {formatMarkdownText(structuredFeedback["Opportunities of the interview"])}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="threats" className="space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="text-orange-600" size={20} />
-                    <h3 className="font-semibold text-orange-800 text-lg">Challenges to Address</h3>
-                  </div>
-                  <div className="bg-gradient-to-br from-orange-50 to-orange-100/80 border-l-4 border-orange-400 rounded-lg p-6 shadow-sm">
-                    <div className="text-orange-900 leading-relaxed space-y-3">
-                      {formatMarkdownText(structuredFeedback["Threats of the interview"])}
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-
-          {/* Improvement Tips */}
-          <Card className="border-purple-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100/50 border-b border-purple-200">
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-2 bg-purple-600 rounded-lg">
-                  <BookOpen className="text-white" size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-purple-900">How to Improve Your Answers</h2>
-                  <p className="text-sm text-purple-700 font-normal mt-1">Detailed guidance for better responses</p>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100/80 border-l-4 border-purple-400 rounded-lg p-6 shadow-sm">
-                <div className="text-purple-900 leading-relaxed space-y-4">
-                  {formatMarkdownText(structuredFeedback["How can questions be answered better"])}
+        {/* Processing Status Message */}
+        {currentAttemptData.status !== 'PROCESSED' && (
+          <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50/80 to-amber-50/80 shadow-xl backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-gradient-to-r from-orange-400 to-amber-500 rounded-full shadow-lg">
+                  <Clock size={48} className="text-white animate-pulse" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Practice Questions */}
-          <Card className="border-emerald-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-200">
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-600 rounded-lg">
-                  <Lightbulb className="text-white" size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-emerald-900">Practice Questions & Model Answers</h2>
-                  <p className="text-sm text-emerald-700 font-normal mt-1">
-                    Additional questions to help you prepare for similar interviews
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-orange-900 to-amber-800 bg-clip-text text-transparent mb-3">
+                Feedback Processing
+              </h3>
+              <p className="text-orange-800 mb-6 text-lg leading-relaxed max-w-md mx-auto">
+                Your interview feedback is being processed. This usually takes a few minutes.
+              </p>
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Badge className="bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200 font-medium px-4 py-2">
+                  Status: {currentAttemptData.status}
+                </Badge>
+                {subscriptionRef.current && (
+                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-200 font-medium px-4 py-2">
+                    <Bell size={12} className="mr-2" />
+                    Live Monitoring
+                  </Badge>
+                )}
+              </div>
+              
+              {subscriptionRef.current ? (
+                <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/50 rounded-xl p-6 mb-6 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-center gap-3 text-blue-800 mb-3">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Bell size={16} className="text-white animate-pulse" />
+                    </div>
+                    <span className="font-bold text-lg">Real-time monitoring active</span>
+                  </div>
+                  <p className="text-blue-700 leading-relaxed">
+                    You'll be notified automatically when your feedback is ready. No need to refresh manually!
                   </p>
                 </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {(() => {
-                  const qaData = structuredFeedback["additional_questions_and_answers"];
-                  const parsedQA = parseWithFallback(qaData);
-                  
-                  // If both main and fallback parsing failed, show clean raw format
-                  if (parsedQA.length === 0 && qaData) {
-                    console.log('🚨 Both parsing methods failed, showing raw format');
-                    return (
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
-                        <h4 className="font-semibold text-emerald-900 mb-4 flex items-center gap-2">
-                          <BookOpen size={16} />
-                          Practice Questions & Model Answers
-                        </h4>
-                        <div className="text-emerald-800 leading-relaxed whitespace-pre-line space-y-4">
-                          {formatMarkdownText(qaData)}
-                        </div>
-                      </div>
-                    );
-                  }
-                  
-                  // Return parsed Q&A as collapsible components
-                  console.log(`🎉 Displaying ${parsedQA.length} Q&A dropdowns`);
-                  return (
-                    <div className="space-y-4">
-                      {parsedQA.map((qa, index) => (
-                        <Collapsible key={index}>
-                          <CollapsibleTrigger
-                            onClick={() => toggleSection(`qa-${index}`)}
-                            className="w-full text-left"
-                          >
-                            <div className="flex items-center justify-between p-5 bg-gradient-to-r from-emerald-50 to-emerald-100/70 border border-emerald-200 rounded-xl hover:from-emerald-100 hover:to-emerald-100 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md">
-                              <div className="flex items-start gap-4">
-                                <div className="flex items-center justify-center w-8 h-8 bg-emerald-600 text-white text-sm font-bold rounded-full shrink-0 mt-0.5">
-                                  {index + 1}
-                                </div>
-                                <span className="font-semibold text-emerald-900 text-left leading-relaxed">
-                                  {qa.question}
-                                </span>
-                              </div>
-                              {expandedSections[`qa-${index}`] ? 
-                                <ChevronUp className="text-emerald-600 shrink-0" size={20} /> : 
-                                <ChevronDown className="text-emerald-600 shrink-0" size={20} />
-                              }
-                            </div>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="mt-3 p-6 bg-gradient-to-br from-gray-50 to-gray-100/80 border border-gray-200 rounded-xl shadow-sm">
-                              <div className="flex items-center gap-2 mb-4">
-                                <div className="p-1.5 bg-yellow-500 rounded-lg">
-                                  <Star size={14} className="text-white" />
-                                </div>
-                                <h4 className="font-bold text-gray-900 text-lg">Model Answer</h4>
-                              </div>
-                              <div className="text-gray-800 leading-relaxed bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-                                <div className="prose prose-sm max-w-none">
-                                  {qa.response}
-                                </div>
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
+              ) : (
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-100 font-medium shadow-sm px-6 py-3"
+                >
+                  <RotateCcw size={16} className="mr-2" />
+                  Refresh Page
+                </Button>
+              )}
+              
+              <p className="text-sm text-orange-600/80 mt-4 font-medium">
+                Feedback usually takes 2-3 minutes to process after completing the interview.
+              </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Structured Feedback */}
+        {structuredFeedback && (
+          <div className="space-y-8">
+            {/* Feedback Analysis */}
+            <Card className="border-slate-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-slate-50/80 to-gray-50/80 border-b border-slate-200/50 rounded-t-xl">
+                <CardTitle className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-r from-slate-700 to-gray-700 rounded-xl shadow-lg">
+                    <TrendingUp className="text-white" size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-gray-800 bg-clip-text text-transparent">
+                      Feedback Analysis
+                    </h2>
+                    <p className="text-sm text-slate-700/80 font-medium mt-1">Comprehensive interview assessment</p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 lg:p-8">
+                <Tabs defaultValue="strengths" className="space-y-6">
+                  <TabsList className="grid w-full grid-cols-4 bg-slate-100/80 backdrop-blur-sm rounded-xl p-1 shadow-sm">
+                    <TabsTrigger 
+                      value="strengths" 
+                      className="text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                    >
+                      Strengths
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="weaknesses" 
+                      className="text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                    >
+                      Weaknesses
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="opportunities" 
+                      className="text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                    >
+                      Opportunities
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="threats" 
+                      className="text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                    >
+                      Threats
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="strengths" className="space-y-4">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl shadow-lg">
+                        <CheckCircle className="text-white" size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-green-800 to-emerald-700 bg-clip-text text-transparent">
+                        What You Did Well
+                      </h3>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50/90 to-emerald-50/90 border border-green-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                      <div className="text-green-900 leading-relaxed space-y-4 text-base">
+                        {formatMarkdownText(structuredFeedback["Strengths of the interview"])}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="weaknesses" className="space-y-4">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-gradient-to-r from-red-600 to-rose-600 rounded-xl shadow-lg">
+                        <AlertTriangle className="text-white" size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-red-800 to-rose-700 bg-clip-text text-transparent">
+                        Areas for Improvement
+                      </h3>
+                    </div>
+                    <div className="bg-gradient-to-br from-red-50/90 to-rose-50/90 border border-red-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                      <div className="text-red-900 leading-relaxed space-y-4 text-base">
+                        {formatMarkdownText(structuredFeedback["Weaknesses of the interview"])}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="opportunities" className="space-y-4">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+                        <Lightbulb className="text-white" size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">
+                        Growth Opportunities
+                      </h3>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50/90 to-indigo-50/90 border border-blue-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                      <div className="text-blue-900 leading-relaxed space-y-4 text-base">
+                        {formatMarkdownText(structuredFeedback["Opportunities of the interview"])}
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="threats" className="space-y-4">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2.5 bg-gradient-to-r from-orange-600 to-amber-600 rounded-xl shadow-lg">
+                        <Target className="text-white" size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-orange-800 to-amber-700 bg-clip-text text-transparent">
+                        Challenges to Address
+                      </h3>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-50/90 to-amber-50/90 border border-orange-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                      <div className="text-orange-900 leading-relaxed space-y-4 text-base">
+                        {formatMarkdownText(structuredFeedback["Threats of the interview"])}
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Improvement Tips */}
+            <Card className="border-purple-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-purple-50/80 to-violet-50/80 border-b border-purple-200/50 rounded-t-xl">
+                <CardTitle className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-r from-purple-600 to-violet-600 rounded-xl shadow-lg">
+                    <BookOpen className="text-white" size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-900 to-violet-800 bg-clip-text text-transparent">
+                      How to Improve Your Answers
+                    </h2>
+                    <p className="text-sm text-purple-700/80 font-medium mt-1">Detailed guidance for better responses</p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 lg:p-8">
+                <div className="bg-gradient-to-br from-purple-50/90 to-violet-50/90 border border-purple-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                  <div className="text-purple-900 leading-relaxed space-y-4 text-base">
+                    {formatMarkdownText(structuredFeedback["How can questions be answered better"])}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Practice Questions */}
+            <Card className="border-emerald-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border-b border-emerald-200/50 rounded-t-xl">
+                <CardTitle className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl shadow-lg">
+                    <Lightbulb className="text-white" size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-900 to-teal-800 bg-clip-text text-transparent">
+                      Practice Questions & Model Answers
+                    </h2>
+                    <p className="text-sm text-emerald-700/80 font-medium mt-1">
+                      Additional questions to help you prepare for similar interviews
+                    </p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 lg:p-8">
+                <div className="space-y-5">
+                  {(() => {
+                    const qaData = structuredFeedback["additional_questions_and_answers"];
+                    const parsedQA = parseWithFallback(qaData);
+                    
+                    // If both main and fallback parsing failed, show clean raw format
+                    if (parsedQA.length === 0 && qaData) {
+                      console.log('🚨 Both parsing methods failed, showing raw format');
+                      
+                      // Clean up the raw data before displaying
+                      const cleanedQAData = qaData
+                        .replace(/\*\*Question\s*\d*:?\s*\*\*/gi, '') // Remove **Question X:**
+                        .replace(/\*\*Appropriate Response:\s*\*\*/gi, 'Answer:') // Replace response marker
+                        .replace(/\*{3,}/g, '') // Remove 3+ consecutive asterisks
+                        .replace(/^\*\*|\*\*$/gm, '') // Remove isolated ** at line start/end
+                        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up excessive line breaks
+                        .trim();
+                      
+                      return (
+                        <div className="bg-gradient-to-br from-emerald-50/90 to-teal-50/90 border border-emerald-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                          <h4 className="font-bold text-emerald-900 mb-6 flex items-center gap-3 text-lg">
+                            <div className="p-2 bg-emerald-600 rounded-lg">
+                              <BookOpen size={16} className="text-white" />
+                            </div>
+                            Practice Questions & Model Answers
+                          </h4>
+                          <div className="text-emerald-800 leading-relaxed whitespace-pre-line space-y-4 text-base">
+                            {formatMarkdownText(cleanedQAData)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Return parsed Q&A as collapsible components
+                    console.log(`🎉 Displaying ${parsedQA.length} Q&A dropdowns`);
+                    return (
+                      <div className="space-y-5">
+                        {parsedQA.map((qa, index) => (
+                          <Collapsible key={index}>
+                            <CollapsibleTrigger
+                              onClick={() => toggleSection(`qa-${index}`)}
+                              className="w-full text-left"
+                            >
+                              <div className="flex items-center justify-between p-6 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 border border-emerald-200/50 rounded-xl hover:from-emerald-100/80 hover:to-teal-100/80 transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg backdrop-blur-sm">
+                                <div className="flex items-start gap-4">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold rounded-full shrink-0 mt-1 shadow-md">
+                                    {index + 1}
+                                  </div>
+                                  <span className="font-semibold text-emerald-900 text-left leading-relaxed text-base">
+                                    {qa.question.replace(/^\*\*|\*\*$/g, '').trim()}
+                                  </span>
+                                </div>
+                                {expandedSections[`qa-${index}`] ? 
+                                  <ChevronUp className="text-emerald-600 shrink-0" size={22} /> : 
+                                  <ChevronDown className="text-emerald-600 shrink-0" size={22} />
+                                }
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="mt-4 p-6 bg-gradient-to-br from-slate-50/90 to-gray-50/90 border border-slate-200/50 rounded-xl shadow-lg backdrop-blur-sm">
+                                <div className="flex items-center gap-3 mb-5">
+                                  <div className="p-2.5 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-xl shadow-md">
+                                    <Star size={16} className="text-white" />
+                                  </div>
+                                  <h4 className="font-bold text-slate-900 text-lg">Model Answer</h4>
+                                </div>
+                                <div className="text-slate-800 leading-relaxed bg-white/80 p-6 rounded-xl border border-slate-200/50 shadow-sm backdrop-blur-sm">
+                                  <div className="prose prose-sm max-w-none text-base">
+                                    {qa.response.replace(/^\*\*|\*\*$/g, '').replace(/\*{3,}/g, '').trim()}
+                                  </div>
+                                </div>
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
         </div>
       )}
 
       {/* Note: Legacy feedback format removed - feedback always comes in structured format */}
 
-      {/* Transcript */}
-      {currentAttemptData.transcript && currentAttemptData.status === 'PROCESSED' && (
-        <Card className="border-gray-200 shadow-md">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
-            <CardTitle className="flex items-center gap-3">
-              <div className="p-2 bg-gray-600 rounded-lg">
-                <MessageSquare className="text-white" size={20} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Interview Transcript</h2>
-                <p className="text-sm text-gray-700 font-normal mt-1">Complete conversation record</p>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100/80 border border-gray-200 rounded-xl p-6 max-h-96 overflow-y-auto shadow-sm">
-              {typeof currentAttemptData.transcript === 'string' ? (
-                <div className="text-gray-900 whitespace-pre-wrap text-sm leading-relaxed font-mono">
-                  {currentAttemptData.transcript}
+        {/* Transcript */}
+        {currentAttemptData.transcript && currentAttemptData.status === 'PROCESSED' && (
+          <Card className="border-slate-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-slate-50/80 to-gray-50/80 border-b border-slate-200/50 rounded-t-xl">
+              <CardTitle className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-slate-600 to-gray-600 rounded-xl shadow-lg">
+                  <MessageSquare className="text-white" size={22} />
                 </div>
-              ) : (
-                <pre className="text-sm text-gray-900 font-mono leading-relaxed">
-                  {JSON.stringify(currentAttemptData.transcript, null, 2)}
-                </pre>
-              )}
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-gray-800 bg-clip-text text-transparent">
+                    Interview Transcript
+                  </h2>
+                  <p className="text-sm text-slate-700/80 font-medium mt-1">Complete conversation record</p>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 lg:p-8">
+              <div className="bg-gradient-to-br from-slate-50/90 to-gray-50/90 border border-slate-200/50 rounded-xl p-8 max-h-96 overflow-y-auto shadow-lg backdrop-blur-sm">
+                {typeof currentAttemptData.transcript === 'string' ? (
+                  <div className="text-slate-900 whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                    {currentAttemptData.transcript}
+                  </div>
+                ) : (
+                  <pre className="text-sm text-slate-900 font-mono leading-relaxed">
+                    {JSON.stringify(currentAttemptData.transcript, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Actions */}
+        <Card className="border-slate-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button 
+                onClick={() => router.push('/dashboard/tools/mock-Interview')}
+                variant="outline"
+                className="bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-slate-50 shadow-md font-medium px-6 py-3 text-base w-full sm:w-auto"
+              >
+                <ArrowLeft size={18} className="mr-2" />
+                Back to Sessions
+              </Button>
+              <Button 
+                onClick={() => router.push('/dashboard/tools/mock-Interview')}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg font-medium px-8 py-3 text-base w-full sm:w-auto"
+              >
+                Practice Again
+              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Actions */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap gap-4">
-            <Button 
-              onClick={() => router.push('/dashboard/tools/mock-Interview')}
-              variant="outline"
-            >
-              <ArrowLeft size={16} className="mr-2" />
-              Back to Sessions
-            </Button>
-            <Button 
-              onClick={() => router.push('/dashboard/tools/mock-Interview')}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              Practice Again
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 };
