@@ -90,16 +90,41 @@ const InterviewSessionsContent = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   
+  // Single auth session for the entire component
+  const [authSession, setAuthSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
   const supabase = createClient();
   const SESSIONS_PER_PAGE = 10;
+
+  // Initialize auth session once
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Auth initialization error:', error);
+          setError('Authentication failed');
+        } else {
+          setAuthSession(session);
+        }
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+        setError('Authentication failed');
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
+  }, [supabase]);
 
   // Fetch user limits from backend
   const fetchUserLimits = useCallback(async () => {
     try {
       setLimitsLoading(true);
       
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session?.access_token) {
+      if (!authSession?.access_token) {
         console.log('Authentication required for limits');
         return;
       }
@@ -113,7 +138,7 @@ const InterviewSessionsContent = () => {
       const response = await fetch(`${backendUrl}/mockInterview/user-limits`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${authSession.access_token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -131,7 +156,7 @@ const InterviewSessionsContent = () => {
     } finally {
       setLimitsLoading(false);
     }
-  }, [supabase]);
+  }, [authSession]);
 
   // Fetch sessions with pagination
   const fetchInterviewData = useCallback(async (cursor: string | null = null, isRefresh: boolean = false) => {
@@ -144,9 +169,8 @@ const InterviewSessionsContent = () => {
         }
         setError(null);
 
-        // Get user session for authentication
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        if (authError || !session?.access_token) {
+        // Check authentication
+        if (!authSession?.access_token) {
           setError('Authentication required');
           return;
         }
@@ -174,7 +198,7 @@ const InterviewSessionsContent = () => {
         const response = await fetch(url, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${authSession.access_token}`,
             'Content-Type': 'application/json'
           }
         });
@@ -259,7 +283,7 @@ const InterviewSessionsContent = () => {
         setIsLoading(false);
         setLoadingMore(false);
       }
-  }, [supabase]);
+  }, [authSession]);
 
   // Load more function for cursor-based pagination
   const loadMore = useCallback(() => {
@@ -284,18 +308,19 @@ const InterviewSessionsContent = () => {
   }, [fetchInterviewData]);
 
   useEffect(() => {
-    fetchInterviewData(null); // Load first batch of sessions
-    fetchUserLimits();
-  }, []);
+    // Only fetch data after auth is loaded
+    if (!authLoading && authSession) {
+      fetchInterviewData(null); // Load first batch of sessions
+      fetchUserLimits();
+    }
+  }, [authLoading, authSession, fetchInterviewData, fetchUserLimits]);
 
   // Targeted status checking for preparing sessions only
   const checkPreparingSessionsStatus = useCallback(async () => {
     const preparingSessions = sessions.filter(s => s.status === 'preparing');
-    if (preparingSessions.length === 0) return;
+    if (preparingSessions.length === 0 || !authSession?.access_token) return;
 
     try {
-      const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
-      if (authError || !authSession?.access_token) return;
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) return;
@@ -371,7 +396,7 @@ const InterviewSessionsContent = () => {
     } catch (error) {
       console.log('Error checking preparing sessions status:', error);
     }
-  }, [sessions, supabase]);
+  }, [sessions, authSession]);
 
   // Fallback periodic checking for status updates (less aggressive)
   useEffect(() => {
@@ -400,8 +425,7 @@ const InterviewSessionsContent = () => {
 
     const setupRealtimeSubscription = async () => {
       try {
-        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
-        if (authError || !authSession?.user?.id) {
+        if (!authSession?.user?.id) {
           console.log('🔔 No authenticated user for real-time subscription');
           return;
         }
@@ -504,13 +528,12 @@ const InterviewSessionsContent = () => {
         supabase.removeChannel(channel);
       }
     };
-  }, [supabase]);
+  }, [authSession, supabase]);
 
   // Function to fetch attempts for sessions that don't have them loaded
   const ensureAttemptsForStats = async (sessionsToUpdate: InterviewSession[]) => {
     try {
-      const { data: { session }, error: authError } = await supabase.auth.getSession();
-      if (authError || !session?.access_token) return sessionsToUpdate;
+      if (!authSession?.access_token) return sessionsToUpdate;
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) return sessionsToUpdate;
@@ -533,7 +556,7 @@ const InterviewSessionsContent = () => {
             const response = await fetch(`${backendUrl}/mockInterview/session/${sessionItem.id}/attempts`, {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${session.access_token}`,
+                'Authorization': `Bearer ${authSession.access_token}`,
                 'Content-Type': 'application/json'
               }
             });
@@ -769,9 +792,8 @@ const InterviewSessionsContent = () => {
     setIsNewSessionModalOpen(false);
     
     try {
-      // Get user session for authentication
-      const { data: authData, error: authError } = await supabase.auth.getSession();
-      if (authError || !authData?.session?.access_token) {
+      // Check authentication
+      if (!authSession?.access_token) {
         console.error('Authentication required');
         setIsNewSessionModalOpen(true); // Reopen modal
         return;
@@ -805,7 +827,7 @@ const InterviewSessionsContent = () => {
       const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${authData.session.access_token}`,
+          'Authorization': `Bearer ${authSession.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
@@ -828,16 +850,16 @@ const InterviewSessionsContent = () => {
       const result = await response.json();
       console.log('✅ Session created successfully:', result);
 
-      // Refresh sessions data
-      refreshSessions();
+      // Note: No manual refresh needed - real-time subscription will automatically
+      // add the new session to the list when it's created
       
     } catch (error) {
       console.error('❌ Error creating session:', error);
       setIsNewSessionModalOpen(true); // Reopen modal for retry
     }
-  }, [supabase, refreshSessions]);
+  }, [authSession, refreshSessions]);
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-6">
         <div className="max-w-7xl mx-auto">
@@ -888,18 +910,22 @@ const InterviewSessionsContent = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Interview Sessions</h1>
-            <p className="text-gray-600">Practice and track your interview performance</p>
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent mb-3">
+                Interview Sessions
+              </h1>
+              <p className="text-slate-600 text-lg font-medium">Practice and track your interview performance</p>
+            </div>
+            <Button
+              onClick={() => setIsNewSessionModalOpen(true)}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-300 font-semibold px-6 py-3 text-base"
+            >
+              <Plus size={18} className="mr-2" />
+              New Session
+            </Button>
           </div>
-          <Button
-            onClick={() => setIsNewSessionModalOpen(true)}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
-          >
-            <Plus size={16} className="mr-2" />
-            New Session
-          </Button>
         </div>
 
         {/* Stats Cards */}

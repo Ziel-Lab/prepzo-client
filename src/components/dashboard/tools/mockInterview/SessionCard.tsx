@@ -56,6 +56,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   const [showAttempts, setShowAttempts] = useState(false);
   const [attempts, setAttempts] = useState<MockInterviewAttempt[]>(session.attempts || []);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
+  const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,9 +76,9 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       case 'completed':
         return `Session Complete (${attemptCount}/3)`;
       case 'ready':
-        return attemptCount === 0 ? 'Ready to Start' : 'Ready to Continue';
+        return attemptCount === 0 ? 'Ready to Begin' : 'Ready to Continue';
       case 'preparing':
-        return 'Preparing...';
+        return 'Setting up...';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -148,17 +149,24 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
     return 'text-red-600';
   };
 
-  const getAttemptStatusColor = (status: string) => {
+  // User-friendly status labels and colors
+  const getAttemptStatusDisplay = (status: string) => {
     switch (status.toLowerCase()) {
       case 'processed':
-        return 'bg-green-100 text-green-700';
+        return { label: 'Feedback Ready', color: 'bg-green-100 text-green-700 border-green-200' };
       case 'completed':
-        return 'bg-blue-100 text-blue-700';
+        return { label: 'Analyzing...', color: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'active':
-        return 'bg-orange-100 text-orange-700';
+        return { label: 'Interview in Progress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+      case 'pending':
+        return { label: 'Ready to Begin', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
       default:
-        return 'bg-gray-100 text-gray-700';
+        return { label: status.charAt(0).toUpperCase() + status.slice(1), color: 'bg-gray-100 text-gray-700 border-gray-200' };
     }
+  };
+
+  const getAttemptStatusColor = (status: string) => {
+    return getAttemptStatusDisplay(status).color;
   };
 
   const formatDate = (date: Date) => {
@@ -179,6 +187,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       .join(' ');
   };
 
+
+
   const extractDomain = (url: string) => {
     try {
       const domain = new URL(url).hostname;
@@ -188,7 +198,102 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
     }
   };
 
+  // Real-time subscription for attempt updates
+  useEffect(() => {
+    let channel: any = null;
 
+    const setupAttemptRealtimeSubscription = async () => {
+      try {
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+        if (authError || !authSession?.user?.id) {
+          console.log('🔔 No authenticated user for attempt real-time subscription');
+          return;
+        }
+
+        console.log('🔔 Setting up real-time subscription for attempts in session:', session.id);
+
+        // Subscribe to changes in mock_interview_attempts table for this session
+        channel = supabase
+          .channel(`attempt_updates_${session.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*', // Listen to INSERT, UPDATE, DELETE
+              schema: 'public',
+              table: 'mock_interview_attempts',
+              filter: `mock_interview_id=eq.${session.id}`
+            },
+            (payload) => {
+              const newData = payload.new as MockInterviewAttempt;
+              const oldData = payload.old as MockInterviewAttempt;
+              
+              console.log('🔔 Real-time attempt update received:', {
+                eventType: payload.eventType,
+                attemptId: newData?.id,
+                oldStatus: oldData?.status,
+                newStatus: newData?.status,
+                sessionId: session.id,
+                timestamp: new Date().toISOString()
+              });
+              
+              // Handle INSERT events (new attempts created)
+              if (payload.eventType === 'INSERT' && newData) {
+                console.log('🎉 New attempt created via real-time, adding to list');
+                setAttempts(prevAttempts => {
+                  // Check if attempt already exists to avoid duplicates
+                  const exists = prevAttempts.some(attempt => attempt.id === newData.id);
+                  if (exists) return prevAttempts;
+                  
+                  // Add new attempt and sort by attempt_number
+                  return [...prevAttempts, newData].sort((a, b) => a.attempt_number - b.attempt_number);
+                });
+              }
+              
+              // Handle UPDATE events (status changes, feedback ready, etc.)
+              else if (payload.eventType === 'UPDATE' && newData && oldData) {
+                console.log('🔔 Attempt updated via real-time, updating display');
+                
+                setAttempts(prevAttempts => {
+                  return prevAttempts.map(attempt => {
+                    if (attempt.id === newData.id) {
+                      console.log('🔄 Updating attempt:', attempt.id, 'from', oldData.status, 'to', newData.status);
+                      return { ...attempt, ...newData };
+                    }
+                    return attempt;
+                  });
+                });
+
+                // Show notification when feedback becomes ready
+                if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
+                  console.log('🎉 Feedback is now ready for attempt:', newData.id);
+                  // You can add a toast notification here if you have a toast system
+                }
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('🔔 Attempt real-time subscription status:', status);
+          });
+
+        setRealtimeChannel(channel);
+
+      } catch (error) {
+        console.error('❌ Error setting up attempt real-time subscription:', error);
+      }
+    };
+
+    // Only set up subscription if we have attempts or are showing attempts
+    if (attempts.length > 0 || showAttempts) {
+      setupAttemptRealtimeSubscription();
+    }
+
+    return () => {
+      console.log('🔔 Cleaning up attempt real-time subscription for session:', session.id);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [supabase, session.id, showAttempts]); // Re-run when showAttempts changes
 
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
@@ -296,8 +401,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 border border-gray-100 hover:border-green-200 animate-fade-in">
-      <CardContent className="p-6">
+    <Card className="hover:shadow-xl transition-all duration-300 border border-gray-200/50 hover:border-green-300/50 animate-fade-in bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg">
+      <CardContent className="p-6 bg-gradient-to-br from-white to-gray-50/30 rounded-lg">
         {/* Main Session Info */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
@@ -378,10 +483,10 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               <Button
                 size="sm"
                 onClick={handleStartInterview}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg font-medium"
               >
                 <Play size={14} className="mr-1" />
-                Begin Interview ({getTotalAttemptsCount() + 1}/3)
+                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'} ({getTotalAttemptsCount() + 1}/3)
               </Button>
             )}
 
@@ -389,19 +494,19 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               <Button
                 size="sm"
                 disabled
-                className="bg-gray-400 text-white cursor-not-allowed"
+                className="bg-gradient-to-r from-orange-400 to-amber-400 text-white cursor-not-allowed shadow-sm font-medium"
               >
-                <Clock size={14} className="mr-1" />
-                Preparing...
+                <Clock size={14} className="mr-1 animate-pulse" />
+                Setting up...
               </Button>
             )}
 
             {/* Show completion message when 3 attempts reached */}
             {session.status === 'completed' && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-full">
+              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-full shadow-sm">
                 <Award size={14} className="text-green-600" />
-                <span className="text-sm font-medium text-green-700">
-                  All Attempts Complete ({getTotalAttemptsCount()}/3)
+                <span className="text-sm font-bold text-green-700">
+                  Session Complete ({getTotalAttemptsCount()}/3)
                 </span>
               </div>
             )}
@@ -422,18 +527,33 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                   No attempts yet. Start your first interview!
                 </div>
               ) : (
-                attempts.map((attempt) => (
-                  <div 
-                    key={attempt.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm font-medium text-gray-900">
-                        Attempt #{attempt.attempt_number}
+                attempts.map((attempt) => {
+                  return (
+                    <div 
+                      key={attempt.id}
+                      className="p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-full">
+                            {attempt.attempt_number}
+                          </div>
+                          <div className="text-sm font-bold text-gray-900">
+                            Attempt #{attempt.attempt_number}
+                          </div>
+                          <Badge className={`text-xs ${getAttemptStatusColor(attempt.status)} font-medium px-3 py-1`}>
+                            {getAttemptStatusDisplay(attempt.status).label}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(attempt.created_at).toLocaleDateString()}
+                        </div>
                       </div>
-                      <Badge className={`text-xs ${getAttemptStatusColor(attempt.status)}`}>
-                        {attempt.status}
-                      </Badge>
+
+                      {/* Score and Actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
                       {(() => {
                         let scoreDisplay = null;
                         let scoreNumeric = 0;
@@ -456,34 +576,39 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                           }
                         }
                         
-                        return scoreDisplay && (
-                          <div className="flex items-center gap-1">
-                            <Award size={12} className={getScoreColor(scoreNumeric)} />
-                            <span className={`text-sm font-medium ${getScoreColor(scoreNumeric)}`}>
-                              {scoreDisplay}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-xs text-gray-500">
-                        {new Date(attempt.created_at).toLocaleDateString()}
+                          return scoreDisplay && (
+                            <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200">
+                              <Award size={14} className={getScoreColor(scoreNumeric)} />
+                              <span className={`text-sm font-bold ${getScoreColor(scoreNumeric)}`}>
+                                {scoreDisplay}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {attempt.status === 'PROCESSED' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewFeedback(attempt.id)}
+                              className="text-xs px-3 py-2 h-8 bg-white hover:bg-green-50 border-green-200 text-green-700 hover:text-green-800 font-medium"
+                            >
+                              <Eye size={12} className="mr-1" />
+                              View Feedback
+                            </Button>
+                          )}
+                          {attempt.status === 'completed' && (
+                            <div className="flex items-center gap-2 text-xs text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">
+                              <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>
+                              <span>Processing...</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {attempt.status === 'PROCESSED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewFeedback(attempt.id)}
-                          className="text-xs px-2 py-1 h-7"
-                        >
-                          <Eye size={12} className="mr-1" />
-                          View Feedback
-                        </Button>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
