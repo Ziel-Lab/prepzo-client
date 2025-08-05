@@ -160,23 +160,23 @@ const Navbar = () => {
 
           <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group whitespace-nowrap">
             <span>Use Cases</span>
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+            {/* <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span> */}
           </Link>
           <Link href="/blogs" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Blog</span>
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+            {/* <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span> */}
           </Link>
           <Link href="/universities" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>For Universities</span>
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+            {/* <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span> */}
           </Link>
           <Link href="/#pricing" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Pricing</span>
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+            {/* <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span> */}
           </Link>
           <Link href="/contact" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Contact</span>
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span>
+            {/* <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-prepzo transition-all duration-300 group-hover:w-full"></span> */}
           </Link>
           {/* <Link href="https://www.prepzo.ai/" target="_blank" className="text-foreground/80 hover:text-prepzo transition-all duration-300 hover:scale-105 relative group">
             <span>Legacy Prepzo</span>
@@ -205,47 +205,53 @@ const Navbar = () => {
 
       {/* Mobile Navigation */}
       {isMenuOpen && (
-        <div className="md:hidden absolute w-full bg-background border-b border-border animate-fade-in">
-          <div className="container flex flex-col py-4 space-y-4">
+        <div className="md:hidden fixed top-[72px] left-0 right-0 h-[calc(100vh-72px)] bg-background border-b border-border animate-fade-in overflow-y-auto">
+          <div className="container flex flex-col py-6 space-y-6">
             {/* Mobile Features Section */}
-            <div className="space-y-2">
-              <div className="text-foreground/60 text-sm font-medium px-3">Features</div>
+            <div className="space-y-3">
+              <div className="text-foreground/60 font-medium px-3">Features</div>
               {featuresMenuItems.map((item) => {
                 const IconComponent = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-3 text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2"
+                    className="flex items-center gap-4 text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20"
                     onClick={toggleMenu}
                   >
-                    <div className="bg-prepzo/10 p-1.5 rounded">
-                      <IconComponent className="h-4 w-4 text-prepzo" />
+                    <div className="bg-prepzo/10 p-2 rounded-lg">
+                      <IconComponent className="h-5 w-5 text-prepzo" />
                     </div>
-                    <span className="text-sm">{item.title}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.title}</span>
+                      <span className="text-sm text-foreground/60">{item.description}</span>
+                    </div>
                   </Link>
                 );
               })}
             </div>
             
-            <div className="border-t border-border pt-4 space-y-4">
-              <Link href="/use-cases" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+            <div className="border-t border-border pt-6 space-y-2">
+              <Link href="/use-cases" className="block text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20" onClick={toggleMenu}>
                 Use Cases
               </Link>
-              <Link href="/blogs" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              <Link href="/blogs" className="block text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20" onClick={toggleMenu}>
                 Blogs
               </Link>
-              <Link href="/#pricing" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              <Link href="/universities" className="block text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20" onClick={toggleMenu}>
+                For Universities
+              </Link>
+              <Link href="/#pricing" className="block text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20" onClick={toggleMenu}>
                 Pricing
               </Link>
-              <Link href="/contact" className="text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-300 py-2 px-3 rounded-md hover:translate-x-2" onClick={toggleMenu}>
+              <Link href="/contact" className="block text-foreground/80 hover:text-prepzo hover:bg-prepzo/10 transition-all duration-200 py-3 px-4 rounded-lg active:bg-prepzo/20" onClick={toggleMenu}>
                 Contact
               </Link>
             </div>
             
-            <div className="border-t border-border pt-4">
+            <div className="border-t border-border pt-6 px-4">
               <Link href={isAuthenticated ? "/dashboard" : "/auth/sign-up"} className="w-full" onClick={toggleMenu}>
-                <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full">
+                <Button className="bg-prepzo hover:bg-prepzo-light text-white w-full py-6 text-lg font-medium rounded-lg">
                   {isAuthenticated ? "Dashboard" : "Sign Up"}
                 </Button>
               </Link>
