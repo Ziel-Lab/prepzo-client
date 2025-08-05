@@ -35,8 +35,7 @@ class MockInterviewErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error) {
-    console.error("Mock Interview error (silently handled):", error);
-    // Don't show any error UI, just log and continue
+    // Silent error handling - don't show any error UI, just continue
   }
 
   render() {
@@ -68,158 +67,204 @@ const RpcHandler: React.FC<{
   const { toast } = useToast();
   const [isRpcRegistered, setIsRpcRegistered] = useState(false);
 
-  // Helper functions following the exact specification
-  const showInterviewEndMessage = useCallback((reason: string) => {
-    // Show a user-friendly message about why the interview ended
-    const messages: { [key: string]: string } = {
-      'User requested to end': 'Interview ended as requested.',
-      'Interview completed successfully': 'Interview completed! Generating your feedback...',
-      'timeout - session duration limit reached': 'Interview time limit reached.'
-    };
-    
-    const message = messages[reason] || 'Interview has ended.';
-    
-    console.log('📢 Showing interview end message:', message);
-    
-    // Show this in your UI (toast, modal, etc.)
+  // Handler functions for different end reasons
+  const handleAgentDisconnected = useCallback(async (payload: any) => {
     toast({
-      title: "Interview Ended",
-      description: message,
-      duration: 5000,
+      title: "AI Interviewer Disconnected",
+      description: "The AI interviewer has left the session. Your responses have been saved.",
+      duration: 8000,
     });
+    
+    setTimeout(() => {
+      window.location.href = `/dashboard/tools/mock-Interview`;
+    }, 3000);
   }, [toast]);
 
-  const cleanupInterview = useCallback(() => {
-    // Stop recording, cleanup local streams, etc.
-    console.log('🧹 Cleaning up interview...');
+  const handleTimeout = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Time Limit Reached",
+      description: "The interview has ended due to the 12-minute time limit.",
+      duration: 8000,
+    });
     
+    setTimeout(() => {
+      window.location.href = `/dashboard/tools/mock-Interview`;
+    }, 3000);
+  }, [toast]);
+
+  const handleConnectionLost = useCallback(async (payload: any) => {
+    toast({
+      title: "Connection Lost",
+      description: "The interview ended due to connection issues. You can start a new attempt.",
+      duration: 10000,
+    });
+    
+    setTimeout(() => {
+      window.location.href = `/dashboard/tools/mock-Interview`;
+    }, 4000);
+  }, [toast]);
+
+  const handleEmergency = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Session Error",
+      description: "An unexpected error occurred. Please try starting a new interview.",
+      duration: 10000,
+    });
+    
+    setTimeout(() => {
+      window.location.href = `/dashboard/tools/mock-Interview`;
+    }, 4000);
+  }, [toast]);
+
+  const handleNormalCompletion = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Completed",
+      description: "Your interview has been completed successfully. Generating feedback...",
+      duration: 5000,
+    });
+    
+    setTimeout(() => {
+      window.location.href = `/dashboard/tools/mock-Interview`;
+    }, 2000);
+  }, [toast]);
+
+  const cleanupInterview = useCallback(async () => {
     if (room?.localParticipant) {
-      // Stop audio track if available
       const audioTrack = room.localParticipant.audioTrackPublications.values().next().value?.track;
       if (audioTrack) {
         audioTrack.stop();
       }
       
-      // Stop video track if available  
       const videoTrack = room.localParticipant.videoTrackPublications.values().next().value?.track;
       if (videoTrack) {
         videoTrack.stop();
       }
     }
-    
-    // Any other cleanup needed
   }, [room]);
 
-  const redirectToResults = useCallback((sessionId: string, attemptId: string) => {
-    // Redirect to results/feedback page
-    console.log(`🔀 Redirecting to results: /dashboard/tools/mock-Interview`);
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 2000); // Give 2 seconds for user to see the message
-  }, []);
-
-
-
-  // Test function for manually triggering the RPC handler
-  const testRPC = useCallback(() => {
-    if (!room?.localParticipant) {
-      console.error('Room or participant not available for testing');
-      return;
-    }
-
-    const testPayload = {
-      payload: JSON.stringify({
-        reason: "Test end",
-        timestamp: new Date().toISOString(),
-        session_id: "test-session",
-        attempt_id: "test-attempt"
-      })
-    };
-    
-    console.log('Testing RPC with payload:', testPayload);
-    
-    try {
-      // Manually call your RPC handler for testing
-      const handler = (room.localParticipant as any)._rpcMethods?.get?.('forceEndInterview') ||
-                     (room.localParticipant as any).registeredRpcMethods?.['forceEndInterview'];
-      
-      if (handler) {
-        const response = handler(testPayload);
-        console.log('Test RPC response:', response);
-      } else {
-        console.error('RPC method not found');
-        console.log('Available methods:', Object.keys((room.localParticipant as any).registeredRpcMethods || {}));
-      }
-    } catch (error) {
-      console.error('Error testing RPC:', error);
-    }
-  }, [room]);
-
-  // Make test function globally accessible
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).testRPC = testRPC;
-      console.log('Test function available: window.testRPC()');
-    }
-    
-    return () => {
-      if (typeof window !== 'undefined') {
-        delete (window as any).testRPC;
-      }
-    };
-  }, [testRPC]);
-
-  // Register RPC method when room and participant are available
-  useEffect(() => {
-    if (room && localParticipant?.localParticipant && room.state === 'connected' && !isRpcRegistered) {
-      console.log('🔧 Registering RPC method forceEndInterview...');
-      
+  const disconnectRoom = useCallback(async () => {
+    if (room && room.state === 'connected') {
       try {
-        // Register the RPC method BEFORE connecting to the room
-        localParticipant.localParticipant.registerRpcMethod('forceEndInterview', async (data: any) => {
-          console.log('Received forceEndInterview RPC:', data);
-          
-          try {
-            const payload = JSON.parse(data.payload);
-            const { reason, timestamp, session_id, attempt_id } = payload;
-            
-            console.log(`Interview ending: ${reason} at ${timestamp}`);
-            
-            // Show user-friendly message
-            showInterviewEndMessage(reason);
-            
-            // Cleanup and redirect
-            cleanupInterview();
-            redirectToResults(session_id, attempt_id);
-            
-            // Return success response to agent
-            return 'received';
-            
-          } catch (error) {
-            console.error('Error handling forceEndInterview RPC:', error);
-            return 'error';
-          }
-        });
-        
-        setIsRpcRegistered(true);
-        console.log('✅ RPC method forceEndInterview registered successfully');
-        
+        await room.disconnect();
       } catch (error) {
-        console.error('❌ Failed to register RPC method:', error);
+        throw error;
       }
     }
-  }, [room, localParticipant, isRpcRegistered, showInterviewEndMessage, cleanupInterview, redirectToResults]);
+  }, [room]);
+
+  // Main RPC handler for end_interview
+  const endInterviewRpcHandler = useCallback(async (data: any) => {
+    try {
+      const payload = JSON.parse(data.payload);
+      const { 
+        reason, 
+        session_id, 
+        attempt_id, 
+        requires_confirmation, 
+        rpc_type, 
+        timestamp 
+      } = payload;
+
+      // Validate RPC type
+      if (rpc_type !== 'end_interview') {
+        return JSON.stringify({
+          status: 'error',
+          message: `Invalid RPC type: ${rpc_type}`,
+          timestamp: new Date().toISOString(),
+          session_id,
+          attempt_id,
+          handler_success: false
+        });
+      }
+
+      // Process different end reasons
+      if (reason.includes('agent_disconnected')) {
+        await handleAgentDisconnected(payload);
+      } else if (reason.includes('timeout')) {
+        await handleTimeout(payload);
+      } else if (reason.includes('connection lost')) {
+        await handleConnectionLost(payload);
+      } else if (reason.includes('emergency')) {
+        await handleEmergency(payload);
+      } else {
+        await handleNormalCompletion(payload);
+      }
+
+      // Cleanup interview resources
+      await cleanupInterview();
+      
+      // Disconnect from LiveKit room (CRITICAL)
+      await disconnectRoom();
+      
+      // Return success confirmation
+      return JSON.stringify({
+        status: 'success',
+        message: `Interview ended successfully: ${reason}`,
+        timestamp: new Date().toISOString(),
+        session_id,
+        attempt_id,
+        handler_success: true
+      });
+      
+    } catch (error) {
+      // Extract session info if possible
+      let sessionId = 'unknown';
+      let attemptId = 'unknown';
+      try {
+        const payload = JSON.parse(data.payload);
+        sessionId = payload.session_id || 'unknown';
+        attemptId = payload.attempt_id || 'unknown';
+      } catch (parseError) {
+        // Silent parsing error
+      }
+      
+      // Still try to disconnect room even on error
+      try {
+        await disconnectRoom();
+      } catch (disconnectError) {
+        // Silent disconnect error
+      }
+      
+      // Return error response
+      return JSON.stringify({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error in RPC handler',
+        timestamp: new Date().toISOString(),
+        session_id: sessionId,
+        attempt_id: attemptId,
+        handler_success: false
+      });
+    }
+  }, [handleAgentDisconnected, handleTimeout, handleConnectionLost, handleEmergency, handleNormalCompletion, cleanupInterview, disconnectRoom]);
+
+
+
+  // Register RPC method BEFORE room connection (CRITICAL requirement)
+  useEffect(() => {
+    if (room && localParticipant?.localParticipant && !isRpcRegistered) {
+      try {
+        // CRITICAL: Use exact method name 'end_interview'
+        localParticipant.localParticipant.registerRpcMethod(
+          'end_interview',
+          async (data) => endInterviewRpcHandler(data)
+        );
+        setIsRpcRegistered(true);
+      } catch (error) {
+        // Silent fail - will retry on next render
+      }
+    }
+  }, [room, localParticipant, isRpcRegistered, endInterviewRpcHandler]);
+
+
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (localParticipant?.localParticipant && isRpcRegistered) {
         try {
-          localParticipant.localParticipant.unregisterRpcMethod('forceEndInterview');
-          console.log('🔧 RPC method forceEndInterview unregistered');
+          localParticipant.localParticipant.unregisterRpcMethod('end_interview');
         } catch (error) {
-          console.error('🔧 Error unregistering RPC method:', error);
+          // Silent cleanup error
         }
       }
     };
@@ -239,7 +284,7 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
 
-  // Simple function to fetch connection details without error handling
+  // Fetch connection details
   const onConnectButtonClicked = useCallback(async () => {
     try {
       const response = await fetch("/api/mock-interview-token", {
@@ -255,8 +300,7 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
         updateConnectionDetails(connectionDetailsData);
       }
     } catch (error) {
-      console.error("Connection error (silently handled):", error);
-      // Continue without showing error
+      // Silent error handling
     }
   }, [sessionConfig]);
 
@@ -290,17 +334,18 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
               audio={true}
               video={false}
               onError={(error) => {
-                console.error("LiveKit error (silently handled):", error);
+                // Silent error handling
               }}
               onDisconnected={() => {
-                console.log("LiveKit room disconnected");
+                // Silent disconnect handling
               }}
               onConnected={() => {
-                console.log("LiveKit room connected successfully");
+                // Silent connection handling
               }}
               className="flex h-full w-full flex-col"
             >
               {/* Register RPC handler - CRITICAL for agent communication */}
+              {/* Method: 'end_interview' - Must match backend agent exactly */}
               <RpcHandler
                 sessionConfig={sessionConfig}
                 onEndInterview={handleInterviewEnd}

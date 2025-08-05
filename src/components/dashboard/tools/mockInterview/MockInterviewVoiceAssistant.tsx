@@ -25,7 +25,6 @@ function useSafeVoiceAssistant() {
   try {
     return useVoiceAssistant();
   } catch (error) {
-    console.error("Error in useVoiceAssistant:", error);
     return {
       state: "connecting" as AgentState,
       agentTranscriptions: [],
@@ -85,32 +84,28 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const remoteParticipants = useRemoteParticipants();
   const localParticipant = useLocalParticipant();
   const room = useRoomContext();
+  const { toast } = useToast();
   
-  // Debug logging for room and participant states
-  useEffect(() => {
-    console.log('🏠 Room context:', {
-      roomName: room?.name,
-      roomState: room?.state,
-      localParticipantIdentity: localParticipant?.localParticipant?.identity,
-      remoteParticipantCount: remoteParticipants.length,
-      remoteParticipants: remoteParticipants.map(p => p.identity)
-    });
-  }, [room, localParticipant, remoteParticipants]);
-
-  // Listen for participant changes to detect agent joining/leaving
+  // Listen for participant changes to show notifications
   useEffect(() => {
     if (room) {
       const handleParticipantConnected = (participant: RemoteParticipant) => {
-        console.log('👥 Participant connected:', participant.identity);
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
-          console.log('🤖 Agent/Assistant joined the room!');
+          toast({
+            title: "AI Interviewer Connected",
+            description: "The interview will begin shortly.",
+            duration: 3000,
+          });
         }
       };
 
       const handleParticipantDisconnected = (participant: RemoteParticipant) => {
-        console.log('👥 Participant disconnected:', participant.identity);
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
-          console.log('🤖 Agent/Assistant left the room!');
+          toast({
+            title: "AI Interviewer Disconnected",
+            description: "The AI interviewer has left the session.",
+            duration: 5000,
+          });
         }
       };
 
@@ -122,8 +117,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         room.off('participantDisconnected', handleParticipantDisconnected);
       };
     }
-  }, [room]);
-  const { toast } = useToast();
+  }, [room, toast]);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [messages, setMessages] = useState<InterviewTranscriptionMessage[]>([]);
   const [sessionStartTime] = useState(new Date());
@@ -139,10 +133,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   // Use parent's endingCountdown if available, otherwise use local
   const endingCountdown = parentEndingCountdown !== undefined ? parentEndingCountdown : localEndingCountdown;
   
-  // Debug effect to track endingCountdown state changes
-  useEffect(() => {
-    console.log('🎯 endingCountdown state changed:', endingCountdown);
-  }, [endingCountdown]);
+
   
   // Refs for audio feedback prevention
   const lastAgentTranscriptionRef = useRef<string>("");
@@ -156,18 +147,15 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const MAX_CONSECUTIVE_REPEATS = 2;
   const RESPONSE_THROTTLE_MS = 1500; // Minimum time between agent responses
 
-  // Force disconnect from LiveKit room
+  // Force disconnect from LiveKit room (frontend timeout system)
   const forceDisconnect = useCallback(async () => {
     try {
-      console.log('Forcing LiveKit room disconnection...');
       if (room) {
         await room.disconnect();
-        console.log('LiveKit room disconnected successfully');
       }
     } catch (error) {
-      console.error('Error disconnecting from LiveKit room:', error);
+      // Silent error handling
     } finally {
-      // Always call onEndInterview as fallback
       onEndInterview();
     }
   }, [room, onEndInterview]);
@@ -229,9 +217,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
             showWarning(30);
           }
           
-          // Force disconnect when time reaches 0
+          // Force disconnect when time reaches 0 (fallback only)
           if (newTime <= 0) {
-            console.log('Interview time expired - forcing disconnection');
             forceDisconnect();
             return 0;
           }
@@ -248,74 +235,19 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   }, [sessionStartTime, forceDisconnect, showWarning]);
 
   // Note: RPC registration is now handled in MockInterviewLiveKit.tsx for proper timing
-
-  // Data channel listener as fallback for interview ending
-  useEffect(() => {
-    if (room) {
-      const handleDataReceived = (data: Uint8Array, participant?: RemoteParticipant, kind?: any, topic?: string) => {
-        try {
-          const message = new TextDecoder().decode(data);
-          console.log('📨 Data channel message received:', { message, topic, participant: participant?.identity });
-          
-          const parsed = JSON.parse(message);
-          
-          // Handle interview end notifications
-          if ((parsed.type === "interview_end" || parsed.type === "force_interview_end") && 
-              (topic === "interview_control" || topic === "interview_force_end")) {
-            
-            console.log('📨 Interview end notification via data channel:', parsed);
-            
-            toast({
-              title: "Interview Completed",
-              description: "The interview has been completed. Ending session...",
-              duration: 3000,
-            });
-            
-            // Start countdown
-            console.log('📨 Starting ending countdown from data channel: 3 seconds');
-            setLocalEndingCountdown(3);
-          }
-        } catch (error) {
-          console.log('📨 Non-JSON data channel message or parsing error:', error);
-        }
-      };
-
-      room.on('dataReceived', handleDataReceived);
-      console.log('📨 Data channel listener registered');
-
-      return () => {
-        room.off('dataReceived', handleDataReceived);
-        console.log('📨 Data channel listener unregistered');
-      };
-    }
-  }, [room, toast]);
+  // Data channel listener is kept as fallback only for non-RPC communications
 
   // Ending countdown effect
   useEffect(() => {
     if (endingCountdown !== null) {
-      console.log(`⏰ Ending countdown: ${endingCountdown} seconds remaining`);
-      
       if (endingCountdown <= 0) {
-        // Countdown finished - end interview
-        console.log('⏰ Ending countdown completed, calling onEndInterview');
-        console.log('⏰ onEndInterview function:', typeof onEndInterview);
-        
-        try {
-          onEndInterview();
-          console.log('✅ onEndInterview called successfully');
-        } catch (error) {
-          console.error('❌ Error calling onEndInterview:', error);
-        }
+        onEndInterview();
         return;
       }
       
       // Continue countdown
       const timeout = setTimeout(() => {
-        setLocalEndingCountdown(prev => {
-          const newValue = prev !== null ? prev - 1 : null;
-          console.log(`⏰ Countdown tick: ${prev} -> ${newValue}`);
-          return newValue;
-        });
+        setLocalEndingCountdown(prev => (prev !== null ? prev - 1 : null));
       }, 1000);
       
       return () => clearTimeout(timeout);
@@ -337,7 +269,6 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
           
           // If too many repeats, try to interrupt the agent
           if (consecutiveRepeats >= MAX_CONSECUTIVE_REPEATS) {
-            console.warn("Agent repeating content, attempting to break loop");
             // Force a pause by muting temporarily
             setIsMicMuted(true);
             setTimeout(() => setIsMicMuted(false), 3000);
@@ -352,7 +283,6 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         const timeSinceLastUserSpeech = now - lastUserSpeechRef.current;
         
         if (timeSinceLastUserSpeech < MIN_SILENCE_BETWEEN_RESPONSES) {
-          console.log("Throttling agent response - too soon after user speech");
           return;
         }
         
@@ -404,7 +334,6 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       }
       
       agentResponseTimeoutRef.current = setTimeout(() => {
-        console.warn("Agent speaking too long, forcing interruption");
         setIsMicMuted(true);
         setTimeout(() => setIsMicMuted(false), 2000);
       }, MAX_AGENT_SPEAKING_TIME);
@@ -500,14 +429,13 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         setIsMicMuted(newMutedState);
       }
     } catch (error) {
-      console.error("Error toggling microphone:", error);
       // On error, just toggle the visual state
       setIsMicMuted(!isMicMuted);
     }
   }, [isMicMuted, localParticipant]);
 
   const handleTurnOnCamera = useCallback(() => {
-    console.log('Turning on camera...');
+    // Camera functionality
   }, []);
 
   // Cleanup on unmount
@@ -761,7 +689,6 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
           
           // Auto-end interview when time reaches 0
           if (newTime <= 0) {
-            console.log('Interview time expired - ending session');
             onEndInterview();
             return 0;
           }
@@ -781,8 +708,6 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   useEffect(() => {
     if (endingCountdown !== null) {
       if (endingCountdown <= 0) {
-        // Countdown finished - end interview
-        console.log('Ending countdown completed, calling onEndInterview');
         onEndInterview();
         return;
       }
