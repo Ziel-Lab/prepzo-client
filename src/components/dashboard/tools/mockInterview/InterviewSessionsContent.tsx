@@ -861,18 +861,18 @@ const InterviewSessionsContent = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="animate-pulse space-y-4 sm:space-y-6">
+            <div className="h-6 sm:h-8 bg-gray-200 rounded w-2/3 sm:w-1/3"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+                <div key={i} className="h-24 sm:h-32 bg-gray-200 rounded-lg"></div>
               ))}
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+                <div key={i} className="h-32 sm:h-40 lg:h-48 bg-gray-200 rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -883,19 +883,19 @@ const InterviewSessionsContent = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-6 text-center">
+            <CardContent className="p-4 sm:p-6 text-center">
               <div className="text-red-600 mb-2">
-                <Award size={48} className="mx-auto mb-4" />
+                <Award size={40} className="mx-auto mb-3 sm:mb-4 sm:w-12 sm:h-12" />
               </div>
-              <h3 className="text-lg font-semibold text-red-900 mb-2">Failed to Load Interview Sessions</h3>
-              <p className="text-red-700 mb-4">{error}</p>
+              <h3 className="text-base sm:text-lg font-semibold text-red-900 mb-2">Failed to Load Interview Sessions</h3>
+              <p className="text-sm sm:text-base text-red-700 mb-4 max-w-md mx-auto">{error}</p>
               <Button 
                 onClick={() => window.location.reload()} 
                 variant="outline" 
-                className="border-red-300 text-red-600 hover:bg-red-100"
+                className="w-full sm:w-auto border-red-300 text-red-600 hover:bg-red-100 text-sm sm:text-base"
               >
                 Try Again
               </Button>
@@ -907,29 +907,29 @@ const InterviewSessionsContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* Header */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent mb-3">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent mb-2 sm:mb-3">
                 Interview Sessions
               </h1>
-              <p className="text-slate-600 text-lg font-medium">Practice and track your interview performance</p>
+              <p className="text-slate-600 text-sm sm:text-base lg:text-lg font-medium">Practice and track your interview performance</p>
             </div>
             <Button
               onClick={() => setIsNewSessionModalOpen(true)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-300 font-semibold px-6 py-3 text-base"
+              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-300 font-semibold px-4 sm:px-6 py-3 text-sm sm:text-base"
             >
-              <Plus size={18} className="mr-2" />
+              <Plus size={16} className="mr-2" />
               New Session
             </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <SessionStatsCard
             title="Total Sessions"
             value={stats.total}
@@ -960,56 +960,61 @@ const InterviewSessionsContent = () => {
 
         {/* Filters and Search */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {/* Search Bar */}
+              <div className="w-full">
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <Input
                     placeholder="Search sessions, companies, or roles..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 text-sm sm:text-base"
                   />
                 </div>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="ready">Ready</SelectItem>
-                  <SelectItem value="preparing">Preparing</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="behavioral">Behavioral</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="system-design">System Design</SelectItem>
-                  <SelectItem value="case-study">Case Study</SelectItem>
-                </SelectContent>
-              </Select>
+              
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="ready">Ready</SelectItem>
+                    <SelectItem value="preparing">Preparing</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="behavioral">Behavioral</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="system-design">System Design</SelectItem>
+                    <SelectItem value="case-study">Case Study</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Sessions List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredSessions.length === 0 ? (
             <Card>
-              <CardContent className="p-12 text-center">
+              <CardContent className="p-6 sm:p-8 lg:p-12 text-center">
                 <div className="text-gray-400 mb-4">
-                  <Calendar size={48} className="mx-auto" />
+                  <Calendar size={40} className="mx-auto sm:w-12 sm:h-12" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">No sessions found</h3>
-                <p className="text-gray-500 mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-600 mb-2">No sessions found</h3>
+                <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 max-w-md mx-auto">
                   {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                     ? 'Try adjusting your filters or search terms'
                     : sessions.length > 0 
@@ -1019,7 +1024,7 @@ const InterviewSessionsContent = () => {
                 <Button
                   onClick={() => setIsNewSessionModalOpen(true)}
                   variant="outline"
-                  className="border-green-200 text-green-600 hover:bg-green-50"
+                  className="w-full sm:w-auto border-green-200 text-green-600 hover:bg-green-50 text-sm sm:text-base"
                 >
                   <Plus size={16} className="mr-2" />
                   Create Your First Session
@@ -1035,11 +1040,11 @@ const InterviewSessionsContent = () => {
               {/* Loading More Indicator */}
               {loadingMore && (
                 <Card className="border-green-100 bg-green-50/30">
-                  <CardContent className="p-8">
+                  <CardContent className="p-4 sm:p-6 lg:p-8">
                     <div className="flex justify-center items-center">
-                      <div className="flex items-center space-x-4 px-6 py-4 bg-white/80 rounded-xl border border-green-200 shadow-sm">
-                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-500 border-t-transparent"></div>
-                        <span className="text-green-700 font-medium text-lg">Loading more sessions...</span>
+                      <div className="flex items-center space-x-3 sm:space-x-4 px-4 sm:px-6 py-3 sm:py-4 bg-white/80 rounded-xl border border-green-200 shadow-sm">
+                        <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-2 border-green-500 border-t-transparent"></div>
+                        <span className="text-green-700 font-medium text-sm sm:text-base lg:text-lg">Loading more sessions...</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1049,14 +1054,14 @@ const InterviewSessionsContent = () => {
               {/* Pretty Load More Button */}
               {hasMore && !loadingMore && sessions.length > 0 && nextCursor && (
                 <Card className="border-green-100 bg-gradient-to-br from-green-50/50 to-emerald-50/30">
-                  <CardContent className="p-8">
+                  <CardContent className="p-4 sm:p-6 lg:p-8">
                     <div className="flex justify-center">
                       <button
                         onClick={loadMore}
-                        className="group relative inline-flex items-center justify-center px-10 py-4 text-base font-semibold text-white transition-all duration-300 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:shadow-green-500/25 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:-translate-y-1 active:translate-y-0"
+                        className="group relative inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 lg:px-10 py-3 sm:py-4 text-sm sm:text-base font-semibold text-white transition-all duration-300 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:shadow-green-500/25 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:-translate-y-1 active:translate-y-0"
                       >
                         <svg 
-                          className="w-5 h-5 mr-3 transition-transform group-hover:translate-y-1" 
+                          className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 transition-transform group-hover:translate-y-1" 
                           fill="none" 
                           stroke="currentColor" 
                           viewBox="0 0 24 24"
