@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, ChevronDown, FileText, User, Search, Briefcase } from "lucide-react";
+import { Menu, X, ChevronDown, FileText, User, Search, Bot, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { createClient } from '@/utils/supabase/client';
 import Image from "next/image";
@@ -79,6 +79,12 @@ const Navbar = () => {
       icon: User,
       title: "LinkedIn Optimizer", 
       description: "Optimize your LinkedIn profile for maximum impact"
+    },
+    {
+      href: "/features/mock-interview",
+      icon:  Bot,
+      title: "Mock Interview",
+      description: "Practice for your next interview with our AI agent"
     },
     {
       href: "/features/job-search-engine",
