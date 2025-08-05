@@ -11,7 +11,7 @@ export function createClient() {
         persistSession: true,
         detectSessionInUrl: true,
         // Note: Advanced refresh settings are handled by our authClient
-        debug: process.env.NODE_ENV === 'development'
+        debug: false
       }
     }
   )
