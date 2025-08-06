@@ -44,14 +44,55 @@ interface RawApiResponse {
   feedback: string;
   new_resume: string;
   roast_feedback?: string;
+  roast?: string;
   analysis_id?: string | number;
-  [key: string]: any;
+  status?: string;
+  error?: string;
+  details?: string;
+  document_url?: string;
+  document_id?: string | number;
+  job_id?: string | number;
 }
 
 interface UserDocument {
   id: number | string;
   title: string;
   url?: string;
+}
+
+interface DocumentApiResponse {
+  id: string | number;
+  document_name?: string;
+  display_name?: string;
+  document_url?: string;
+}
+
+interface HistoryApiResponse {
+  id: string | number;
+  current_resume?: string;
+  company_website?: string;
+  job_description?: string;
+  created_at?: string;
+  additional_comment?: string;
+  status?: string;
+  feedback_analysis?: {
+    feedback?: string | object;
+    new_resume?: string | object;
+    roast?: string;
+  };
+}
+
+interface PollingApiResponse {
+  id?: string | number;
+  feedback_analysis?: {
+    feedback?: string | object;
+    new_resume?: string | object;
+  };
+  feedback?: string | object;
+  new_resume?: string | object;
+  company_website?: string;
+  job_description?: string;
+  status?: string;
 }
 
 interface AnalysisHistoryItem {
@@ -124,15 +165,24 @@ const AnalyzerToolContent = () => {
   const resultsCardRef = useRef<HTMLDivElement>(null);
   const loadingCardRef = useRef<HTMLDivElement>(null);
 
-  // Polling refs & helpers (for async analysis)
+  // Polling refs & helpers (for async analysis and roast)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const roastPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const roastPollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopPolling = () => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
     pollIntervalRef.current = null;
     pollingTimeoutRef.current = null;
+  };
+
+  const stopRoastPolling = () => {
+    if (roastPollIntervalRef.current) clearInterval(roastPollIntervalRef.current);
+    if (roastPollingTimeoutRef.current) clearTimeout(roastPollingTimeoutRef.current);
+    roastPollIntervalRef.current = null;
+    roastPollingTimeoutRef.current = null;
   };
 
   useEffect(() => {
@@ -146,8 +196,18 @@ const AnalyzerToolContent = () => {
             // });
         }, 3500);
     }
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [isLoadingAnalysis, isLoadingRoast]);
+
+  // Cleanup polling when component unmounts
+  useEffect(() => {
+    return () => {
+      stopPolling();
+      stopRoastPolling();
+    };
+  }, []);
 
   // Reset pagination when history changes
   useEffect(() => {
@@ -188,8 +248,8 @@ const AnalyzerToolContent = () => {
           const errorData = await docsResponse.json().catch(() => ({ error: "Failed to parse error JSON for documents" }));
           throw new Error(errorData.error || `HTTP error fetching documents: ${docsResponse.status}`);
         }
-        const fetchedDocsRaw = await docsResponse.json();
-        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc: any) => ({
+        const fetchedDocsRaw: DocumentApiResponse[] = await docsResponse.json();
+        const fetchedDocs: UserDocument[] = fetchedDocsRaw.map((doc) => ({
           id: doc.id,
           title: doc.document_name || doc.display_name || "Untitled Document",
           url: doc.document_url,
@@ -198,7 +258,7 @@ const AnalyzerToolContent = () => {
         if (!(fetchedDocs.length > 0 && fetchedDocs[0].url)) {
             setResumeInputMethod('upload');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError("Unable to load your documents right now. Please refresh the page and try again!");
         setResumeInputMethod('upload'); 
       } finally {
@@ -223,16 +283,16 @@ const AnalyzerToolContent = () => {
           const errorData = await historyResponse.json().catch(() => ({error: "Failed to parse history error"}));
           throw new Error(errorData.error || `HTTP error fetching history: ${historyResponse.status}`);
         }
-        const historyDataFromApi: any[] = await historyResponse.json();
+        const historyDataFromApi: HistoryApiResponse[] = await historyResponse.json();
         // If we received an empty array, just set empty history without error
         if (!Array.isArray(historyDataFromApi) || historyDataFromApi.length === 0) {
           setAnalysisHistory([]);
           return;
         }
 
-        const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item: any) => {
+        const formattedHistory: AnalysisHistoryItem[] = historyDataFromApi.map((item) => {
           let parsedScore: number | undefined = undefined;
-          const isRoastItem = !item.job_description && item.additional_comment === "Resume Roast Feedback";
+          const isRoastItem = !item.job_description && item.additional_comment === "Resume Roast";
           let roastFeedbackTextFromApi: string | undefined = undefined;
 
           if (isRoastItem) {
@@ -279,14 +339,14 @@ const AnalyzerToolContent = () => {
           
           const jobDescTitle = isRoastItem 
             ? "Resume Roast" 
-            : (item.job_description ? (item.job_description as string).substring(0, 70) + '...' : 'N/A');
+            : (item.job_description && typeof item.job_description === 'string' ? item.job_description.substring(0, 70) + '...' : 'N/A');
 
           return {
-            id: item.id,
-            resume_url: resumeUrlFromAPI,
+            id: item.id as string | number,
+            resume_url: resumeUrlFromAPI as string | undefined,
             resume_title: derivedResumeTitle,
-            company_website: item.company_website,
-            job_description: item.job_description,
+            company_website: item.company_website as string | undefined,
+            job_description: item.job_description as string | undefined,
             created_at: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
             score: parsedScore,
             new_score: !isRoastItem && item.feedback_analysis ? (() => {
@@ -307,12 +367,12 @@ const AnalyzerToolContent = () => {
             job_description_title: jobDescTitle,
             is_roast: isRoastItem,
             roast_feedback_text: roastFeedbackTextFromApi,
-            additional_comment: item.additional_comment,
+            additional_comment: item.additional_comment as string | undefined,
             status: mapApiStatusToUiStatus(item.status)
           };
         });
         setAnalysisHistory(formattedHistory);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setHistoryError("Unable to load your analysis history. Please refresh the page and try again!");
       } finally {
         setIsFetchingHistory(false);
@@ -410,7 +470,7 @@ const AnalyzerToolContent = () => {
         throw new Error("Upload successful, but no file URL was returned.");
       }
       return result.file_url;
-    } catch (err:any) {
+    } catch (err: unknown) {
       setError("Upload failed. Please refresh the page and try uploading your resume again!");
       return null;
     } finally {
@@ -473,7 +533,7 @@ const AnalyzerToolContent = () => {
         }
 
         const raw = await pollingRes.json();
-        const row: any = Array.isArray(raw) ? raw[0] : raw;
+        const row: PollingApiResponse = Array.isArray(raw) ? raw[0] : raw;
         if (!row) return;
 
         const feedbackPayload = row.feedback_analysis?.feedback || row.feedback;
@@ -500,7 +560,7 @@ const AnalyzerToolContent = () => {
             stopPolling();
             setIsLoadingAnalysis(false);
 
-            const analysisIdFound = row.id || jobId;
+            const analysisIdFound = (row.id as string | number) || jobId;
             setAnalysisResult({ id: analysisIdFound, feedback: parsedFeedback, new_resume: parsedNewResume });
             setCurrentAnalysisId(analysisIdFound);
 
@@ -508,14 +568,14 @@ const AnalyzerToolContent = () => {
               id: analysisIdFound,
               resume_url: resumeUrl,
               resume_title: resumeTitle,
-              company_website: row.company_website || companyWebsite,
-              job_description: row.job_description || jobDescription,
+              company_website: (row.company_website as string) || companyWebsite,
+              job_description: (row.job_description as string) || jobDescription,
               created_at: new Date().toLocaleDateString(),
               score: typeof parsedFeedback.score === 'string' ? Number(parsedFeedback.score) : parsedFeedback.score,
               feedback: typeof feedbackPayload === 'string' ? feedbackPayload : JSON.stringify(feedbackPayload),
               new_resume: typeof newResumePayload === 'string' ? newResumePayload : JSON.stringify(newResumePayload),
               new_score: typeof parsedNewResume.new_score === 'string' ? Number(parsedNewResume.new_score) : parsedNewResume.new_score,
-              job_description_title: (row.job_description || jobDescription || '').substring(0, 70) + '...',
+              job_description_title: ((row.job_description as string) || jobDescription || '').substring(0, 70) + '...',
               is_roast: false,
               status: mapApiStatusToUiStatus(row.status)
             };
@@ -539,7 +599,7 @@ const AnalyzerToolContent = () => {
           if (row.status) {
             setAnalysisHistory(prev => prev.map(item => 
               item.id === jobId 
-                ? { ...item, status: mapApiStatusToUiStatus(row.status) }
+                ? { ...item, status: mapApiStatusToUiStatus(row.status as string) }
                 : item
             ));
           }
@@ -567,6 +627,155 @@ const AnalyzerToolContent = () => {
         variant: "destructive",
         title: "Analysis Timeout",
         description: "The analysis is taking longer than expected. Please check back later.",
+        duration: 5000,
+      });
+    }, 180000); // 3 minutes timeout
+  };
+
+  const startRoastPolling = (
+    jobId: string | number,
+    resumeUrl: string,
+    resumeTitle: string
+  ) => {
+    toast({
+      title: "Roast Started",
+      description: "Your resume roast will show in the history section shortly.",
+      duration: 5000,
+    });
+
+    // Add initial pending item to history
+    const pendingRoastItem: AnalysisHistoryItem = {
+      id: jobId,
+      resume_url: resumeUrl,
+      resume_title: resumeTitle,
+      created_at: new Date().toLocaleDateString(),
+      job_description_title: "Resume Roast",
+      is_roast: true,
+      additional_comment: "Resume Roast",
+      status: 'pending'
+    };
+    setAnalysisHistory(prev => [pendingRoastItem, ...prev]);
+
+    const pollRoast = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        stopRoastPolling();
+        setRoastError("Session expired during polling. Please try again.");
+        setIsLoadingRoast(false);
+        return;
+      }
+      const jwtToken = sessionData.session.access_token;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        stopRoastPolling();
+        setRoastError("Backend URL is not configured.");
+        setIsLoadingRoast(false);
+        return;
+      }
+
+      try {
+        const pollingUrl = `${backendUrl.replace(/\/$/, '')}/get-roast-resume?job_id=${jobId}`;
+        const pollingRes = await fetch(pollingUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${jwtToken}`, Accept: "application/json" },
+        });
+
+        if (!pollingRes.ok) {
+          console.error(`Roast polling failed with status: ${pollingRes.status}`);
+          return;
+        }
+
+        const raw = await pollingRes.json();
+        const row = Array.isArray(raw) ? raw[0] : raw;
+        if (!row) return;
+
+        // Check if roast is complete - handle different response formats
+        const roastPayload = row.feedback_analysis;
+        const status = row.status?.toUpperCase();
+        
+        if (roastPayload && status === 'SUCCESS') {
+          let actualRoastText: string | undefined;
+          
+          if (typeof roastPayload === 'string') {
+            try {
+              const parsedRoastPayload: ParsedRoastPayload = JSON.parse(roastPayload);
+              actualRoastText = parsedRoastPayload.roast;
+            } catch {
+              actualRoastText = roastPayload;
+            }
+          } else if (typeof roastPayload === 'object' && roastPayload !== null) {
+            // Handle the case where feedback_analysis is already an object
+            actualRoastText = (roastPayload as ParsedRoastPayload).roast;
+          }
+          
+          if (actualRoastText) {
+            stopRoastPolling();
+            setIsLoadingRoast(false);
+
+            setRoastResult(actualRoastText);
+
+            const completedRoastItem: AnalysisHistoryItem = {
+              id: row.id || jobId,
+              resume_url: resumeUrl,
+              resume_title: resumeTitle,
+              created_at: new Date().toLocaleDateString(),
+              job_description_title: "Resume Roast",
+              is_roast: true,
+              roast_feedback_text: actualRoastText,
+              additional_comment: "Resume Roast",
+              status: mapApiStatusToUiStatus(row.status)
+            };
+
+            // Update history by replacing the pending item with the completed one
+            setAnalysisHistory(prev => [
+              completedRoastItem,
+              ...prev.filter(item => item.id !== jobId)
+            ]);
+
+            toast({
+              title: "Roast Complete",
+              description: "Your resume roast is now available!",
+              duration: 5000,
+            });
+
+            setNewResumeFile(null);
+          }
+        } else {
+          // Update status of pending item if available
+          if (row.status) {
+            setAnalysisHistory(prev => prev.map(item => 
+              item.id === jobId 
+                ? { ...item, status: mapApiStatusToUiStatus(row.status as string) }
+                : item
+            ));
+          }
+        }
+      } catch (e) {
+        console.error('Roast polling error:', e);
+      }
+    };
+
+    // Call immediately once, then start interval
+    pollRoast();
+    
+    roastPollIntervalRef.current = setInterval(pollRoast, 10000); // Poll every 10 seconds
+    
+    roastPollingTimeoutRef.current = setTimeout(() => {
+      stopRoastPolling();
+      setRoastError("Roast is taking longer than usual. You can check the history section later.");
+      setIsLoadingRoast(false);
+      
+      // Update status to failed if timeout
+      setAnalysisHistory(prev => prev.map(item => 
+        item.id === jobId 
+          ? { ...item, status: 'failed' }
+          : item
+      ));
+
+      toast({
+        variant: "destructive",
+        title: "Roast Timeout",
+        description: "The roast is taking longer than expected. Please check back later.",
         duration: 5000,
       });
     }, 180000); // 3 minutes timeout
@@ -663,7 +872,19 @@ const AnalyzerToolContent = () => {
           body: roastPayload,
         });
 
-        const responseData = await response.json();
+        // Check if response is 202 (Accepted) for async processing
+        if (response.status === 202) {
+          const jobInfo: { job_id?: string | number } = await response.json().catch(() => ({}));
+          if (jobInfo.job_id) {
+            startRoastPolling(jobInfo.job_id, finalResumeUrl, resumeTitleForBackend);
+          } else {
+            setRoastError("Roast job accepted but no job_id returned.");
+            setIsLoadingRoast(false);
+          }
+          return;
+        }
+
+        const responseData: RawApiResponse = await response.json();
 
         if (!response.ok) {
           const specificError = responseData.error || responseData.details || `HTTP error! status: ${response.status}`;
@@ -676,6 +897,7 @@ const AnalyzerToolContent = () => {
           return;
         }
         
+        // Handle synchronous response (immediate roast completion)
         let actualRoastText: string | undefined;
         if (responseData.feedback && typeof responseData.feedback === 'string') {
             try {
@@ -683,9 +905,9 @@ const AnalyzerToolContent = () => {
                 if (parsedFeedbackPayload.roast && typeof parsedFeedbackPayload.roast === 'string') {
                     actualRoastText = parsedFeedbackPayload.roast;
                 }
-                          } catch (e) {
+            } catch (e) {
                 // Error parsing nested roast feedback JSON
-              }
+            }
         } else if (responseData.roast && typeof responseData.roast === 'string') {
             actualRoastText = responseData.roast;
         }
@@ -701,9 +923,11 @@ const AnalyzerToolContent = () => {
             job_description_title: "Resume Roast",
             is_roast: true,
             roast_feedback_text: actualRoastText,
-            additional_comment: "Resume Roast Feedback",
+            additional_comment: "Resume Roast",
             status: mapApiStatusToUiStatus(responseData.status)
         };
+        
+        // Handle document upload response
         if (newResumeFile && responseData.document_url) {
             const newDoc: UserDocument = {
                 id: responseData.document_id || Date.now(),
@@ -719,7 +943,7 @@ const AnalyzerToolContent = () => {
         setAnalysisHistory(prevHistory => [newHistoryRoastItem, ...prevHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ));
         setNewResumeFile(null);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         setRoastError("Resume roast encountered an error. Please refresh the page and try again!");
       } finally {
         setIsLoadingRoast(false);
@@ -843,7 +1067,7 @@ const AnalyzerToolContent = () => {
         setError("Analysis results couldn't be processed. Please refresh the page and try again!");
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Analysis request failed. Please refresh the page and try again!");
     } finally {
       setIsLoadingAnalysis(false);
@@ -1002,7 +1226,7 @@ const AnalyzerToolContent = () => {
                                     </>
                                   )}
                                   Resume: <a href={selectedHistoryItemForDialog.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.resume_url}</a>
-                                  {selectedHistoryItemForDialog.additional_comment && selectedHistoryItemForDialog.additional_comment !== "Resume Roast Feedback" && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.additional_comment}</em></>}
+                                  {selectedHistoryItemForDialog.additional_comment && selectedHistoryItemForDialog.additional_comment !== "Resume Roast" && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.additional_comment}</em></>}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
