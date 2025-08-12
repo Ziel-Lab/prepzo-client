@@ -66,67 +66,7 @@ const RpcHandler: React.FC<{
   const router = useRouter();
   const { toast } = useToast();
   const [isRpcRegistered, setIsRpcRegistered] = useState(false);
-
-  // Handler functions for different end reasons
-  const handleAgentDisconnected = useCallback(async (payload: any) => {
-    toast({
-      title: "AI Interviewer Disconnected",
-      description: "The AI interviewer has left the session. Your responses have been saved.",
-      duration: 8000,
-    });
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 3000);
-  }, [toast]);
-
-  const handleTimeout = useCallback(async (payload: any) => {
-    toast({
-      title: "Interview Time Limit Reached",
-      description: "The interview has ended due to the 12-minute time limit.",
-      duration: 8000,
-    });
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 3000);
-  }, [toast]);
-
-  const handleConnectionLost = useCallback(async (payload: any) => {
-    toast({
-      title: "Connection Lost",
-      description: "The interview ended due to connection issues. You can start a new attempt.",
-      duration: 10000,
-    });
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 4000);
-  }, [toast]);
-
-  const handleEmergency = useCallback(async (payload: any) => {
-    toast({
-      title: "Interview Session Error",
-      description: "An unexpected error occurred. Please try starting a new interview.",
-      duration: 10000,
-    });
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 4000);
-  }, [toast]);
-
-  const handleNormalCompletion = useCallback(async (payload: any) => {
-    toast({
-      title: "Interview Completed",
-      description: "Your interview has been completed successfully. Generating feedback...",
-      duration: 5000,
-    });
-    
-    setTimeout(() => {
-      window.location.href = `/dashboard/tools/mock-Interview`;
-    }, 2000);
-  }, [toast]);
+  const [lastAgentActivity, setLastAgentActivity] = useState(Date.now());
 
   const cleanupInterview = useCallback(async () => {
     if (room?.localParticipant) {
@@ -152,8 +92,81 @@ const RpcHandler: React.FC<{
     }
   }, [room]);
 
+  // Navigation helper with proper cleanup
+  const navigateToSessionsPage = useCallback(async (delay: number = 2000) => {
+    try {
+      // Ensure room cleanup before navigation
+      await cleanupInterview();
+      await disconnectRoom();
+      
+      setTimeout(() => {
+        router.push('/dashboard/tools/mock-Interview');
+      }, delay);
+    } catch (error) {
+      // Fallback navigation even if cleanup fails
+      setTimeout(() => {
+        router.push('/dashboard/tools/mock-Interview');
+      }, delay);
+    }
+  }, [router, cleanupInterview, disconnectRoom]);
+
+  // Handler functions for different end reasons
+  const handleAgentDisconnected = useCallback(async (payload: any) => {
+    toast({
+      title: "AI Interviewer Disconnected",
+      description: "The AI interviewer has left the session. Your responses have been saved.",
+      duration: 6000,
+    });
+    
+    await navigateToSessionsPage(3000);
+  }, [toast, navigateToSessionsPage]);
+
+  const handleTimeout = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Time Limit Reached",
+      description: "The interview has ended due to the 12-minute time limit.",
+      duration: 6000,
+    });
+    
+    await navigateToSessionsPage(3000);
+  }, [toast, navigateToSessionsPage]);
+
+  const handleConnectionLost = useCallback(async (payload: any) => {
+    toast({
+      title: "Connection Lost",
+      description: "The interview ended due to connection issues. You can start a new attempt.",
+      duration: 8000,
+    });
+    
+    await navigateToSessionsPage(4000);
+  }, [toast, navigateToSessionsPage]);
+
+  const handleEmergency = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Session Error",
+      description: "An unexpected error occurred. Please try starting a new interview.",
+      duration: 8000,
+    });
+    
+    await navigateToSessionsPage(4000);
+  }, [toast, navigateToSessionsPage]);
+
+  const handleNormalCompletion = useCallback(async (payload: any) => {
+    toast({
+      title: "Interview Completed",
+      description: "Your interview has been completed successfully. Generating feedback...",
+      duration: 5000,
+    });
+    
+    await navigateToSessionsPage(2000);
+  }, [toast, navigateToSessionsPage]);
+
   // Main RPC handler for end_interview
   const endInterviewRpcHandler = useCallback(async (data: any) => {
+    let handlerSuccess = false;
+    let sessionId = 'unknown';
+    let attemptId = 'unknown';
+    
     try {
       const payload = JSON.parse(data.payload);
       const { 
@@ -165,64 +178,74 @@ const RpcHandler: React.FC<{
         timestamp 
       } = payload;
 
+      sessionId = session_id || 'unknown';
+      attemptId = attempt_id || 'unknown';
+
       // Validate RPC type
       if (rpc_type !== 'end_interview') {
         return JSON.stringify({
           status: 'error',
           message: `Invalid RPC type: ${rpc_type}`,
           timestamp: new Date().toISOString(),
-          session_id,
-          attempt_id,
+          session_id: sessionId,
+          attempt_id: attemptId,
           handler_success: false
         });
       }
 
-      // Process different end reasons
-      if (reason.includes('agent_disconnected')) {
-        await handleAgentDisconnected(payload);
-      } else if (reason.includes('timeout')) {
-        await handleTimeout(payload);
-      } else if (reason.includes('connection lost')) {
-        await handleConnectionLost(payload);
-      } else if (reason.includes('emergency')) {
-        await handleEmergency(payload);
-      } else {
-        await handleNormalCompletion(payload);
+      // Process different end reasons with specific handlers
+      try {
+        if (reason.includes('agent_disconnected')) {
+          await handleAgentDisconnected(payload);
+        } else if (reason.includes('timeout')) {
+          await handleTimeout(payload);
+        } else if (reason.includes('connection lost')) {
+          await handleConnectionLost(payload);
+        } else if (reason.includes('emergency')) {
+          await handleEmergency(payload);
+        } else {
+          await handleNormalCompletion(payload);
+        }
+        handlerSuccess = true;
+      } catch (handlerError) {
+        // Even if handler fails, we still want to cleanup and respond
+        handlerSuccess = false;
       }
-
-      // Cleanup interview resources
-      await cleanupInterview();
       
-      // Disconnect from LiveKit room (CRITICAL)
-      await disconnectRoom();
-      
-      // Return success confirmation
+      // Return immediate success response to backend
+      // Cleanup and navigation happen asynchronously
       return JSON.stringify({
         status: 'success',
-        message: `Interview ended successfully: ${reason}`,
+        message: `Interview end request processed: ${reason}`,
         timestamp: new Date().toISOString(),
-        session_id,
-        attempt_id,
-        handler_success: true
+        session_id: sessionId,
+        attempt_id: attemptId,
+        handler_success: handlerSuccess
       });
       
     } catch (error) {
       // Extract session info if possible
-      let sessionId = 'unknown';
-      let attemptId = 'unknown';
       try {
         const payload = JSON.parse(data.payload);
-        sessionId = payload.session_id || 'unknown';
-        attemptId = payload.attempt_id || 'unknown';
+        sessionId = payload.session_id || sessionId;
+        attemptId = payload.attempt_id || attemptId;
       } catch (parseError) {
         // Silent parsing error
       }
       
-      // Still try to disconnect room even on error
+      // Fallback navigation on any error
       try {
-        await disconnectRoom();
-      } catch (disconnectError) {
-        // Silent disconnect error
+        toast({
+          title: "Interview Session Ended",
+          description: "The interview has ended unexpectedly. Returning to sessions page.",
+          duration: 5000,
+        });
+        await navigateToSessionsPage(2000);
+      } catch (fallbackError) {
+        // Last resort: direct navigation
+        setTimeout(() => {
+          router.push('/dashboard/tools/mock-Interview');
+        }, 2000);
       }
       
       // Return error response
@@ -235,7 +258,7 @@ const RpcHandler: React.FC<{
         handler_success: false
       });
     }
-  }, [handleAgentDisconnected, handleTimeout, handleConnectionLost, handleEmergency, handleNormalCompletion, cleanupInterview, disconnectRoom]);
+  }, [handleAgentDisconnected, handleTimeout, handleConnectionLost, handleEmergency, handleNormalCompletion, toast, navigateToSessionsPage, router]);
 
 
 
@@ -250,12 +273,109 @@ const RpcHandler: React.FC<{
         );
         setIsRpcRegistered(true);
       } catch (error) {
-        // Silent fail - will retry on next render
+        // If RPC registration fails, we rely on participant disconnect fallback
+        console.warn('RPC registration failed, using fallback detection');
       }
     }
   }, [room, localParticipant, isRpcRegistered, endInterviewRpcHandler]);
 
+  // Fallback: Listen for AI participant disconnect (when RPC fails)
+  useEffect(() => {
+    if (!room) return;
 
+    const handleParticipantDisconnected = (participant: any) => {
+      // Check if this is the AI interviewer/agent
+      if (participant.identity && 
+          (participant.identity.includes('agent') || 
+           participant.identity.includes('assistant') || 
+           participant.identity.includes('mock_interview_agent'))) {
+        
+        // Show toast and redirect (fallback when no RPC is received)
+        toast({
+          title: "AI Interviewer Disconnected",
+          description: "The AI interviewer has left the session. Redirecting you back...",
+          duration: 5000,
+        });
+
+        // Redirect after a short delay
+        setTimeout(async () => {
+          try {
+            await cleanupInterview();
+            await disconnectRoom();
+          } catch (error) {
+            // Silent cleanup error
+          } finally {
+            router.push('/dashboard/tools/mock-Interview');
+          }
+        }, 3000);
+      }
+    };
+
+    room.on('participantDisconnected', handleParticipantDisconnected);
+
+    return () => {
+      room.off('participantDisconnected', handleParticipantDisconnected);
+    };
+  }, [room, toast, cleanupInterview, disconnectRoom, router]);
+
+  // Emergency timeout fallback - if no activity for 30 seconds after room connection
+  useEffect(() => {
+    if (!room || room.state !== 'connected') return;
+
+    const checkActivityTimeout = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastAgentActivity;
+      
+      // If no agent activity for 30 seconds and no remote participants
+      if (timeSinceActivity > 30000 && room.remoteParticipants.size === 0) {
+        toast({
+          title: "Interview Session Timeout",
+          description: "No interviewer activity detected. Returning to sessions page.",
+          duration: 4000,
+        });
+
+        setTimeout(async () => {
+          try {
+            await cleanupInterview();
+            await disconnectRoom();
+          } catch (error) {
+            // Silent cleanup error
+          } finally {
+            router.push('/dashboard/tools/mock-Interview');
+          }
+        }, 2000);
+
+        clearInterval(checkActivityTimeout);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(checkActivityTimeout);
+  }, [room, lastAgentActivity, toast, cleanupInterview, disconnectRoom, router]);
+
+  // Track agent activity
+  useEffect(() => {
+    if (!room) return;
+
+    const handleParticipantConnected = (participant: any) => {
+      if (participant.identity && 
+          (participant.identity.includes('agent') || 
+           participant.identity.includes('assistant') || 
+           participant.identity.includes('mock_interview_agent'))) {
+        setLastAgentActivity(Date.now());
+      }
+    };
+
+    const handleDataReceived = () => {
+      setLastAgentActivity(Date.now());
+    };
+
+    room.on('participantConnected', handleParticipantConnected);
+    room.on('dataReceived', handleDataReceived);
+
+    return () => {
+      room.off('participantConnected', handleParticipantConnected);
+      room.off('dataReceived', handleDataReceived);
+    };
+  }, [room]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -19,6 +19,7 @@ import AnimatedOrb from "@/components/dashboard/tools/mockInterview/sessions/Ani
 import LiveTranscript from "@/components/dashboard/tools/mockInterview/sessions/LiveTranscript";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import { useToast } from "@/components/ui/use-toast";
+import { useRouter } from "next/navigation";
 
 // Custom hook to safely use voice assistant with enhanced error handling
 function useSafeVoiceAssistant() {
@@ -85,6 +86,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const localParticipant = useLocalParticipant();
   const room = useRoomContext();
   const { toast } = useToast();
+  const router = useRouter();
   
   // Listen for participant changes to show notifications
   useEffect(() => {
@@ -147,18 +149,40 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const MAX_CONSECUTIVE_REPEATS = 2;
   const RESPONSE_THROTTLE_MS = 1500; // Minimum time between agent responses
 
+  // Enhanced navigation helper with proper cleanup
+  const navigateToSessionsPage = useCallback(async (delay: number = 1000) => {
+    try {
+      // Cleanup room if connected
+      if (room && room.state === 'connected') {
+        await room.disconnect();
+      }
+      
+      setTimeout(() => {
+        router.push('/dashboard/tools/mock-Interview');
+      }, delay);
+    } catch (error) {
+      // Fallback navigation even if cleanup fails
+      setTimeout(() => {
+        router.push('/dashboard/tools/mock-Interview');
+      }, delay);
+    }
+  }, [room, router]);
+
   // Force disconnect from LiveKit room (frontend timeout system)
   const forceDisconnect = useCallback(async () => {
     try {
-      if (room) {
-        await room.disconnect();
-      }
+      toast({
+        title: "Interview Time Expired",
+        description: "The 15-minute interview time limit has been reached. Redirecting...",
+        duration: 4000,
+      });
+      
+      await navigateToSessionsPage(2000);
     } catch (error) {
-      // Silent error handling
-    } finally {
+      // Fallback to onEndInterview if navigation fails
       onEndInterview();
     }
-  }, [room, onEndInterview]);
+  }, [toast, navigateToSessionsPage, onEndInterview]);
 
   // Show warning notification
   const showWarning = useCallback((timeRemaining: number) => {
@@ -458,7 +482,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       {/* Top Navigation */}
       <header className="relative z-10 flex justify-between items-center p-4 bg-white/10 backdrop-blur-sm">
         <button 
-          onClick={onEndInterview}
+          onClick={() => navigateToSessionsPage(500)}
           className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -562,7 +586,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
             </Button>
             
             <Button
-              onClick={onEndInterview}
+              onClick={() => navigateToSessionsPage(500)}
               className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-full shadow-lg shadow-red-500/30 transition-all duration-200"
             >
               End Interview
@@ -622,6 +646,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   endingCountdown: parentEndingCountdown
 }) => {
   const { toast } = useToast();
+  const router = useRouter();
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [timer, setTimer] = useState("15:00");
@@ -727,7 +752,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
       
       <header className="relative z-10 flex justify-between items-center p-4 bg-white/10 backdrop-blur-sm">
         <button 
-          onClick={onEndInterview}
+          onClick={() => router.push('/dashboard/tools/mock-Interview')}
           className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft size={20} />
@@ -768,7 +793,7 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
 
           <div className="flex flex-wrap items-center justify-center gap-3 max-w-lg w-full">
             <Button
-              onClick={onEndInterview}
+              onClick={() => router.push('/dashboard/tools/mock-Interview')}
               className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-full shadow-lg shadow-red-500/30 transition-all duration-200"
             >
               End Interview
