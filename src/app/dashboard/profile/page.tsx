@@ -133,20 +133,26 @@ interface ProfileData {
     }>;
   };
   interviewPractice: {
-    sessionsCompleted: number;
-    totalHours: number;
-    categories: Array<{
-      name: string;
-      sessionsCount: number;
-      averageScore: number;
-      lastSession: string;
-      improvement: number;
+    metrics: {
+      overall_average_score: number;
+      overall_score_percent: number;
+      sessions_completed: number;
+      total_practice_hours: number;
+      total_practice_minutes: number;
+    };
+    category_performance: Array<{
+      attempts: number;
+      average_score: number;
+      interview_type: string;
     }>;
-    recentSessions: Array<{
-      date: string;
-      category: string;
-      score: number;
-      duration: number;
+    recent_attempts: Array<{
+      actual_duration_minutes: number;
+      attempt_id: string;
+      completed_at: string;
+      interview_type: string;
+      mock_interview_id: string;
+      score: number | null;
+      status: string;
     }>;
   };
   resume?: {
@@ -288,7 +294,17 @@ const Profile = () => {
       weeklyGoal: { target: 0, completed: 0 },
       languages: [], topics: [],
     },
-    interviewPractice: { sessionsCompleted: 0, totalHours: 0, categories: [], recentSessions: [] },
+    interviewPractice: {
+      metrics: {
+        overall_average_score: 0,
+        overall_score_percent: 0,
+        sessions_completed: 0,
+        total_practice_hours: 0,
+        total_practice_minutes: 0
+      },
+      category_performance: [],
+      recent_attempts: []
+    },
     resume: undefined,
     public_slug: '',
     is_public: false,
@@ -445,6 +461,8 @@ const Profile = () => {
       fetchedTokenRef.current = session.access_token;
       try {
         setIsProfileLoading(true);
+        
+        // Fetch profile data
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile`, {
           method: 'GET',
           headers: {
@@ -470,10 +488,46 @@ const Profile = () => {
         console.log('Remote profile raw', rawProfile);
         console.log('Mapped profile', mapped);
 
-        setProfile(prev => ({
-          ...prev, // keep defaults for sections missing in mapped
-          ...mapped,
-        }));
+        // Fetch interview summary data
+        try {
+          const interviewResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL}/profile/interview-summary`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              Accept: 'application/json',
+            },
+          });
+
+          if (interviewResponse.ok) {
+            const interviewData = await interviewResponse.json();
+            console.log('Interview summary data:', interviewData);
+            
+            // Update profile with interview data
+            setProfile(prev => ({
+              ...prev,
+              ...mapped,
+              interviewPractice: {
+                metrics: interviewData.metrics || prev.interviewPractice.metrics,
+                category_performance: interviewData.category_performance || [],
+                recent_attempts: interviewData.recent_attempts || []
+              }
+            }));
+          } else {
+            console.error('Failed to fetch interview summary:', interviewResponse.status);
+            // Still set the profile without interview data
+            setProfile(prev => ({
+              ...prev,
+              ...mapped,
+            }));
+          }
+        } catch (interviewErr) {
+          console.error('Error fetching interview summary:', interviewErr);
+          // Still set the profile without interview data
+          setProfile(prev => ({
+            ...prev,
+            ...mapped,
+          }));
+        }
 
         setIsProfileLoading(false);
       } catch (err) {
@@ -1268,6 +1322,14 @@ const Profile = () => {
             <div className="overflow-x-auto scrollbar-hide pb-2">
               <TabsList className="inline-flex w-auto min-w-full bg-white/80 backdrop-blur-sm border border-prepzo-200 shadow-lg rounded-xl p-1 sm:p-1.5 h-10 sm:h-12 lg:h-14">
               {/* Skills Tab - Always show if has data or editing */}
+              
+              <TabsTrigger 
+                value="interviews" 
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-prepzo-600 data-[state=active]:to-prepzo-700 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-200 rounded-lg font-medium text-xs px-2 sm:px-4 lg:px-6 py-1 sm:py-1.5 lg:py-2 whitespace-nowrap min-w-[60px] sm:min-w-[80px] mx-0.5"
+              >
+                Interviews
+              </TabsTrigger>
+
               {(profile.skills.length > 0 || isEditing) && (
                 <TabsTrigger 
                   value="skills" 
@@ -1458,107 +1520,152 @@ const Profile = () => {
             </TabsContent> */}
 
             {/* Interview Practice Tab */}
-            {/* <TabsContent value="interviews" className="space-y-6">
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <Card className="border-0 shadow-xl bg-gradient-to-br from-purple-50 to-purple-100/80 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
-                        <Target className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold text-purple-700">{profile.interviewPractice.sessionsCompleted}</p>
-                        <p className="text-sm text-purple-600 font-medium">Sessions Completed</p>
-                      </div>
+             <TabsContent value="interviews" className="space-y-6">
+              {/* Check if user has any interview data */}
+              {profile.interviewPractice.metrics?.sessions_completed === 0 && 
+               (!profile.interviewPractice.category_performance || profile.interviewPractice.category_performance.length === 0) ? (
+                /* Empty state - No interviews taken yet */
+                <Card className="border-2 border-dashed border-prepzo-300 bg-prepzo-50/50 hover:bg-prepzo-50 transition-colors">
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-prepzo-200 to-prepzo-300 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Target className="w-10 h-10 sm:w-12 sm:h-12 text-prepzo-700" />
                     </div>
-                    <div className="text-center bg-white/60 rounded-lg p-2">
-                      <p className="text-lg font-bold text-purple-700">{profile.interviewPractice.totalHours}h</p>
-                      <p className="text-xs text-purple-600">Total Practice Hours</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-0 shadow-xl bg-gradient-to-br from-emerald-50 to-emerald-100/80 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold text-emerald-700">
-                          {Math.round(profile.interviewPractice.categories.reduce((sum, cat) => sum + cat.averageScore, 0) / profile.interviewPractice.categories.length)}%
-                        </p>
-                        <p className="text-sm text-emerald-600 font-medium">Overall Score</p>
-                      </div>
+                    <h3 className="text-xl sm:text-2xl font-bold text-prepzo-900 mb-3">Start Your Interview Journey</h3>
+                    <p className="text-prepzo-600 mb-6 text-sm sm:text-base max-w-md mx-auto">
+                      Take your first mock interview to see your performance metrics, track progress, and improve your skills.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                      <Link href="/dashboard/tools/mock-Interview">
+                        <Button className="bg-gradient-to-r from-prepzo-600 to-prepzo-700 hover:from-prepzo-700 hover:to-prepzo-800 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+                          <Target className="w-4 h-4 mr-2" />
+                          Take First Interview
+                        </Button>
+                      </Link>
+                      {/* <Link href="/dashboard/tools/mock-Interview/sessions">
+                        <Button variant="outline" className="border-prepzo-300 text-prepzo-700 hover:bg-prepzo-50">
+                          <Clock className="w-4 h-4 mr-2" />
+                          View Practice Sessions
+                        </Button>
+                      </Link> */}
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-
-              
-              <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-prepzo-900">
-                    <BarChart3 className="w-6 h-6 text-prepzo-600" />
-                    Interview Category Performance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {profile.interviewPractice.categories.map((category, index) => (
-                      <div key={index} className="p-4 bg-prepzo-50 rounded-lg">
-                        <div className="flex justify-between items-center mb-3">
-                          <div>
-                            <h4 className="font-semibold text-prepzo-900">{category.name}</h4>
-                            <p className="text-sm text-prepzo-600">{category.sessionsCount} sessions • Last: {category.lastSession}</p>
+              ) : (
+                /* Show interview data when available */
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <Card className="border-0 shadow-xl bg-gradient-to-br from-purple-50 to-purple-100/80 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <Target className="w-6 h-6 text-white" />
                           </div>
                           <div className="text-right">
-                            <p className="text-2xl font-bold text-prepzo-700">{category.averageScore}%</p>
-                            <div className="flex items-center gap-1">
-                              <TrendingUp className="w-3 h-3 text-green-600" />
-                              <span className="text-xs text-green-600">+{category.improvement}%</span>
-                            </div>
+                            <p className="text-3xl font-bold text-purple-700">{profile.interviewPractice.metrics?.sessions_completed || 0}</p>
+                            <p className="text-sm text-purple-600 font-medium">Sessions Completed</p>
                           </div>
                         </div>
-                        <Progress value={category.averageScore} className="h-2" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                        <div className="text-center bg-white/60 rounded-lg p-2">
+                          <p className="text-lg font-bold text-purple-700">{profile.interviewPractice.metrics?.total_practice_hours || 0}h</p>
+                          <p className="text-xs text-purple-600">Total Practice Hours</p>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-              
-              <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-prepzo-900">
-                    <Clock className="w-6 h-6 text-prepzo-600" />
-                    Recent Practice Sessions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {profile.interviewPractice.recentSessions.map((session, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-prepzo-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-prepzo-600 rounded-lg flex items-center justify-center">
-                            <Calendar className="w-4 h-4 text-white" />
+                    <Card className="border-0 shadow-xl bg-gradient-to-br from-emerald-50 to-emerald-100/80 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                            <TrendingUp className="w-6 h-6 text-white" />
                           </div>
-                          <div>
-                            <p className="font-medium text-prepzo-900">{session.category}</p>
-                            <p className="text-sm text-prepzo-600">{session.date}</p>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold text-emerald-700">
+                              {profile.interviewPractice.metrics?.overall_score_percent || 0}%
+                            </p>
+                            <p className="text-sm text-emerald-600 font-medium">Overall Score</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-prepzo-700">{session.score}%</p>
-                          <p className="text-sm text-prepzo-600">{session.duration}min</p>
-                        </div>
-                      </div>
-                    ))}
+                      </CardContent>
+                    </Card>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent> */}
+
+                  {/* Category Performance */}
+                  <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-3 text-prepzo-900">
+                        <BarChart3 className="w-6 h-6 text-prepzo-600" />
+                        Interview Category Performance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {profile.interviewPractice.category_performance?.length > 0 ? (
+                          profile.interviewPractice.category_performance.map((category, index) => (
+                            <div key={index} className="p-4 bg-prepzo-50 rounded-lg">
+                              <div className="flex justify-between items-center mb-3">
+                                <div>
+                                  <h4 className="font-semibold text-prepzo-900">{category.interview_type}</h4>
+                                  <p className="text-sm text-prepzo-600">{category.attempts} sessions</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold text-prepzo-700">{category.average_score}%</p>
+                                </div>
+                              </div>
+                              <Progress value={category.average_score} className="h-2" />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <BarChart3 className="w-12 h-12 text-prepzo-300 mx-auto mb-3" />
+                            <p className="text-prepzo-600">No category performance data available yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Recent Sessions */}
+                  <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-3 text-prepzo-900">
+                        <Clock className="w-6 h-6 text-prepzo-600" />
+                        Recent Practice Sessions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {profile.interviewPractice.recent_attempts?.length > 0 ? (
+                          profile.interviewPractice.recent_attempts.map((session, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-prepzo-50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-prepzo-600 rounded-lg flex items-center justify-center">
+                                  <Calendar className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-prepzo-900">{session.interview_type}</p>
+                                  <p className="text-sm text-prepzo-600">
+                                    {session.completed_at ? new Date(session.completed_at).toLocaleDateString() : 'In Progress'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-prepzo-700">{session.score ? `${session.score * 10}%` : 'N/A'}</p>
+                                <p className="text-sm text-prepzo-600">{session.actual_duration_minutes}min</p>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <Clock className="w-12 h-12 text-prepzo-300 mx-auto mb-3" />
+                            <p className="text-prepzo-600">No recent sessions found</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent> 
 
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-6">
