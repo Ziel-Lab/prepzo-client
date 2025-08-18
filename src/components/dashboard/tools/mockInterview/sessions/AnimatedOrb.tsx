@@ -4,10 +4,18 @@ import React, { useEffect, useRef } from 'react';
 
 interface AnimatedOrbProps {
   isSpeaking: boolean;
+  size?: 'small' | 'medium' | 'large';
 }
 
-const AnimatedOrb: React.FC<AnimatedOrbProps> = ({ isSpeaking }) => {
+const AnimatedOrb: React.FC<AnimatedOrbProps> = ({ isSpeaking, size = 'medium' }) => {
   const orbRef = useRef<HTMLDivElement>(null);
+  
+  // Size configurations
+  const sizeConfig = {
+    small: { container: 'w-24 h-24', orb: 'w-20 h-20' },
+    medium: { container: 'w-40 h-40', orb: 'w-36 h-36' },
+    large: { container: 'w-80 h-80', orb: 'w-80 h-80' }
+  };
 
   useEffect(() => {
     const orb = orbRef.current;
@@ -55,11 +63,11 @@ const AnimatedOrb: React.FC<AnimatedOrbProps> = ({ isSpeaking }) => {
   }, [isSpeaking]);
 
   return (
-    <div className="relative">
+    <div className={`relative ${sizeConfig[size].container}`}>
       {/* Main Orb */}
       <div
         ref={orbRef}
-        className="w-80 h-80 rounded-full shadow-2xl shadow-green-200/50 transition-all duration-300 ease-out relative overflow-hidden"
+        className={`${sizeConfig[size].orb} rounded-full shadow-2xl shadow-green-200/50 transition-all duration-300 ease-out relative overflow-hidden`}
         style={{
           background: `
             radial-gradient(circle at 30% 20%, hsla(120, 70%, 85%, 0.7) 0%, transparent 60%),

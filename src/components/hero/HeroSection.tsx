@@ -82,13 +82,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
                 </Button>
               </Link>
               {/* Button uses the passed-in handler */}
-              <Button 
+              {/* <Button 
                 variant="outline" 
                 className="border-white rounded bg-[#32874d] text-slate-50 hover:bg-[#32874d]/90 hover:text-slate-50 px-10"
                 onClick={onOpenAgentModal} // Use the prop here
               >
                 Try Demo
-              </Button>
+              </Button> */}
             </div>
             <p className="text-sm text-white/60">
               No credit card required. Start your free demo now.

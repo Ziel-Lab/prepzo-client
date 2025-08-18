@@ -4,17 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MockInterviewLiveKit from '@/components/dashboard/tools/mockInterview/MockInterviewLiveKit';
 import { createClient } from '@/utils/supabase/client';
-
-interface ConnectionDetails {
-  sessionId: string;
-  serverUrl: string;
-  roomName: string;
-  participantToken: string;
-  participantName: string;
-  userId: string;
-  userEmail: string;
-  userName: string;
-}
+import type { MockInterviewConnectionDetails } from '@/app/api/mock-interview-token/route';
 
 interface SessionData {
   id: string;
@@ -42,7 +32,7 @@ const SessionsLoading = () => (
 const MockInterviewSessionsContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
+  const [connectionDetails, setConnectionDetails] = useState<MockInterviewConnectionDetails | null>(null);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +47,14 @@ const MockInterviewSessionsContent = () => {
         const roomName = searchParams.get('roomName');
         const participantToken = searchParams.get('participantToken');
         const participantName = searchParams.get('participantName');
+
+        console.log('🔍 Sessions page URL parameters:', {
+          sessionId,
+          serverUrl,
+          roomName,
+          participantToken,
+          participantName
+        });
 
         if (!sessionId) {
           setError('Missing session ID');
@@ -116,8 +114,14 @@ const MockInterviewSessionsContent = () => {
           });
         } else {
           // No valid parameters, redirect back to mock interview page
-          console.error('Missing required session parameters');
-          router.push('/dashboard/tools/mock-Interview');
+          console.error('❌ Missing required session parameters:', {
+            sessionId,
+            serverUrl,
+            roomName,
+            participantToken,
+            participantName
+          });
+          setError('Missing interview session parameters. Please try starting the interview again.');
           return;
         }
 
