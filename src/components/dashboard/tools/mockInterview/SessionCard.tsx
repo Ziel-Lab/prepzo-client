@@ -44,8 +44,6 @@ interface InterviewSession {
   latestAttempt?: MockInterviewAttempt;
 }
 
-
-
 interface SessionCardProps {
   session: InterviewSession;
 }
@@ -54,9 +52,20 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   const router = useRouter();
   const supabase = createClient();
   const [showAttempts, setShowAttempts] = useState(false);
+
+  // initialize from prop (this runs only once)
   const [attempts, setAttempts] = useState<MockInterviewAttempt[]>(session.attempts || []);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
+
+  // ---------- NEW: keep local attempts in sync when parent updates session.attempts ----------
+  useEffect(() => {
+    // Defensive: copy array so we don't accidentally keep parent's reference
+    const parentAttempts = session.attempts ? [...session.attempts] : [];
+    console.log(`SessionCard sync: session ${session.id} attempts length =`, parentAttempts.length);
+    setAttempts(parentAttempts);
+  }, [session.attempts, session.id]);
+  // -----------------------------------------------------------------------------------------
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -85,13 +94,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   };
 
   const calculateSessionScore = () => {
-    if (session.attempts && session.attempts.length > 0) {
-      const completedAttempts = session.attempts.filter(attempt => 
+    if (attempts && attempts.length > 0) {
+      const completedAttempts = attempts.filter(attempt =>
         attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
       );
-      
+
       if (completedAttempts.length === 0) return undefined;
-      
+
       // Calculate the average score as rating out of 10
       const scores = completedAttempts.map(attempt => {
         if (attempt.feedback?.Score) {
@@ -103,7 +112,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
         const evalScore = attempt.evaluation_score || 0;
         return evalScore <= 10 ? evalScore : (evalScore / 100) * 10;
       });
-      
+
       const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
       return `${Math.round(averageScore * 10) / 10}/10`;
     }
@@ -111,11 +120,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   };
 
   const getCompletedAttemptsCount = () => {
-    return session.attempts?.filter(attempt => attempt.status === 'PROCESSED').length || 0;
+    // Use local attempts state which is updated in real-time (and now synced from parent)
+    return attempts.filter(attempt => attempt.status === 'PROCESSED').length || 0;
   };
 
   const getTotalAttemptsCount = () => {
-    return session.attempts?.length || 0;
+    // Use local attempts state which is updated in real-time (and now synced from parent)
+    return attempts.length || 0;
   };
 
   const hasReachedAttemptLimit = () => {
@@ -125,7 +136,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   const getTypeColor = (type: string) => {
     // Normalize type for consistent display
     const normalizedType = type.toLowerCase().replace(/[_-]/g, ' ');
-    
+
     switch (normalizedType) {
       case 'behavioral':
         return 'bg-purple-100 text-purple-700';
@@ -172,7 +183,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   const formatDate = (date: Date) => {
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diff === 0) return 'Today';
     if (diff === 1) return 'Yesterday';
     if (diff < 7) return `${diff} days ago`;
@@ -187,8 +198,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       .join(' ');
   };
 
-
-
   const extractDomain = (url: string) => {
     try {
       const domain = new URL(url).hostname;
@@ -197,6 +206,71 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       return url;
     }
   };
+
+  // Real-time subscription for session status changes (status_prep monitoring)
+  useEffect(() => {
+    let sessionChannel: any = null;
+
+    const setupSessionStatusSubscription = async () => {
+      try {
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+        if (authError || !authSession?.user?.id) {
+          console.log('🔔 No authenticated user for session status subscription');
+          return;
+        }
+
+        console.log('🔔 Setting up session status subscription for session:', session.id);
+
+        // Subscribe to changes in mock_interview table for this specific session
+        sessionChannel = supabase
+          .channel(`session_status_${session.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'mock_interview',
+              filter: `id=eq.${session.id}`
+            },
+            (payload) => {
+              const newData = payload.new as any;
+              const oldData = payload.old as any;
+
+              console.log('🔔 Session status update received:', {
+                sessionId: session.id,
+                oldStatus: oldData?.status,
+                newStatus: newData?.status,
+                oldStatusPrep: oldData?.status_prep,
+                newStatusPrep: newData?.status_prep,
+                timestamp: new Date().toISOString()
+              });
+
+              // Check if status_prep changed to DONE (agent ready)
+              if (oldData?.status_prep !== newData?.status_prep && newData?.status_prep === 'DONE') {
+                console.log('✅ Agent is now READY for session:', session.id);
+              }
+
+              // Parent will update session object; child syncs from session.attempts via the useEffect above
+            }
+          )
+          .subscribe((status) => {
+            console.log('🔔 Session status subscription status:', status);
+          });
+
+      } catch (error) {
+        console.error('❌ Error setting up session status subscription:', error);
+      }
+    };
+
+    setupSessionStatusSubscription();
+
+    return () => {
+      console.log('🔔 Cleaning up session status subscription for session:', session.id);
+      if (sessionChannel) {
+        supabase.removeChannel(sessionChannel);
+      }
+    };
+  }, [supabase, session.id]);
 
   // Real-time subscription for attempt updates
   useEffect(() => {
@@ -226,7 +300,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
             (payload) => {
               const newData = payload.new as MockInterviewAttempt;
               const oldData = payload.old as MockInterviewAttempt;
-              
+
               console.log('🔔 Real-time attempt update received:', {
                 eventType: payload.eventType,
                 attemptId: newData?.id,
@@ -235,7 +309,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                 sessionId: session.id,
                 timestamp: new Date().toISOString()
               });
-              
+
               // Handle INSERT events (new attempts created)
               if (payload.eventType === 'INSERT' && newData) {
                 console.log('🎉 New attempt created via real-time, adding to list');
@@ -243,16 +317,16 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                   // Check if attempt already exists to avoid duplicates
                   const exists = prevAttempts.some(attempt => attempt.id === newData.id);
                   if (exists) return prevAttempts;
-                  
+
                   // Add new attempt and sort by attempt_number
                   return [...prevAttempts, newData].sort((a, b) => a.attempt_number - b.attempt_number);
                 });
               }
-              
+
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
                 console.log('🔔 Attempt updated via real-time, updating display');
-                
+
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
                     if (attempt.id === newData.id) {
@@ -266,7 +340,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                 // Show notification when feedback becomes ready
                 if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
                   console.log('🎉 Feedback is now ready for attempt:', newData.id);
-                  // You can add a toast notification here if you have a toast system
                 }
               }
             }
@@ -297,7 +370,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
 
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
-    
+
     setLoadingAttempts(true);
     try {
       // Get user session for authentication
@@ -338,10 +411,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
 
   const handleToggleAttempts = () => {
     if (!showAttempts) {
-      // Use session's attempts if available, otherwise fetch
+      // Use session's attempts if available, otherwise fetch on demand
       if (session.attempts && session.attempts.length > 0) {
         setAttempts(session.attempts);
+        console.log(`📊 Using cached attempts for session ${session.id}: ${session.attempts.length} attempts`);
       } else if (attempts.length === 0) {
+        console.log(`🔄 Fetching attempts for session ${session.id} on demand...`);
         fetchAttempts();
       }
     }
@@ -363,6 +438,20 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
         return;
       }
 
+      // Check for any active attempts and warn user
+      const activeAttempts = attempts.filter(attempt =>
+        attempt.status === 'IN_PROGRESS' || attempt.status === 'ACTIVE'
+      );
+
+      if (activeAttempts.length > 0) {
+        const shouldContinue = confirm(
+          `You have ${activeAttempts.length} active attempt(s) for this interview. Starting a new session may end the previous attempt(s). Continue?`
+        );
+        if (!shouldContinue) {
+          return;
+        }
+      }
+
       // Call join endpoint to create attempt and get room credentials
       const response = await fetch(`${backendUrl}/mockInterview/join/${session.id}`, {
         method: 'GET',
@@ -373,13 +462,67 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to join session:', errorData.error);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Failed to join session:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error,
+          sessionId: session.id
+        });
+        // Handle specific error cases
+        if (errorData.error?.includes('already an active interview session')) {
+          const shouldForceNew = confirm(
+            'There is already an active interview session for this mock interview. Would you like to end the previous session and start a new one?'
+          );
+
+          if (shouldForceNew) {
+            // Try to force start a new session
+            try {
+              const forceResponse = await fetch(`${backendUrl}/mockInterview/join/${session.id}?force=true`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${sessionData.session.access_token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (forceResponse.ok) {
+                const forceData = await forceResponse.json();
+                console.log('🔄 Force starting new session:', forceData);
+
+                const sessionParams = new URLSearchParams({
+                  sessionId: session.id,
+                  serverUrl: forceData.livekit_url,
+                  roomName: forceData.room_name,
+                  participantToken: forceData.token,
+                  participantName: forceData.session.display_name || 'Participant'
+                });
+
+                router.push(`/dashboard/tools/mock-Interview/sessions?${sessionParams.toString()}`);
+                return;
+              } else {
+                const forceErrorData = await forceResponse.json().catch(() => ({ error: 'Unknown error' }));
+                alert(`Failed to force start new session: ${forceErrorData.error}`);
+                return;
+              }
+            } catch (forceError) {
+              console.error('Failed to force start new session:', forceError);
+              alert('Failed to start new session. Please try again.');
+              return;
+            }
+          } else {
+            return; // User cancelled
+          }
+        }
+
+        alert(`Failed to start interview: ${errorData.error || 'Unknown error'}`);
         return;
       }
 
       const joinData = await response.json();
-      
+
+      console.log('🚀 Join data received:', joinData);
+
       // Navigate to live session with credentials
       const sessionParams = new URLSearchParams({
         sessionId: session.id,
@@ -389,10 +532,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
         participantName: joinData.session.display_name || 'Participant'
       });
 
+      console.log('🔗 Navigation URL:', `/dashboard/tools/mock-Interview/sessions?${sessionParams.toString()}`);
       router.push(`/dashboard/tools/mock-Interview/sessions?${sessionParams.toString()}`);
 
     } catch (error) {
-      console.error('Error starting interview:', error);
+      console.error('❌ Error starting interview:', error);
+      alert(`Error starting interview: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -415,7 +560,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                 {formatType(session.type)}
               </Badge>
             </div>
-            
+
             {/* Role and Company Info */}
             <div className="space-y-2 mb-3">
               {session.role && (
@@ -432,16 +577,16 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               )}
             </div>
           </div>
-          
+
           {/* Score */}
           {(() => {
             const calculatedScore = calculateSessionScore();
             if (!calculatedScore) return null;
-            
+
             // Extract numeric value for color calculation
             const scoreMatch = calculatedScore.match(/^(\d+\.?\d*)/);
             const numericScore = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
-            
+
             return (
               <div className="flex items-center gap-2 ml-4">
                 <Award size={16} className={getScoreColor(numericScore)} />
@@ -452,7 +597,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
             );
           })()}
         </div>
-        
+
         {/* Bottom Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -465,7 +610,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               <span>{session.duration} min</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {/* Attempts Toggle Button */}
             <Button
@@ -529,7 +674,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
               ) : (
                 attempts.map((attempt) => {
                   return (
-                    <div 
+                    <div
                       key={attempt.id}
                       className="p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 hover:border-green-300 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
@@ -554,37 +699,37 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
                       {/* Score and Actions */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                      {(() => {
-                        let scoreDisplay = null;
-                        let scoreNumeric = 0;
-                        
-                        if (attempt.feedback?.Score) {
-                          // Show original "X/10" format
-                          scoreDisplay = attempt.feedback.Score;
-                          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-                          scoreNumeric = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
-                        } else if (attempt.evaluation_score) {
-                          // Convert to rating format, never percentage
-                          if (attempt.evaluation_score <= 10) {
-                            scoreDisplay = `${attempt.evaluation_score}/10`;
-                            scoreNumeric = attempt.evaluation_score;
-                          } else {
-                            // Convert percentage to rating out of 10
-                            const rating = Math.round((attempt.evaluation_score / 100) * 10);
-                            scoreDisplay = `${rating}/10`;
-                            scoreNumeric = rating;
-                          }
-                        }
-                        
-                          return scoreDisplay && (
-                            <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200">
-                              <Award size={14} className={getScoreColor(scoreNumeric)} />
-                              <span className={`text-sm font-bold ${getScoreColor(scoreNumeric)}`}>
-                                {scoreDisplay}
-                              </span>
-                            </div>
-                          );
-                        })()}
+                          {(() => {
+                            let scoreDisplay = null;
+                            let scoreNumeric = 0;
+
+                            if (attempt.feedback?.Score) {
+                              // Show original "X/10" format
+                              scoreDisplay = attempt.feedback.Score;
+                              const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+                              scoreNumeric = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
+                            } else if (attempt.evaluation_score) {
+                              // Convert to rating format, never percentage
+                              if (attempt.evaluation_score <= 10) {
+                                scoreDisplay = `${attempt.evaluation_score}/10`;
+                                scoreNumeric = attempt.evaluation_score;
+                              } else {
+                                // Convert percentage to rating out of 10
+                                const rating = Math.round((attempt.evaluation_score / 100) * 10);
+                                scoreDisplay = `${rating}/10`;
+                                scoreNumeric = rating;
+                              }
+                            }
+
+                            return scoreDisplay && (
+                              <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200">
+                                <Award size={14} className={getScoreColor(scoreNumeric)} />
+                                <span className={`text-sm font-bold ${getScoreColor(scoreNumeric)}`}>
+                                  {scoreDisplay}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center gap-2">
                           {attempt.status === 'PROCESSED' && (
@@ -618,4 +763,4 @@ const SessionCard: React.FC<SessionCardProps> = ({ session }) => {
   );
 };
 
-export default SessionCard; 
+export default SessionCard;

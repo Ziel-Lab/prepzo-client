@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Camera, Mic, MicOff } from "lucide-react";
 import AnimatedOrb from "@/components/dashboard/tools/mockInterview/sessions/AnimatedOrb";
 import LiveTranscript from "@/components/dashboard/tools/mockInterview/sessions/LiveTranscript";
+import VideoInterviewLayout from "./VideoInterviewLayout";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
@@ -475,145 +476,16 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   }, []);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 relative overflow-hidden">
-      {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-green-50/40 via-emerald-50/30 to-lime-50/20 pointer-events-none" />
-      
-      {/* Top Navigation */}
-      <header className="relative z-10 flex justify-between items-center p-4 bg-white/10 backdrop-blur-sm">
-        <button 
-          onClick={() => navigateToSessionsPage(500)}
-          className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span className="text-sm font-medium">Exit Interview</span>
-        </button>
-        <div className="text-sm font-semibold text-emerald-600">
-          {sessionConfig.interviewType} Interview - {sessionConfig.position}
-        </div>
-      </header>
-
-      {/* Main Content Container */}
-      <div className="relative z-10 flex h-[calc(100vh-64px)]">
-        {/* Left Side - Main Interview Area */}
-        <div className={`flex flex-col items-center justify-between p-4 transition-all duration-300 ${
-          isTranscriptVisible ? 'w-full lg:w-2/3' : 'w-full'
-        }`}>
-          
-          {/* Top Status and Content */}
-          <div className="flex flex-col items-center justify-center flex-1">
-            {/* Status Indicators */}
-            <div className="flex flex-col items-center mb-6">
-              {/* Connection Status */}
-              {state === "connecting" && (
-                <div className="mb-3 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-medium flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                  Connecting to interviewer...
-                </div>
-              )}
-
-              {/* AI Speaking Indicator */}
-              {isSpeaking && state === "speaking" && (
-                <div className="mb-3 px-4 py-2 bg-green-50 text-green-600 rounded-full text-sm font-medium flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  AI Interviewer Speaking
-                  {agentSpeakingStartTime && Date.now() - agentSpeakingStartTime > 15000 && (
-                    <span className="text-xs text-orange-500 ml-2">(Long response detected)</span>
-                  )}
-                </div>
-              )}
-
-              {/* Listening Indicator */}
-              {state === "listening" && (
-                <div className="mb-3 px-4 py-2 bg-orange-50 text-orange-600 rounded-full text-sm font-medium flex items-center gap-2">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                  Listening...
-                </div>
-              )}
-
-              {/* Loop Detection Warning */}
-              {consecutiveRepeats > 0 && (
-                <div className="mb-3 px-4 py-2 bg-yellow-50 text-yellow-600 rounded-full text-sm font-medium flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                  Repetitive content detected ({consecutiveRepeats}/{MAX_CONSECUTIVE_REPEATS})
-                </div>
-              )}
-            </div>
-
-            {/* Animated Orb */}
-            <div className="mb-6">
-              <AnimatedOrb isSpeaking={isSpeaking} />
-            </div>
-
-            {/* Timer with visual warnings */}
-            <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
-              endingCountdown !== null ? 'text-red-600 animate-pulse' : // Red and pulsing when ending
-              timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
-              timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
-              'text-gray-600' // Normal gray
-            }`}>
-              {endingCountdown !== null ? (
-                <span className="text-red-500 font-bold animate-pulse">
-                  Ending in: {endingCountdown}
-                </span>
-              ) : (
-                timer
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Controls - Always Visible */}
-          <div className="flex flex-wrap items-center justify-center gap-3 max-w-lg w-full">
-            <Button
-              variant="outline"
-              onClick={toggleMicrophone}
-              className={`px-4 py-2 border transition-colors rounded-full flex items-center gap-2 ${
-                isMicMuted 
-                  ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
-                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {isMicMuted ? <MicOff size={16} /> : <Mic size={16} />}
-              <span className="hidden sm:inline">{isMicMuted ? 'Unmute' : 'Mute'}</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={toggleTranscript}
-              className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors rounded-full flex items-center gap-2"
-            >
-              <span>{isTranscriptVisible ? 'Hide Transcript' : 'Show Transcript'}</span>
-            </Button>
-            
-            <Button
-              onClick={() => navigateToSessionsPage(500)}
-              className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-full shadow-lg shadow-red-500/30 transition-all duration-200"
-            >
-              End Interview
-            </Button>
-            
-            {/* Camera Button
-            <Button
-              variant="outline"
-              onClick={handleTurnOnCamera}
-              className="px-4 py-2 bg-white/90 backdrop-blur-sm border border-gray-200 text-gray-600 hover:bg-white hover:text-gray-800 transition-all rounded-full flex items-center gap-2"
-            >
-              <Camera size={16} />
-              <span className="hidden sm:inline">Turn On Camera</span>
-            </Button> */}
-          </div>
-        </div>
-
-        {/* Right Side - Live Transcript */}
-        {isTranscriptVisible && (
-          <div className="w-full lg:w-1/3 bg-white/95 backdrop-blur-sm border-l border-gray-200 flex flex-col h-full">
-            <div className="flex-1 overflow-hidden">
-              <LiveTranscript messages={messages} />
-            </div>
-          </div>
-        )}
-      </div>
-
+    <VideoInterviewLayout
+      sessionConfig={sessionConfig}
+      isSpeaking={isSpeaking}
+      messages={messages}
+      timer={timer}
+      timeRemaining={timeRemaining}
+      endingCountdown={endingCountdown}
+      onEndInterview={() => navigateToSessionsPage(500)}
+      onNavigateBack={() => navigateToSessionsPage(500)}
+    >
       {/* Audio Components for Agent Playback */}
       {remoteParticipants.length > 0 && (
         <div className="absolute top-0 left-0 w-1 h-1 overflow-hidden opacity-0 pointer-events-none">
@@ -635,7 +507,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
           })}
         </div>
       )}
-    </div>
+    </VideoInterviewLayout>
   );
 };
 
@@ -747,61 +619,16 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
   }, [endingCountdown, onEndInterview]);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-green-50/40 via-emerald-50/30 to-lime-50/20 pointer-events-none" />
-      
-      <header className="relative z-10 flex justify-between items-center p-4 bg-white/10 backdrop-blur-sm">
-        <button 
-          onClick={() => router.push('/dashboard/tools/mock-Interview')}
-          className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span className="text-sm font-medium">Exit Interview</span>
-        </button>
-        <div className="text-sm font-semibold text-emerald-600">
-          {formatInterviewType(sessionConfig.interviewType)} Interview - {sessionConfig.position}
-        </div>
-      </header>
-
-      <div className="relative z-10 flex h-[calc(100vh-64px)]">
-        <div className="flex flex-col items-center justify-between p-4 w-full">
-          <div className="flex flex-col items-center justify-center flex-1">
-            <div className="mb-3 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-medium flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-              Connecting to interviewer...
-            </div>
-
-            <div className="mb-6">
-              <AnimatedOrb isSpeaking={false} />
-            </div>
-
-            <div className={`text-xl mb-6 font-mono font-semibold transition-colors duration-300 ${
-              endingCountdown !== null ? 'text-red-600 animate-pulse' : // Red and pulsing when ending
-              timeRemaining <= 60 ? 'text-red-600 animate-pulse' : // Red and pulsing in last minute
-              timeRemaining <= 300 ? 'text-orange-600' : // Orange in last 5 minutes
-              'text-gray-600' // Normal gray
-            }`}>
-              {endingCountdown !== null ? (
-                <span className="text-red-500 font-bold animate-pulse">
-                  Ending in: {endingCountdown}
-                </span>
-              ) : (
-                timer
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 max-w-lg w-full">
-            <Button
-              onClick={() => router.push('/dashboard/tools/mock-Interview')}
-              className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-full shadow-lg shadow-red-500/30 transition-all duration-200"
-            >
-              End Interview
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <VideoInterviewLayout
+      sessionConfig={sessionConfig}
+      isSpeaking={false}
+      messages={[]}
+      timer={timer}
+      timeRemaining={timeRemaining}
+      endingCountdown={endingCountdown}
+      onEndInterview={() => router.push('/dashboard/tools/mock-Interview')}
+      onNavigateBack={() => router.push('/dashboard/tools/mock-Interview')}
+    />
   );
 };
 

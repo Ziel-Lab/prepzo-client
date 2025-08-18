@@ -404,6 +404,12 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
 
+  console.log('🎯 MockInterviewLiveKit received:', {
+    sessionConfig,
+    providedConnectionDetails,
+    connectionDetails
+  });
+
   // Fetch connection details
   const onConnectButtonClicked = useCallback(async () => {
     try {
@@ -427,7 +433,10 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   // Get connection details on mount (only if not provided)
   useEffect(() => {
     if (!providedConnectionDetails) {
+      console.log('🔄 No connection details provided, fetching from API...');
       onConnectButtonClicked();
+    } else {
+      console.log('✅ Using provided connection details:', providedConnectionDetails);
     }
   }, [onConnectButtonClicked, providedConnectionDetails]);
 
@@ -452,7 +461,7 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
               serverUrl={connectionDetails.serverUrl}
               connect={true}
               audio={true}
-              video={false}
+              video={true}
               onError={(error) => {
                 // Silent error handling
               }}
