@@ -9,8 +9,8 @@ const ApplicationsContent = () => {
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
-          <p className="text-gray-600 mt-1">Track your job applications and progress</p>
+          <h1 className="text-3xl font-bold text-gray-900">Job Search</h1>
+          <p className="text-gray-600 mt-1">Search for jobs across 16 global platforms</p>
         </div>
       </div>
       <ApplicationTracker />

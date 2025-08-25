@@ -30,7 +30,7 @@ const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
   { icon: UserRound, label: "Profile  ✨", href: "/dashboard/profile" },
   { icon: MessageSquare, label: "Conversations", href: "/dashboard/conversations" },
-  { icon: FileText, label: "Applications", href: "/dashboard/applications" },
+  { icon: FileText, label: "Job Search", href: "/dashboard/applications" },
   { icon: TrendingUp, label: "Skills", href: "/dashboard/skills" },
   { icon: BarChart, label: "Goals", href: "/dashboard/goals" },
   { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
