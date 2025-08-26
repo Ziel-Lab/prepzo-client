@@ -63,7 +63,13 @@ const AnimatedOrb: React.FC<AnimatedOrbProps> = ({ isSpeaking, size = 'medium' }
   }, [isSpeaking]);
 
   return (
-    <div className={`relative ${sizeConfig[size].container}`}>
+    <div 
+      className={`relative ${sizeConfig[size].container}`}
+      style={{ 
+        transform: 'translateZ(0)', // Force hardware acceleration
+        willChange: 'transform' // Optimize for animations
+      }}
+    >
       {/* Main Orb */}
       <div
         ref={orbRef}
@@ -78,7 +84,9 @@ const AnimatedOrb: React.FC<AnimatedOrbProps> = ({ isSpeaking, size = 'medium' }
               hsla(160, 45%, 85%, 0.7) 50%, 
               hsla(80, 60%, 92%, 0.6) 100%
             )
-          `
+          `,
+          transform: 'translateZ(0)', // Force hardware acceleration for smooth animations
+          willChange: 'transform' // Optimize for transform changes
         }}
       >
         {/* Animated ripples for voice response */}

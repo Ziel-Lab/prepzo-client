@@ -46,7 +46,7 @@ interface SubscriptionPlan {
 interface NewSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<any>;
   isLoading?: boolean;
   userLimits?: UserLimits | null;
 }
@@ -81,6 +81,8 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<string>('creating');
   
   // Usage tracking state
   const [featureUsage, setFeatureUsage] = useState<FeatureUsage | null>(null);
@@ -88,6 +90,41 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
   const [usageLimitReached, setUsageLimitReached] = useState(false);
 
   const supabase = createClient();
+
+  // Helper function to conditionally add ngrok headers
+  const getHeaders = (authToken: string, backendUrl?: string) => {
+    const baseHeaders = {
+      'Authorization': `Bearer ${authToken}`,
+      'Content-Type': 'application/json'
+    };
+
+    // Only add ngrok headers if URL contains ngrok
+    if (backendUrl && backendUrl.includes('ngrok')) {
+      return {
+        ...baseHeaders,
+        'ngrok-skip-browser-warning': 'true'
+      };
+    }
+
+    return baseHeaders;
+  };
+
+  // Helper for upload requests
+  const getUploadHeaders = (authToken: string, backendUrl?: string) => {
+    const baseHeaders = {
+      'Authorization': `Bearer ${authToken}`
+    };
+
+    // Only add ngrok headers if URL contains ngrok
+    if (backendUrl && backendUrl.includes('ngrok')) {
+      return {
+        ...baseHeaders,
+        'ngrok-skip-browser-warning': 'true'
+      };
+    }
+
+    return baseHeaders;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -149,10 +186,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
         const response = await fetch(requestUrl, {
           method: "GET",
-          headers: {
-            "Authorization": `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: getHeaders(jwtToken, backendUrl),
         });
 
         if (response.ok) {
@@ -439,7 +473,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
 
       const response = await fetch(`${backendUrl}/upload-document`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${jwtToken}` },
+        headers: getUploadHeaders(jwtToken, backendUrl),
         body: formData,
       });
 
@@ -601,28 +635,26 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
         date: submitData.date?.toISOString()
       });
 
-      onSubmit(submitData);
-
-      // Reset form
-      setFormData({
-        title: '',
-        type: '',
-        companyUrl: '',
-        role: '',
-        jobDescription: '',
-        description: ''
-      });
-      setErrors({});
-      setSelectedResumeUrl('');
-      setSelectedCoverLetterUrl('');
-      setNewResumeFile(null);
-      setNewCoverLetterFile(null);
-      setIncludeCoverLetter(false);
-      setResumeMethod('select');
-      setCoverLetterMethod('select');
-      setCustomInterviewType('');
-      setError(null);
-      // Usage data persists to show updated counts
+      try {
+        // Get session ID from submit response (assuming onSubmit returns it)
+        const sessionResult = await onSubmit(submitData);
+        
+        // If session was created successfully, track it
+        if (sessionResult && sessionResult.session_id) {
+          setCreatedSessionId(sessionResult.session_id);
+          setSessionStatus('preparing');
+          
+          // Set up real-time listener for this specific session
+          setupSessionStatusListener(sessionResult.session_id);
+        } else {
+          // Reset form immediately if no session ID returned
+          resetForm();
+        }
+      } catch (submitError) {
+        console.error('Session creation failed:', submitError);
+        setError('Failed to create session. Please try again.');
+        resetForm();
+      }
     } catch (error) {
       setError('An error occurred. Please try again.');
     } finally {
@@ -630,7 +662,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     }
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
     setFormData({
       title: '',
       type: '',
@@ -649,6 +681,55 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
     setCoverLetterMethod('select');
     setCustomInterviewType('');
     setError(null);
+    setCreatedSessionId(null);
+    setSessionStatus('creating');
+  };
+
+  const setupSessionStatusListener = (sessionId: string) => {
+    console.log('🔔 Setting up status listener for session:', sessionId);
+    
+    const channel = supabase
+      .channel(`session_status_${sessionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'mock_interview',
+          filter: `id=eq.${sessionId}`
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          const oldData = payload.old as any;
+          
+          console.log('🔔 Session status update received:', {
+            sessionId,
+            oldStatusPrep: oldData?.status_prep,
+            newStatusPrep: newData?.status_prep,
+            oldStatus: oldData?.status,
+            newStatus: newData?.status
+          });
+          
+          if (newData.status_prep === 'DONE') {
+            console.log('🎉 Session is ready! Closing modal');
+            setSessionStatus('ready');
+            
+            // Close modal after a brief delay to show success
+            setTimeout(() => {
+              supabase.removeChannel(channel);
+              resetForm();
+              onClose();
+            }, 1500);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔔 Session status subscription:', status);
+      });
+  };
+
+  const handleClose = () => {
+    resetForm();
     setFeatureUsage(null);
     setSubscriptionPlan(null);
     setUsageLimitReached(false);
@@ -1038,15 +1119,34 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             // Premium users (plan_id 2 and 3) see create session button
             <Button 
               onClick={handleSubmit}
-              disabled={isLoading || loading}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isLoading || loading || sessionStatus === 'preparing'}
+              className={`text-white ${
+                sessionStatus === 'preparing' 
+                  ? 'bg-orange-500 hover:bg-orange-600' 
+                  : sessionStatus === 'ready'
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
               title={
-                isLoading || loading 
+                sessionStatus === 'preparing' 
+                  ? 'AI is preparing your session...' 
+                  : sessionStatus === 'ready'
+                  ? 'Session ready! Modal will close automatically'
+                  : isLoading || loading 
                   ? 'Loading...' 
                   : 'Create new interview session'
               }
             >
-              {loading ? (
+              {sessionStatus === 'preparing' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  AI Preparing Session...
+                </>
+              ) : sessionStatus === 'ready' ? (
+                <>
+                  ✅ Session Ready!
+                </>
+              ) : loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...
@@ -1059,10 +1159,25 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             // Fallback for any other plan IDs - show create session
             <Button 
               onClick={handleSubmit}
-              disabled={isLoading || loading}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isLoading || loading || sessionStatus === 'preparing'}
+              className={`text-white ${
+                sessionStatus === 'preparing' 
+                  ? 'bg-orange-500 hover:bg-orange-600' 
+                  : sessionStatus === 'ready'
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
-              {loading ? (
+              {sessionStatus === 'preparing' ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  AI Preparing Session...
+                </>
+              ) : sessionStatus === 'ready' ? (
+                <>
+                  ✅ Session Ready!
+                </>
+              ) : loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...

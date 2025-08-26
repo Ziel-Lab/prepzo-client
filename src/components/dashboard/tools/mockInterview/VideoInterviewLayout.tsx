@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
   ArrowLeft, 
-  Camera, 
-  CameraOff, 
+  Video, 
+  VideoOff, 
   Mic, 
   MicOff, 
   MessageSquare, 
@@ -87,17 +87,17 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
     };
   }, [resetControlsTimeout]);
 
-  // Camera toggle with smooth transition
-  const toggleCamera = useCallback(async () => {
+  // Video toggle with smooth transition
+  const toggleVideo = useCallback(async () => {
     try {
       if (localParticipant?.localParticipant) {
         // First update the UI state immediately for responsive feel
         setIsCameraOn(!isCameraOn);
-        // Then handle the actual camera toggle
+        // Then handle the actual video toggle
         await localParticipant.localParticipant.setCameraEnabled(!isCameraOn);
       }
     } catch (error) {
-      console.warn('Camera toggle failed:', error);
+      console.warn('Video toggle failed:', error);
       // Revert UI state if technical toggle fails
       setIsCameraOn(isCameraOn);
     }
@@ -222,8 +222,8 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 ) : (
                   <div className="w-full h-full bg-slate-800 rounded-lg flex items-center justify-center">
                     <div className="text-white/60 text-center">
-                      <Camera size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>Camera initializing...</p>
+                      <Video size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>Video initializing...</p>
                     </div>
                   </div>
                 )}
@@ -265,7 +265,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                           transition={{ delay: 0.2 }}
                           className="text-white/60 text-sm"
                         >
-                          Camera is turned off
+                          Video is turned off
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -273,26 +273,34 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 </div>
               </motion.div>
 
-              {/* Orb Overlay - Bottom Right when camera is on */}
+              {/* Orb Overlay - Fixed position when camera is on */}
               <AnimatePresence>
                 {isCameraOn && (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, x: 20, y: 20 }}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="absolute bottom-6 right-6 z-10"
+                    className={`absolute z-20 ${
+                      isTranscriptVisible 
+                        ? 'bottom-6 right-6' // When transcript is visible, stay in corner
+                        : 'bottom-6 right-6'  // Default position
+                    }`}
+                    style={{ 
+                      transform: 'translateZ(0)', // Force hardware acceleration
+                      willChange: 'transform' // Optimize for animations
+                    }}
                   >
-                    <div className="relative">
+                    <div className="relative pointer-events-none">
                       <AnimatedOrb isSpeaking={isSpeaking} size="small" />
                       {/* Speaking indicator */}
                       {isSpeaking && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="absolute -top-8 left-1/2 transform -translate-x-1/2"
+                          className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10"
                         >
-                          <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
+                          <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
                             AI Speaking
                           </div>
                         </motion.div>
@@ -306,11 +314,15 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
               <AnimatePresence>
                 {isTranscriptVisible && isCameraOn && (
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.9, x: 20, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, x: 20, y: 20 }}
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="absolute bottom-32 right-6 w-80 h-64 z-10"
+                    className="absolute bottom-36 right-6 w-80 h-72 z-15"
+                    style={{ 
+                      transform: 'translateZ(0)', // Force hardware acceleration
+                      willChange: 'transform' // Optimize for animations
+                    }}
                   >
                     <div className="h-full bg-black/90 backdrop-blur-lg rounded-lg border border-white/20 overflow-hidden shadow-2xl">
                       <div className="p-3 border-b border-white/20 flex justify-between items-center bg-black/50">
@@ -322,41 +334,8 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                           <X size={16} />
                         </button>
                       </div>
-                      <div className="h-[calc(100%-52px)] p-3 overflow-y-auto">
-                        <div className="space-y-2">
-                          {messages.length === 0 ? (
-                            <div className="text-center text-white/60 text-sm">
-                              Conversation will appear here...
-                            </div>
-                          ) : (
-                            messages.map((message) => (
-                              <div
-                                key={message.id}
-                                className={`flex ${
-                                  message.type === 'user' ? 'justify-end' : 'justify-start'
-                                }`}
-                              >
-                                <div
-                                  className={`max-w-[80%] px-2 py-1 rounded-lg text-xs ${
-                                    message.type === 'user'
-                                      ? 'bg-blue-500/80 text-white backdrop-blur-sm' 
-                                      : 'bg-white/20 text-white backdrop-blur-sm'
-                                  }`}
-                                >
-                                  <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-xs text-white/60">
-                                      {message.type === 'user' ? 'You' : 'AI Interviewer'}
-                                    </span>
-                                    <span className="text-xs text-white/60">
-                                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
+                      <div className="h-[calc(100%-52px)]">
+                        <LiveTranscript messages={messages} compact={true} />
                       </div>
                     </div>
                   </motion.div>
@@ -420,11 +399,11 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                     {isMicMuted ? <MicOff size={20} /> : <Mic size={20} />}
                   </Button>
 
-                  {/* Camera Toggle */}
+                  {/* Video Toggle */}
                   <Button
                     variant="outline"
                     size="lg"
-                    onClick={toggleCamera}
+                    onClick={toggleVideo}
                     className={`rounded-full w-12 h-12 border-2 transition-all duration-300 transform hover:scale-105 active:scale-95 ${
                       !isCameraOn 
                         ? 'bg-red-500 border-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/30' 
@@ -432,12 +411,12 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                     }`}
                   >
                     <motion.div
-                      key={isCameraOn ? 'camera-on' : 'camera-off'}
+                      key={isCameraOn ? 'video-on' : 'video-off'}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ duration: 0.2 }}
                     >
-                      {isCameraOn ? <Camera size={20} /> : <CameraOff size={20} />}
+                      {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
                     </motion.div>
                   </Button>
 
