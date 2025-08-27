@@ -76,12 +76,27 @@ const MockInterviewSessionsContent = () => {
           return;
         }
 
+        // Helper function to conditionally add ngrok headers
+        const getHeaders = (authToken: string, backendUrl?: string) => {
+          const baseHeaders = {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          };
+
+          // Only add ngrok headers if URL contains ngrok
+          if (backendUrl && backendUrl.includes('ngrok')) {
+            return {
+              ...baseHeaders,
+              'ngrok-skip-browser-warning': 'true'
+            };
+          }
+
+          return baseHeaders;
+        };
+
         const response = await fetch(`${backendUrl}/mockInterview/session/${sessionId}`, {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          }
+          headers: getHeaders(session.access_token, backendUrl)
         });
 
         if (!response.ok) {
@@ -89,7 +104,15 @@ const MockInterviewSessionsContent = () => {
           throw new Error(errorData.error || 'Failed to fetch session data');
         }
 
-        const result = await response.json();
+        const responseText = await response.text();
+        
+        // Check if response is HTML (ngrok landing page)
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+          console.error('❌ Received HTML instead of JSON for session data - likely ngrok landing page');
+          throw new Error('Network error: Received unexpected response. Please check your connection.');
+        }
+        
+        const result = JSON.parse(responseText);
         setSessionData(result.session);
 
         // Get user data for connection details
