@@ -186,8 +186,6 @@ const InterviewSessionsContent: React.FC = () => {
       '/mockInterview/user-limits'
     ];
     
-    console.log('🔍 Testing backend endpoints...');
-    
     for (const endpoint of endpoints) {
       try {
         const response = await fetch(`${backendUrl}${endpoint}`, {
@@ -398,8 +396,6 @@ const InterviewSessionsContent: React.FC = () => {
         }
 
         const url = `${backendUrl}/mockInterview/sessions?${params.toString()}`;
-        console.log('🌐 Fetching sessions from:', url);
-        console.log('🔑 Using auth token:', authSession.access_token?.substring(0, 20) + '...');
 
         const response = await fetch(url, {
           method: 'GET',
@@ -427,8 +423,8 @@ const InterviewSessionsContent: React.FC = () => {
         
         // Check if response is HTML (ngrok landing page)
         if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
-          console.error('❌ Received HTML instead of JSON for sessions - likely ngrok landing page');
-          console.error('🔧 Check ngrok configuration and add proper headers');
+          console.error('Received HTML instead of JSON for sessions - likely ngrok landing page');
+          console.error('Check ngrok configuration and add proper headers');
           setSessions([]);
           setHasMore(false);
           setNextCursor(null);
@@ -478,7 +474,6 @@ const InterviewSessionsContent: React.FC = () => {
           return;
         }
 
-        console.log(`✅ Fetched ${sessionsFromBackend.length} sessions from backend`);
 
         // Fetch attempts for each session individually
         const sessionData: InterviewSession[] = await Promise.all(
@@ -495,7 +490,7 @@ const InterviewSessionsContent: React.FC = () => {
               if (attemptsResponse.ok) {
                 const attemptsResult = await attemptsResponse.json();
                 sessionAttempts = attemptsResult.attempts || [];
-                console.log(`✅ Loaded ${sessionAttempts.length} attempts for session ${backendSession.id}`);
+                console.log(`Loaded ${sessionAttempts.length} attempts for session ${backendSession.id}`);
               } else {
                 console.warn(`Failed to load attempts for session ${backendSession.id}`);
               }
@@ -615,7 +610,7 @@ const InterviewSessionsContent: React.FC = () => {
       const result = await response.json();
       
       if (result.cleaned_attempts > 0) {
-        alert(`✅ Cleaned up ${result.cleaned_attempts} failed attempts!`);
+        alert(`Cleaned up ${result.cleaned_attempts} failed attempts!`);
         refreshSessions();
         fetchLiveStats();
         fetchUserLimits();
@@ -692,7 +687,7 @@ const InterviewSessionsContent: React.FC = () => {
       });
 
       if (updatedSessions.length > 0) {
-        console.log('🔄 Updating status for', updatedSessions.length, 'sessions');
+        console.log(' Updating status for', updatedSessions.length, 'sessions');
         
         setSessions(prevSessions => {
           return prevSessions.map(session => {
@@ -704,9 +699,7 @@ const InterviewSessionsContent: React.FC = () => {
                 statusData.status_prep, 
                 []
               );
-              
-              console.log('🔄 Status changed for session:', session.id, 'from', session.status, 'to', newStatus);
-              
+                            
               return {
                 ...session,
                 status: newStatus,
@@ -733,14 +726,14 @@ const InterviewSessionsContent: React.FC = () => {
       return; // No need for periodic checking
     }
     
-    console.log('🔄 Setting up targeted status checking for preparing sessions');
+    console.log('Setting up targeted status checking for preparing sessions');
     
     const intervalId = setInterval(() => {
       checkPreparingSessionsStatus();
     }, 12000); // Check every 12 seconds, optimized for performance
     
     return () => {
-      console.log('🔄 Cleaning up targeted status checking');
+      console.log('Cleaning up targeted status checking');
       clearInterval(intervalId);
     };
   }, [sessions, checkPreparingSessionsStatus]);
@@ -752,13 +745,11 @@ const InterviewSessionsContent: React.FC = () => {
     const setupRealtimeSubscription = async () => {
       try {
         if (!authSession?.user?.id) {
-          console.log('🔔 No authenticated user for real-time subscription');
+          console.log(' No authenticated user for real-time subscription');
           return;
         }
 
         const userId = authSession.user.id;
-        console.log('🔔 Setting up real-time subscription for user:', userId?.substring(0, 8) + '***');
-
         // Subscribe to changes in mock_interview table for current user
         channel = supabase
           .channel('mock_interview_realtime_updates')
@@ -784,7 +775,7 @@ const InterviewSessionsContent: React.FC = () => {
               
               // Handle INSERT events (new sessions created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log('🎉 New session created via real-time, adding to list');
+                console.log(' New session created via real-time, adding to list');
                 
                 // Create new session object and add to beginning of list
                 const newSession = {
@@ -809,11 +800,11 @@ const InterviewSessionsContent: React.FC = () => {
               
               // Handle UPDATE events (status changes, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                console.log('🔔 Session updated via real-time, updating display');
+                console.log('Session updated via real-time, updating display');
                 
                 // Check if this is a status_prep change (agent is ready)
                 if (oldData.status_prep !== newData.status_prep) {
-                  console.log('🔄 status_prep changed:', {
+                  console.log(' status_prep changed:', {
                     sessionId: newData.id,
                     oldStatusPrep: oldData.status_prep,
                     newStatusPrep: newData.status_prep,
@@ -822,7 +813,7 @@ const InterviewSessionsContent: React.FC = () => {
                   });
                   
                   if (newData.status_prep === 'DONE') {
-                    console.log('🎉 Agent is ready! Session can now be started');
+                    console.log(' Agent is ready! Session can now be started');
                     // Refresh stats when session becomes ready
                     fetchLiveStats();
                   }
@@ -838,7 +829,7 @@ const InterviewSessionsContent: React.FC = () => {
                         session.attempts
                       );
                       
-                      console.log('🔄 Updating session display:', {
+                      console.log(' Updating session display:', {
                         sessionId: session.id,
                         oldStatus: session.status,
                         newStatus: newStatus,
@@ -864,18 +855,18 @@ const InterviewSessionsContent: React.FC = () => {
             }
           )
           .subscribe((status) => {
-            console.log('🔔 Real-time subscription status:', status);
+            console.log(' Real-time subscription status:', status);
           });
 
       } catch (error) {
-        console.error('❌ Error setting up real-time subscription:', error);
+        console.error(' Error setting up real-time subscription:', error);
       }
     };
 
     setupRealtimeSubscription();
 
     return () => {
-      console.log('🔔 Cleaning up real-time subscription');
+      console.log(' Cleaning up real-time subscription');
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -885,18 +876,16 @@ const InterviewSessionsContent: React.FC = () => {
   // Listen for attempt status change events from SessionCard components
   useEffect(() => {
     const handleAttemptStatusChanged = (event: CustomEvent) => {
-      console.log('🔄 Attempt status change event received:', event.detail);
       const { sessionId, attemptId, oldStatus, newStatus, isCompleted } = event.detail;
       
       // Refresh stats when significant status changes occur
       if (newStatus === 'PROCESSED' || newStatus === 'completed' || newStatus === 'active') {
-        console.log('📊 Refreshing stats due to significant status change');
+        console.log(' Refreshing stats due to significant status change');
         fetchLiveStats();
       }
       
       // Update session status if needed based on attempt changes
       if (newStatus === 'PROCESSED' || oldStatus !== newStatus) {
-        console.log('🎯 Updating session based on attempt status change');
         setSessions(prevSessions => {
           return prevSessions.map(session => {
             if (session.id === sessionId) {
@@ -910,7 +899,7 @@ const InterviewSessionsContent: React.FC = () => {
                 updatedAttempts
               );
               
-              console.log('🔄 Updating session status based on attempt change:', {
+              console.log('Updating session status based on attempt change:', {
                 sessionId,
                 oldSessionStatus: session.status,
                 newSessionStatus,
@@ -934,7 +923,7 @@ const InterviewSessionsContent: React.FC = () => {
 
     // Listen for both old and new event types for compatibility
     const handleAttemptCompleted = (event: CustomEvent) => {
-      console.log('🎉 Attempt completed event received (legacy):', event.detail);
+      console.log(' Attempt completed event received (legacy):', event.detail);
       fetchLiveStats();
     };
 
@@ -1218,8 +1207,6 @@ const InterviewSessionsContent: React.FC = () => {
 
 
   const handleNewSession = useCallback(async (sessionData: any) => {
-    console.log('🚀 handleNewSession received data:', sessionData);
-    
     // Close modal immediately for better UX
     setIsNewSessionModalOpen(false);
     
@@ -1254,9 +1241,6 @@ const InterviewSessionsContent: React.FC = () => {
         cover_letter_document_id: sessionData.coverLetterDocumentId
       };
       
-      console.log('📤 Sending to backend:', requestBody);
-
-      // Call backend create-session endpoint
       const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
         method: 'POST',
         headers: getHeaders(authSession.access_token, backendUrl),
@@ -1268,7 +1252,7 @@ const InterviewSessionsContent: React.FC = () => {
         
         // Handle specific error types
         if (errorData.limit_reached) {
-          console.log('🚫 Session limit reached:', errorData);
+          console.log(' Session limit reached:', errorData);
         } else {
           console.error('Failed to create session:', errorData.error);
         }
@@ -1278,7 +1262,7 @@ const InterviewSessionsContent: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log('✅ Session created successfully:', result);
+      console.log('Session created successfully:', result);
 
       // Refresh stats immediately after creating session
       fetchLiveStats();
@@ -1290,7 +1274,7 @@ const InterviewSessionsContent: React.FC = () => {
       return result;
       
     } catch (error) {
-      console.error('❌ Error creating session:', error);
+      console.error(' Error creating session:', error);
       setIsNewSessionModalOpen(true); // Reopen modal for retry
       throw error; // Re-throw so modal can handle the error
     }

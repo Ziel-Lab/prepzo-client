@@ -82,8 +82,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   // Sync attempts when session data changes
   React.useEffect(() => {
     if (session.attempts && session.attempts.length > 0) {
-      console.log(`🎯 SessionCard ${session.id}: Syncing ${session.attempts.length} attempts from session data:`, 
-        session.attempts.map((a: any) => ({ id: a.id, status: a.status, attempt_number: a.attempt_number })));
       setAttempts(session.attempts);
     }
   }, [session.attempts, session.id]);
@@ -265,18 +263,9 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               const newData = payload.new as MockInterviewAttempt;
               const oldData = payload.old as MockInterviewAttempt;
               
-              console.log('🔔 Real-time attempt update received:', {
-                eventType: payload.eventType,
-                attemptId: newData?.id,
-                oldStatus: oldData?.status,
-                newStatus: newData?.status,
-                sessionId: session.id,
-                timestamp: new Date().toISOString()
-              });
               
               // Handle INSERT events (new attempts created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log('🎉 New attempt created via real-time, adding to list');
                 setAttempts(prevAttempts => {
                   // Check if attempt already exists to avoid duplicates
                   const exists = prevAttempts.some(attempt => attempt.id === newData.id);
@@ -289,12 +278,11 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                console.log('🔔 Attempt updated via real-time, updating display');
                 
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
                     if (attempt.id === newData.id) {
-                      console.log('🔄 Updating attempt:', attempt.id, 'from', oldData.status, 'to', newData.status);
+                      console.log(' Updating attempt:', attempt.id, 'from', oldData.status, 'to', newData.status);
                       return { ...attempt, ...newData };
                     }
                     return attempt;
@@ -304,20 +292,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 // Handle status transitions and notifications
                 const statusChanged = oldData.status !== newData.status;
                 if (statusChanged) {
-                  console.log('🔄 Attempt status changed:', {
-                    attemptId: newData.id,
-                    oldStatus: oldData.status,
-                    newStatus: newData.status,
-                    hasScore: !!(newData.feedback?.Score || newData.evaluation_score)
-                  });
+                  
                   
                   // Show appropriate notifications based on status change
                   if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
-                    console.log('🎉 Feedback is now ready for attempt:', newData.id);
+                    
                   } else if (newData.status === 'completed' && oldData.status === 'active') {
-                    console.log('🏁 Interview completed, processing feedback for attempt:', newData.id);
+               
                   } else if (newData.status === 'active' && oldData.status === 'pending') {
-                    console.log('🚀 Interview started for attempt:', newData.id);
+      
                   }
                   
                   // Force re-render of parent component to update stats for any status change
@@ -337,14 +320,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
             }
           )
           .subscribe((status) => {
-            console.log('🔔 Attempt real-time subscription status:', status);
             setRealtimeConnected(status === 'SUBSCRIBED');
           });
 
         setRealtimeChannel(channel);
 
       } catch (error) {
-        console.error('❌ Error setting up attempt real-time subscription:', error);
+        console.error('Error setting up attempt real-time subscription:', error);
       }
     };
 
@@ -353,7 +335,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     setupAttemptRealtimeSubscription();
 
     return () => {
-      console.log('🔔 Cleaning up attempt real-time subscription for session:', session.id);
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -368,7 +349,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     
     if (!hasActiveAttempts) return;
     
-    console.log('🔄 Setting up fallback polling for active attempts in session:', session.id);
     
     const pollInterval = setInterval(async () => {
       try {
@@ -399,7 +379,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
           });
           
           if (hasChanges) {
-            console.log('🔄 Fallback polling detected status changes, updating attempts');
             setAttempts(latestAttempts);
             setLastStatusCheck(Date.now());
           }
@@ -410,7 +389,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     }, 15000); // Poll every 15 seconds for active attempts
     
     return () => {
-      console.log('🔄 Cleaning up fallback polling for session:', session.id);
       clearInterval(pollInterval);
     };
   }, [attempts, session.id, lastStatusCheck, supabase.auth, getHeaders]);
@@ -452,8 +430,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
       const result = await response.json();
       const fetchedAttempts = result.attempts || [];
-      console.log(`🎯 SessionCard ${session.id}: Fetched ${fetchedAttempts.length} attempts:`, 
-        fetchedAttempts.map((a: any) => ({ id: a.id, status: a.status, attempt_number: a.attempt_number })));
       setAttempts(fetchedAttempts);
     } catch (error) {
       console.error('Error fetching attempts:', error);
@@ -501,7 +477,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
       if (!response.ok) {
         const responseText = await response.text();
-        console.error('❌ Join request failed:', {
+        console.error('Join request failed:', {
           status: response.status,
           statusText: response.statusText,
           responseText: responseText.substring(0, 500) // Log first 500 chars
@@ -509,15 +485,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
         // Check if response is HTML (ngrok landing page)
         if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
-          console.error('❌ Received HTML instead of JSON for join - likely ngrok landing page');
+          console.error(' Received HTML instead of JSON for join - likely ngrok landing page');
           alert('Network error: Received unexpected response. Please check your connection.');
         } else {
           try {
             const errorData = JSON.parse(responseText);
-            console.error('❌ Join error data:', errorData);
+            console.error('Join error data:', errorData);
             alert(`Failed to start interview: ${errorData.error || 'Unknown error'}`);
           } catch (parseError) {
-            console.error('❌ Could not parse error response:', parseError);
+            console.error(' Could not parse error response:', parseError);
             alert('Failed to start interview. Please try again.');
           }
         }
@@ -525,13 +501,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       }
 
       const joinData = await response.json();
-      console.log('✅ Join successful, received data:', {
-        hasLivekitUrl: !!joinData.livekit_url,
-        hasRoomName: !!joinData.room_name,
-        hasToken: !!joinData.token,
-        hasSession: !!joinData.session
-      });
-      
       // Navigate to live session with credentials
       const sessionParams = new URLSearchParams({
         sessionId: session.id,
@@ -545,7 +514,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       router.push(`/dashboard/tools/mock-Interview/sessions?${sessionParams.toString()}`);
 
     } catch (error) {
-      console.error('❌ Error starting interview:', error);
+      console.error(' Error starting interview:', error);
       alert('Failed to start interview. Please check your connection and try again.');
     }
   };
