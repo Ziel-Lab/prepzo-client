@@ -188,7 +188,18 @@ type GeneratedDocument = {
   created_at?: string;
 };
 
-const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
+interface AIFilters {
+  search?: string;
+  location?: string;
+  seniority?: string;
+  company?: string;
+  country?: string;
+  min_salary_usd?: string;
+  max_salary_usd?: string;
+  posted_at_max_age_days?: string;
+}
+
+const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: Filters; aiFilters?: AIFilters | null }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyItemsPerPage] = useState(5);
@@ -216,6 +227,28 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   // const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
   // Change the Map key type from number to string
   const [generatedDocuments, setGeneratedDocuments] = useState<Map<string, GeneratedDocument>>(new Map());
+
+  // Populate main form filters when AI filters are received (works in both filter and results views)
+  useEffect(() => {
+    if (!aiFilters) return;
+
+    const toArray = (val?: string): string[] | undefined => {
+      if (!val) return undefined;
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    setSearchFilters(prev => ({
+      ...prev,
+      job_description_contains_or: toArray(aiFilters.search) ?? prev.job_description_contains_or,
+      company_name_or: toArray(aiFilters.company) ?? prev.company_name_or,
+      job_location_pattern_or: toArray(aiFilters.location) ?? prev.job_location_pattern_or,
+      job_country_code_or: aiFilters.country ? toArray(aiFilters.country) : prev.job_country_code_or,
+      job_seniority_or: aiFilters.seniority ? toArray(aiFilters.seniority) : prev.job_seniority_or,
+      min_salary_usd: aiFilters.min_salary_usd ? parseInt(aiFilters.min_salary_usd) : prev.min_salary_usd,
+      max_salary_usd: aiFilters.max_salary_usd ? parseInt(aiFilters.max_salary_usd) : prev.max_salary_usd,
+      posted_at_max_age_days: aiFilters.posted_at_max_age_days ? parseInt(aiFilters.posted_at_max_age_days) : prev.posted_at_max_age_days,
+    }));
+  }, [aiFilters]);
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
@@ -1381,6 +1414,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         <ApplicationsFilters
           onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
           hasSearchResults={filteredApplications.length > 0}
+          aiFilters={aiFilters}
         />
         <Card>
           <CardHeader className="pb-4">
