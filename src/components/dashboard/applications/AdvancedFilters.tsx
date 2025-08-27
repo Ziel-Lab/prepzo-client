@@ -8,6 +8,7 @@ import { X, Filter, Calendar, MapPin, Building, DollarSign, Globe, Hash, User, B
 import { Card, CardContent } from "@/components/ui/card";
 import type { Filters } from "./ApplicationsTable";
 import type { ComponentType } from "react";
+import React from "react";
 
 type Primitive = string | number | boolean;
 
@@ -21,6 +22,11 @@ interface AdvancedFiltersProps {
 const AdvancedFilters = ({ onFiltersChange, activeFilters }: AdvancedFiltersProps) => {
   const [localFilters, setLocalFilters] = useState<FlexibleFilters>(activeFilters);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Add effect to update localFilters when activeFilters changes
+  React.useEffect(() => {
+    setLocalFilters(activeFilters);
+  }, [activeFilters]);
 
   type FilterOption = {
     key: keyof Filters | string;

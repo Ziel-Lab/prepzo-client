@@ -17,20 +17,10 @@ export interface SavedFilter {
 
 export async function saveJobSearchFilter(userId: string, filters: FilterData) {
   const supabase = createClient();
-  
-  // Debug: Check current session
-  const { data: { session } } = await supabase.auth.getSession();
-  console.log('Debug - Current session:', session?.user?.id);
-  console.log('Debug - Provided userId:', userId);
-  console.log('Debug - Session matches userId:', session?.user?.id === userId);
-  
   const { data, error } = await supabase
     .from("job_search_filter")
     .insert([{ user_id: userId, filters }])
     .select();
-    
-  console.log('Debug - Insert result:', { data, error });
-  
   return { data, error };
 }
 

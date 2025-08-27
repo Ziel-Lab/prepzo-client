@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import countries from 'world-countries';
 import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 import ApplicationsFilters from "./ApplicationsFilters";
 import Link from "next/link";
+import JobSearchLoader from "@/components/ui/JobSearchLoader";
 
 
 
@@ -171,7 +172,8 @@ export type Filters = {
   search?: string;
   status?: string;
   remote?: boolean;
-  seniority?: string; 
+  seniority?: string;
+  location?: string;
 };
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
@@ -248,7 +250,37 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
       max_salary_usd: aiFilters.max_salary_usd ? parseInt(aiFilters.max_salary_usd) : prev.max_salary_usd,
       posted_at_max_age_days: aiFilters.posted_at_max_age_days ? parseInt(aiFilters.posted_at_max_age_days) : prev.posted_at_max_age_days,
     }));
+
+    // Auto-trigger search once AI filters are applied, and ensure filter UI hides
+    setHasSearched(true);
+    setShowFilters(false);
+    setCurrentPage(1);
   }, [aiFilters]);
+
+  // Auto-trigger search when basic filters are passed from saved filters
+  useEffect(() => {
+    if (!filters || (!filters.search && !filters.seniority && !filters.location)) return;
+    // If AI filters are present, let the AI flow handle the trigger to avoid double fetch
+    if (aiFilters) return;
+    
+    const toArray = (val?: string): string[] | undefined => {
+      if (!val) return undefined;
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    // Convert basic filters to search filters format
+    setSearchFilters(prev => ({
+      ...prev,
+      job_description_contains_or: filters.search ? toArray(filters.search) : prev.job_description_contains_or,
+      job_location_pattern_or: filters.location ? toArray(filters.location) : prev.job_location_pattern_or,
+      job_seniority_or: filters.seniority ? [filters.seniority] : prev.job_seniority_or,
+    }));
+
+    // Auto-trigger search (fetch will be invoked by the pagination/useEffect watcher)
+    setHasSearched(true);
+    setShowFilters(false);
+    setCurrentPage(1);
+  }, [filters, aiFilters]);
 
   // Initialize Supabase client once for this component
   const supabase = createClient();
@@ -272,9 +304,12 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
   const creditsLeft = JOB_SEARCH_LIMIT - backendCreditsUsed - creditsUsedThisSession;
 
   // ---------------------------------------------------------------------------
-  // Data fetching
+  // Data fetching (guard against duplicate calls "in flight")
   // ---------------------------------------------------------------------------
-  const fetchJobs = async () => {
+  const isFetchingRef = useRef(false);
+  const fetchJobs = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       setLoading(true);
 
@@ -370,8 +405,9 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
       });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [currentPage, searchFilters, supabase]);
 
   // ---------------------------------------------------------------------------
   // Load previously revealed jobs on component mount so we don't re-charge users
@@ -490,7 +526,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
     setHasSearched(true);
     setShowFilters(false);
     setCurrentPage(1);
-    fetchJobs();
+    // fetchJobs will be called by the watcher effect when state settles
   };
 
   const handleEditFilters = () => {
@@ -502,7 +538,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
     if (hasSearched && !showFilters) {
       fetchJobs();
     }
-  }, [currentPage, hasSearched, showFilters]);
+  }, [currentPage, hasSearched, showFilters, fetchJobs]);
 
   // Add state for table search query
   const [tableSearchQuery, setTableSearchQuery] = useState<string>("");
@@ -1413,8 +1449,10 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
         <HistorySection />
         <ApplicationsFilters
           onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
-          hasSearchResults={filteredApplications.length > 0}
+          // Force-hide AI search UI in results view to prevent flicker/reset
+          hasSearchResults={true}
           aiFilters={aiFilters}
+          hideAISearch={true}
         />
         <Card>
           <CardHeader className="pb-4">
@@ -1431,12 +1469,14 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
               </span>
-              {loading && (
-                <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
-              )}
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {loading && (
+              <div className="px-4 sm:px-6 py-4">
+                <JobSearchLoader label="Fetching jobs" sublabel="Please wait while we load fresh results" />
+              </div>
+            )}
             {isMobile ? (
               // Mobile Layout
               <div className="p-4">

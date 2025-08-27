@@ -31,9 +31,12 @@ interface ApplicationsFiltersProps {
   onSaveFilters?: () => void;
   savedFilters?: SavedFilter[];
   onLoadFilter?: (filter: SavedFilter) => void;
+  activeFilter?: FilterOptions | null;
+  hideAISearch?: boolean;
+  onBackToSearch?: () => void;
 }
 
-const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISearch, aiFilters, onSaveFilters, savedFilters = [], onLoadFilter }: ApplicationsFiltersProps) => {
+const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISearch, aiFilters, onSaveFilters, savedFilters = [], onLoadFilter, activeFilter, hideAISearch = false, onBackToSearch }: ApplicationsFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -65,13 +68,14 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
 
   // Populate form fields when AI filters are received
   React.useEffect(() => {
-    if (aiFilters) {
-      setSearchTerm(aiFilters.search || '');
-      setLocationFilter(aiFilters.location || '');
-      setSeniorityFilter(aiFilters.seniority || '');
-      // Note: company and country are not in the current form but could be added
+    if (activeFilter) {
+      console.log("Loading activeFilter into ApplicationsFilters:", activeFilter);
+      setSearchTerm(activeFilter.search || "");
+      setStatusFilter(activeFilter.status || "");
+      setLocationFilter(activeFilter.location || "");
+      setSeniorityFilter(activeFilter.seniority || "");
     }
-  }, [aiFilters]);
+  }, [activeFilter]);
 
   // Trigger filter change whenever any filter value changes
   React.useEffect(() => {
@@ -87,8 +91,40 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
 
   return (
     <div className="space-y-6">
-      {/* AI Search Section */}
-      <Card className="border-2 border-prepzo/20 bg-gradient-to-br from-white via-prepzo-50/10 to-prepzo-100/20 shadow-lg">
+      {/* Show banner when using saved filters */}
+      {hideAISearch && activeFilter && (
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-blue-600">
+                  <Bookmark className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-900">Using Saved Search</h3>
+                  <p className="text-sm text-blue-700">
+                    Showing results for: {[
+                      activeFilter.search && `"${activeFilter.search}"`,
+                      activeFilter.location && `Location: ${activeFilter.location}`,
+                      activeFilter.seniority && `Seniority: ${activeFilter.seniority}`
+                    ].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              </div>
+              {onBackToSearch && (
+                <Button variant="outline" size="sm" onClick={onBackToSearch} className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                  <Search className="h-4 w-4 mr-2" />
+                  New Search
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Search Section - Hide when using saved filters or when showing results */}
+      {!hideAISearch && !hasSearchResults && (
+        <Card className="border-2 border-prepzo/20 bg-gradient-to-br from-white via-prepzo-50/10 to-prepzo-100/20 shadow-lg">
         <CardContent className="p-8">
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center gap-3 mb-2 px-4 sm:px-0">
@@ -217,60 +253,20 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
                   </div>
                 )}
               </div>
-              
-              {/* <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1 rounded-md bg-prepzo/10">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-prepzo" />
-                  </div>
-                  <h3 className="font-bold text-base sm:text-lg text-prepzo">Recent Searches</h3>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 sm:p-6 text-center text-gray-500 border border-gray-200/50">
-                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="font-medium text-sm sm:text-base">No recent searches</p>
-                  <p className="text-xs sm:text-sm text-gray-400">Your search history will appear here</p>
-                </div>
-              </div> */}
             </div>
           </div>
         </CardContent>
-      </Card>
-
-      {/* Traditional Filters Section */}
-      {hasSearchResults && (
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <div className="space-y-4">
-              {/* Search and basic filters */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search positions..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              {/* Clear filters and Save filters buttons */}
-              {hasActiveFilters && (
-                <div className="flex justify-start gap-2">
-                  <Button variant="outline" size="sm" onClick={clearFilters}>
-                    <X className="h-4 w-4 mr-2" />
-                    Clear Filters
-                  </Button>
-                  {onSaveFilters && (
-                    <Button variant="outline" size="sm" onClick={onSaveFilters}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Filters
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
         </Card>
+      )}
+
+      {/* Controls shown in results view */}
+      {hasSearchResults && hasActiveFilters && onSaveFilters && (
+        <div className="flex justify-start gap-2">
+          <Button variant="outline" size="sm" onClick={onSaveFilters}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Filters
+          </Button>
+        </div>
       )}
     </div>
   );

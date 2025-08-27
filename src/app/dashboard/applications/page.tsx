@@ -9,6 +9,8 @@ import BlurOverlay from "@/components/dashboard/blurrEffect";
 import { createClient } from "@/utils/supabase/client";
 import { saveJobSearchFilter, getSavedFilters, SavedFilter } from "@/utils/saveJobSearchFilters";
 import { useToast } from "@/hooks/use-toast";
+import JobSearchLoader from "@/components/ui/JobSearchLoader";
+import FullPageLoader from "@/components/ui/FullPageLoader";
 
 // Re-use the primitive/loose filter map used by AdvancedFilters
 type Primitive = string | number | boolean;
@@ -29,6 +31,8 @@ const Applications = () => {
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [activeFilter, setActiveFilter] = useState<Filters | null>(null);
+  const [isAIFetching, setIsAIFetching] = useState(false);
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -62,22 +66,6 @@ const Applications = () => {
   }, []);
 
   const handleSaveFilters = async () => {
-    // Debug: Check authentication status
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    console.log('Debug - Auth user:', user);
-    console.log('Debug - Auth error:', authError);
-    console.log('Debug - userId state:', userId);
-    
-    if (authError || !user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to save filters.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!userId) {
       toast({
         title: "Authentication required",
@@ -101,19 +89,12 @@ const Applications = () => {
       return;
     }
 
-    console.log('Debug - Saving filters:', filters);
-    console.log('Debug - User ID:', user.id);
-
     try {
-      const { error } = await saveJobSearchFilter(user.id, filters);
-      
-      console.log('Debug - Save error:', error);
-      
+      const { error } = await saveJobSearchFilter(userId, filters);
       if (error) {
-        console.error('Save filter error details:', error);
         toast({
           title: "Error",
-          description: `Failed to save filters: ${error.message || 'Unknown error'}`,
+          description: "Failed to save filters. Please try again.",
           variant: "destructive",
         });
       } else {
@@ -122,13 +103,12 @@ const Applications = () => {
           description: "Filters saved successfully!",
         });
         // Reload saved filters
-        const { data: updatedFilters } = await getSavedFilters(user.id);
+        const { data: updatedFilters } = await getSavedFilters(userId);
         if (updatedFilters) {
           setSavedFilters(updatedFilters);
         }
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred.",
@@ -138,10 +118,27 @@ const Applications = () => {
   };
 
   const handleLoadFilter = (savedFilter: SavedFilter) => {
+    setActiveFilter(savedFilter.filters);
     setFilters(savedFilter.filters);
+    
+    // Automatically start job search and show results
+    setHasSearchResults(true);
+    
+    // toast({
+    //   title: "Filter loaded",
+    //   description: "Starting job search with saved filters...",
+    // });
+  };
+
+  const handleBackToSearch = () => {
+    setActiveFilter(null);
+    setFilters({});
+    setHasSearchResults(false);
+    setAiFilters(null);
+    
     toast({
-      title: "Filter loaded",
-      description: "Saved filter has been applied to your search.",
+      title: "Back to search",
+      description: "Returned to main search interface.",
     });
   };
 
@@ -149,6 +146,9 @@ const Applications = () => {
     try {
       setHasSearchResults(false);
       setAiFilters(null); // Clear previous AI filters
+      setIsAIFetching(true);
+      // Show a minimal loader while waiting for n8n to prepare filters
+      // We will render the loader by leveraging hasSearchResults=false and the child filter section state
       // Get JWT token from Supabase session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session?.access_token) {
@@ -206,15 +206,20 @@ const Applications = () => {
                 status: '',
                 seniority: mappedFilters.seniority,
               });
+              // Keep results view active; ApplicationsTable will auto-trigger fetch based on aiFilters
+              setHasSearchResults(true);
             }
           }
         } catch (err) {
           // Optionally handle polling error
+        } finally {
+          setIsAIFetching(false);
         }
       }, 3500);
     } catch (error) {
       console.error('AI Search failed:', error);
       // alert(error instanceof Error ? error.message : 'AI Search failed');
+      setIsAIFetching(false);
     }
   };
 
@@ -223,6 +228,9 @@ const Applications = () => {
 
   return (
     <DashboardLayout>
+      {isAIFetching && (
+        <FullPageLoader label="Analyzing your prompt" sublabel="Generating smart filters and fetching jobs" />
+      )}
       {/* <BlurOverlay /> */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -245,6 +253,9 @@ const Applications = () => {
               onSaveFilters={handleSaveFilters}
               savedFilters={savedFilters}
               onLoadFilter={handleLoadFilter}
+              activeFilter={activeFilter}
+              hideAISearch={!!activeFilter}
+              onBackToSearch={handleBackToSearch}
             />
           </div>
         </div>
