@@ -404,7 +404,7 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
 
-  console.log('🎯 MockInterviewLiveKit received:', {
+  console.log(' MockInterviewLiveKit received:', {
     sessionConfig,
     providedConnectionDetails,
     connectionDetails
@@ -413,6 +413,10 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   // Fetch connection details
   const onConnectButtonClicked = useCallback(async () => {
     try {
+      console.error('DEPRECATED: onConnectButtonClicked should not be called');
+      console.error(' Connection details should be passed from URL params or SessionCard');
+      console.error(' sessionConfig:', sessionConfig);
+      
       const response = await fetch("/api/mock-interview-token", {
         method: "POST",
         headers: {
@@ -423,25 +427,84 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
 
       if (response.ok) {
         const connectionDetailsData = await response.json();
+        console.log(' Fallback token fetch successful:', connectionDetailsData);
         updateConnectionDetails(connectionDetailsData);
+      } else {
+        console.error(' Fallback token fetch failed:', response.status, response.statusText);
       }
     } catch (error) {
-      // Silent error handling
+      console.error(' Fallback token fetch error:', error);
     }
   }, [sessionConfig]);
 
-  // Get connection details on mount (only if not provided)
+  // Extract connection details from URL parameters
   useEffect(() => {
     if (!providedConnectionDetails) {
-      console.log('🔄 No connection details provided, fetching from API...');
+      console.log('No connection details provided, checking URL params...');
+      
+      // Try to extract from URL parameters (from SessionCard navigation)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverUrl = urlParams.get('serverUrl');
+        const roomName = urlParams.get('roomName');
+        const participantToken = urlParams.get('participantToken');
+        const participantName = urlParams.get('participantName');
+        
+        console.log('URL params extracted:', {
+          serverUrl: serverUrl ? 'PRESENT' : 'MISSING',
+          roomName: roomName ? 'PRESENT' : 'MISSING', 
+          participantToken: participantToken ? 'PRESENT' : 'MISSING',
+          participantName: participantName ? 'PRESENT' : 'MISSING'
+        });
+        
+        if (serverUrl && roomName && participantToken) {
+          const urlConnectionDetails: MockInterviewConnectionDetails = {
+            serverUrl,
+            roomName,
+            participantToken,
+            participantName: participantName || 'Participant',
+            sessionId: sessionConfig.sessionId || 'unknown',
+            userId: 'user', // Placeholder - will be replaced by auth
+            userEmail: 'user@example.com', // Placeholder - will be replaced by auth
+            userName: participantName || 'Participant'
+          };
+          
+          updateConnectionDetails(urlConnectionDetails);
+          return;
+        }
+      }
+      
+
       onConnectButtonClicked();
     } else {
-      console.log('✅ Using provided connection details:', providedConnectionDetails);
+      console.log(' Using provided connection details:', providedConnectionDetails);
     }
   }, [onConnectButtonClicked, providedConnectionDetails]);
 
   const handleInterviewEnd = () => {
     onEndInterview();
+  };
+
+  // Validate connection details before rendering LiveKitRoom
+  const validateConnectionDetails = (details: any) => {
+    console.log(' Validating connection details:', details);
+    
+    if (!details) {
+      console.error(' No connection details provided');
+      return false;
+    }
+    
+    const required = ['participantToken', 'serverUrl'];
+    const missing = required.filter(field => !details[field]);
+    
+    if (missing.length > 0) {
+      console.error(' Missing required fields:', missing);
+      console.error(' Provided fields:', Object.keys(details));
+      return false;
+    }
+    
+    console.log(' Connection details validation passed');
+    return true;
   };
 
   return (
@@ -454,6 +517,14 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
               connectionDetails={null}
               onEndInterview={handleInterviewEnd}
             />
+          ) : !validateConnectionDetails(connectionDetails) ? (
+            <div className="flex h-full w-full items-center justify-center">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-red-600 mb-4">Connection Error</h2>
+                <p className="text-gray-600 mb-4">Unable to connect to interview room.</p>
+                <p className="text-sm text-gray-500">Check console for details.</p>
+              </div>
+            </div>
           ) : (
             <LiveKitRoom
               key={roomKey}
@@ -463,13 +534,23 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
               audio={true}
               video={true}
               onError={(error) => {
-                // Silent error handling
+                console.error('LiveKit connection error:', error);
+                console.error('Connection details used:', {
+                  serverUrl: connectionDetails.serverUrl,
+                  roomName: connectionDetails.roomName || 'NOT_PROVIDED',
+                  hasToken: !!connectionDetails.participantToken,
+                  tokenLength: connectionDetails.participantToken?.length || 0
+                });
               }}
-              onDisconnected={() => {
-                // Silent disconnect handling
+              onDisconnected={(reason) => {
+                console.log('LiveKit disconnected:', reason);
               }}
               onConnected={() => {
-                // Silent connection handling
+                console.log(' LiveKit connected successfully!');
+                console.log(' Room info:', {
+                  serverUrl: connectionDetails.serverUrl,
+                  roomName: connectionDetails.roomName || 'NOT_PROVIDED'
+                });
               }}
               className="flex h-full w-full flex-col"
             >
