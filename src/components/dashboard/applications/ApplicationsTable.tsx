@@ -979,38 +979,45 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
     const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
 
     return (
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold flex items-center">
-              <History className="mr-2 h-5 w-5" />
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="flex items-center justify-between ">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-prepzo-50">
+              <History className="h-5 w-5 text-prepzo" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
               Saved Jobs ({revealedJobsHistory.length})
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHistory(!showHistory)}
-            >
-              {showHistory ? "Hide" : "Show"} History
-            </Button>
+            </h3>
           </div>
-        </CardHeader>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistory(!showHistory)}
+            className="border-prepzo-200 text-prepzo hover:bg-prepzo-50 hover:border-prepzo"
+          >
+            {showHistory ? "Hide" : "Show"} History
+          </Button>
+        </div>
         {showHistory && (
-          <CardContent>
+          <div>
             {historyLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Loading revealed jobs history...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin text-prepzo" />
+                <span className="text-gray-600">Loading revealed jobs history...</span>
               </div>
             ) : revealedJobsHistory.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No previously revealed jobs found.
-              </p>
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
+                  <History className="h-8 w-8 text-prepzo-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No revealed jobs yet</h4>
+                <p className="text-gray-500">Your revealed jobs will appear here for quick access</p>
+              </div>
             ) : (
               <>
                 <div className="space-y-4">
                   {currentHistoryItems.map((item) => (
-                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                    <div key={item.job_id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200">
                       {/* Mobile-first layout */}
                       <div className="space-y-3">
                         {/* Job title and status - full width on mobile */}
@@ -1039,25 +1046,25 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
                               <SelectTrigger 
                                 className={`
                                   w-full sm:w-36 h-9 text-sm 
-                                  border-2 border-green-500 
-                                  bg-green-50 
-                                  hover:bg-green-100 
+                                  border-2 border-prepzo-500 
+                                  bg-prepzo-50 
+                                  hover:bg-prepzo-100 
                                   transition-all 
                                   duration-200 
                                   focus:ring-2 
-                                  focus:ring-green-200 
-                                  focus:border-green-500
+                                  focus:ring-prepzo-200 
+                                  focus:border-prepzo-500
                                   ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                                 `}
                               >
-                                <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
+                                <SelectValue placeholder="Update Status" className="text-prepzo-700 font-medium" />
                               </SelectTrigger>
                               <SelectContent>
                                 {Object.entries(JOB_STATUSES).map(([key, label]) => (
                                   <SelectItem 
                                     key={key} 
                                     value={key} 
-                                    className="text-sm hover:bg-green-50 cursor-pointer"
+                                    className="text-sm hover:bg-prepzo-50 cursor-pointer"
                                   >
                                     {label}
                                   </SelectItem>
@@ -1091,13 +1098,13 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
                               )}
                               
                               {item.job_details.remote && (
-                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                                <Badge variant="outline" className="text-xs border-prepzo-200 text-prepzo-700 bg-prepzo-50">
                                   Remote
                                 </Badge>
                               )}
                               
                               {item.job_details.hybrid && (
-                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                                <Badge variant="outline" className="text-xs border-prepzo-300 text-prepzo-600 bg-prepzo-50">
                                   Hybrid
                                 </Badge>
                               )}
@@ -1284,13 +1291,13 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
                 )}
               </>
             )}
-          </CardContent>
+          </div>
         )}
-      </Card>
+      </div>
     );
   };
 
-  if (showFilters || !hasSearched) {
+  if (showFilters && hasSearched) {
     filterSection = (
       <>
         <HistorySection />
@@ -1443,13 +1450,12 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
         </Card>
       </>
     );
-  } else {
+  } else if (hasSearched) {
     filterSection = (
       <>
         <HistorySection />
         <ApplicationsFilters
-          onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
-          // Force-hide AI search UI in results view to prevent flicker/reset
+          onFiltersChange={() => {}} // No-op since this component doesn't use table filters
           hasSearchResults={true}
           aiFilters={aiFilters}
           hideAISearch={true}
@@ -1761,6 +1767,9 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
         </Card>
       </>
     );
+  } else {
+    // Initial state - show nothing, let ApplicationsFilters handle the AI search interface
+    filterSection = null;
   }
 
   return (

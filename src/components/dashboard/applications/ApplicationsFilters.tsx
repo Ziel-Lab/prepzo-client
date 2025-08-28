@@ -37,10 +37,6 @@ interface ApplicationsFiltersProps {
 }
 
 const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISearch, aiFilters, onSaveFilters, savedFilters = [], onLoadFilter, activeFilter, hideAISearch = false, onBackToSearch }: ApplicationsFiltersProps) => {
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [seniorityFilter, setSeniorityFilter] = useState("");
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isAISearching, setIsAISearching] = useState(false);
 
@@ -57,37 +53,9 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
     }
   };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setStatusFilter("");
-    setLocationFilter("");
-    setSeniorityFilter("");
-    setAiPrompt("");
-    onFiltersChange({});
-  };
 
-  // Populate form fields when AI filters are received
-  React.useEffect(() => {
-    if (activeFilter) {
-      console.log("Loading activeFilter into ApplicationsFilters:", activeFilter);
-      setSearchTerm(activeFilter.search || "");
-      setStatusFilter(activeFilter.status || "");
-      setLocationFilter(activeFilter.location || "");
-      setSeniorityFilter(activeFilter.seniority || "");
-    }
-  }, [activeFilter]);
 
-  // Trigger filter change whenever any filter value changes
-  React.useEffect(() => {
-    onFiltersChange({
-      search: searchTerm,
-      status: statusFilter,
-      location: locationFilter,
-      seniority: seniorityFilter,
-    });
-  }, [searchTerm, statusFilter, locationFilter, seniorityFilter, onFiltersChange]);
 
-  const hasActiveFilters = searchTerm || statusFilter || locationFilter || seniorityFilter || aiPrompt;
 
   return (
     <div className="space-y-6">
@@ -124,150 +92,144 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
 
       {/* AI Search Section - Hide when using saved filters or when showing results */}
       {!hideAISearch && !hasSearchResults && (
-        <Card className="border-2 border-prepzo/20 bg-gradient-to-br from-white via-prepzo-50/10 to-prepzo-100/20 shadow-lg">
-        <CardContent className="p-8">
-          <div className="text-center space-y-6">
-            <div className="flex items-center justify-center gap-3 mb-2 px-4 sm:px-0">
+        <div className="min-h-[400px] flex flex-col items-center justify-center space-y-8 py-12">
+          {/* Main heading */}
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent leading-tight">
+              Start your search with AI
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+              Describe your ideal job in natural language and let AI find the perfect matches for you
+            </p>
+          </div>
+
+          {/* Search container */}
+          <div className="w-full max-w-4xl mx-auto px-3">
+            <div className="relative group">
               
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-prepzo text-center">Start your search with AI</h2>
+              {/* Input field */}
+              <Textarea
+                placeholder="Software Engineers in New York with 5+ years of experience"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                className="w-full min-h-[64px] resize-none pl-5 pr-32 pt-5 text-lg bg-white border-2 border-gray-200 rounded-2xl shadow-sm hover:shadow-md focus:shadow-lg focus:border-prepzo focus:ring-4 focus:ring-prepzo/10 transition-all duration-300 placeholder:text-gray-400 leading-relaxed"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAISearch();
+                  }
+                }}
+              />
+              
+              {/* AI Search button - Desktop only */}
+              <Button
+                onClick={handleAISearch}
+                disabled={!aiPrompt.trim() || isAISearching}
+                className="hidden sm:flex absolute right-3 top-1/4 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed items-center gap-2"
+              >
+                {isAISearching ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span className="hidden sm:inline">Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    <span>AI Search</span>
+                  </>
+                )}
+              </Button>
             </div>
             
-            <div className="max-w-5xl mx-auto px-4 sm:px-0">
-              <div className="space-y-4">
-                {/* Desktop: Button inside textarea, Mobile: Button below */}
-                <div className="relative">
-                  <Search className="absolute left-3 sm:left-4 top-3 sm:top-4 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 z-10" />
-                  <Textarea
-                    placeholder="E.g Remote Engineers in software companies for junior positions in US"
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    className="w-full min-h-[50px] sm:min-h-[60px] resize-none border-2 border-prepzo/30 focus:border-prepzo focus:ring-1 focus:ring-prepzo/20 transition-all duration-200 text-base sm:text-lg pl-10 sm:pl-12 pr-4 sm:pr-40 py-2.5 sm:py-3 rounded-lg shadow-sm bg-white/80 backdrop-blur-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAISearch();
-                      }
-                    }}
-                  />
-                  {/* Desktop button - inside textarea */}
-                  <Button
-                    onClick={handleAISearch}
-                    disabled={!aiPrompt.trim() || isAISearching}
-                    className="hidden sm:flex absolute right-2 top-5 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-bold px-6 py-2 text-base rounded-md shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:transform-none disabled:opacity-50 justify-center items-center whitespace-nowrap h-11 lg: mb-5"
-                  >
-                    {isAISearching ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        AI Search
-                      </>
-                    )}
-                  </Button>
+            {/* Mobile button - Full width below input */}
+            <Button
+              onClick={handleAISearch}
+              disabled={!aiPrompt.trim() || isAISearching}
+              className="sm:hidden w-full mt-4 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-6 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+            >
+              {isAISearching ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5" />
+                  AI Search
+                </>
+              )}
+            </Button>
+          </div>
+          {/* Saved Searches Section */}
+          <div className="w-full max-w-4xl mx-auto px-4 mt-12">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-prepzo-50">
+                  <Bookmark className="h-5 w-5 text-prepzo" />
                 </div>
-                
-                {/* Mobile button - below textarea */}
-                <Button
-                  onClick={handleAISearch}
-                  disabled={!aiPrompt.trim() || isAISearching}
-                  className="sm:hidden w-full bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-bold px-6 py-3 text-base rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:transform-none disabled:opacity-50 flex justify-center items-center whitespace-nowrap h-12"
-                >
-                  {isAISearching ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      AI Search
-                    </>
-                  )}
-                </Button>
+                <h3 className="text-xl font-semibold text-gray-900">Saved Searches</h3>
               </div>
-            </div>
-
-
-            {/* Saved Searches and Recent Searches */}
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 sm:gap-8 mt-8 sm:mt-12 max-w-5xl mx-auto px-4 sm:px-0">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1 rounded-md bg-prepzo/10">
-                    <Bookmark className="h-4 w-4 sm:h-5 sm:w-5 text-prepzo" />
+              
+              {savedFilters.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
+                    <Bookmark className="h-8 w-8 text-prepzo-400" />
                   </div>
-                  <h3 className="font-bold text-base sm:text-lg text-prepzo">Saved Searches</h3>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">No saved searches</h4>
+                  <p className="text-gray-500">Save your searches for quick access later</p>
                 </div>
-                {savedFilters.length === 0 ? (
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 sm:p-6 text-center text-gray-500 border border-gray-200/50">
-                    <Bookmark className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-300" />
-                    <p className="font-medium text-sm sm:text-base">No saved searches</p>
-                    <p className="text-xs sm:text-sm text-gray-400">Save your searches for quick access</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {savedFilters.map((filter) => (
-                      <div key={filter.id} className="bg-white rounded-lg p-4 border border-gray-200 hover:border-prepzo/30 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900 mb-1">
-                              {new Date(filter.created_at).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </div>
-                            <div className="text-xs text-gray-500 space-y-1">
-                              {filter.filters.search && (
-                                <div>Search: {filter.filters.search}</div>
-                              )}
-                              {filter.filters.location && (
-                                <div>Location: {filter.filters.location}</div>
-                              )}
-                              {filter.filters.seniority && (
-                                <div>Seniority: {filter.filters.seniority}</div>
-                              )}
-                              {filter.filters.status && (
-                                <div>Status: {filter.filters.status}</div>
-                              )}
-                            </div>
+              ) : (
+                <div className="space-y-3">
+                  {savedFilters.map((filter) => (
+                    <div key={filter.id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200 cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-600 mb-2">
+                            {new Date(filter.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {onLoadFilter && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onLoadFilter(filter)}
-                                className="text-prepzo hover:text-prepzo-dark hover:bg-prepzo/10"
-                              >
-                                <Search className="h-4 w-4" />
-                              </Button>
+                          <div className="space-y-1">
+                            {filter.filters.search && (
+                              <div className="text-sm text-gray-900">
+                                <span className="font-medium">Search:</span> {filter.filters.search}
+                              </div>
+                            )}
+                            {filter.filters.location && (
+                              <div className="text-sm text-gray-900">
+                                <span className="font-medium">Location:</span> {filter.filters.location}
+                              </div>
+                            )}
+                            {filter.filters.seniority && (
+                              <div className="text-sm text-gray-900">
+                                <span className="font-medium">Seniority:</span> {filter.filters.seniority}
+                              </div>
                             )}
                           </div>
                         </div>
+                        {onLoadFilter && (
+                          <Button
+                            onClick={() => onLoadFilter(filter)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-prepzo hover:bg-prepzo-dark text-white px-4 py-2 rounded-lg"
+                          >
+                            <Search className="h-4 w-4 mr-2" />
+                            Load
+                          </Button>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </CardContent>
-        </Card>
-      )}
-
-      {/* Controls shown in results view */}
-      {hasSearchResults && hasActiveFilters && onSaveFilters && (
-        <div className="flex justify-start gap-2">
-          <Button variant="outline" size="sm" onClick={onSaveFilters}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Filters
-          </Button>
         </div>
       )}
+
+
     </div>
   );
 };
