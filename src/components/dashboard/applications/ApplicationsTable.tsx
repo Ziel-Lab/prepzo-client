@@ -23,6 +23,7 @@ import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 import ApplicationsFilters from "./ApplicationsFilters";
 import Link from "next/link";
 import JobSearchLoader from "@/components/ui/JobSearchLoader";
+import MultiSelect from "@/components/ui/multi-select";
 
 
 
@@ -166,6 +167,11 @@ export type SearchFilters = {
   company_name_or?: string[];
   hiring_managers_exists?: boolean;
   job_location_pattern_or?: string[];
+  company_technology_slug_or?: string[];
+  employment_statuses_or?: ('full_time' | 'part_time' | 'temporary' | 'internship' | 'contract' | 'freelance' | 'co_founder' | 'apprenticeship' | 'seasonal' | 'volunteer' | 'other')[];
+  min_employee_count_or_null?: number;
+  max_employee_count_or_null?: number;
+  funding_stage_or?: string[];
 };
 
 export type Filters = {
@@ -201,7 +207,13 @@ interface AIFilters {
   posted_at_max_age_days?: string;
 }
 
-const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: Filters; aiFilters?: AIFilters | null }) => {
+interface ApplicationsTableProps {
+  filters?: Filters;
+  aiFilters?: AIFilters | null;
+  onSaveFilters?: () => void;
+}
+
+const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }: ApplicationsTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyItemsPerPage] = useState(5);
@@ -328,6 +340,11 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
         ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
         ...(searchFilters.job_location_pattern_or && searchFilters.job_location_pattern_or.length > 0 && { job_location_pattern_or: searchFilters.job_location_pattern_or }),
+        ...(searchFilters.company_technology_slug_or && searchFilters.company_technology_slug_or.length > 0 && { company_technology_slug_or: searchFilters.company_technology_slug_or }),
+        ...(searchFilters.employment_statuses_or && searchFilters.employment_statuses_or.length > 0 && { employment_statuses_or: searchFilters.employment_statuses_or }),
+        ...(searchFilters.min_employee_count_or_null !== undefined && { min_employee_count_or_null: searchFilters.min_employee_count_or_null }),
+        ...(searchFilters.max_employee_count_or_null !== undefined && { max_employee_count_or_null: searchFilters.max_employee_count_or_null }),
+        ...(searchFilters.funding_stage_or && searchFilters.funding_stage_or.length > 0 && { funding_stage_or: searchFilters.funding_stage_or }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -1322,6 +1339,102 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="technologies">Technologies</Label>
+                <TagInput
+                  value={searchFilters.company_technology_slug_or || []}
+                  onChange={tags => setSearchFilters(prev => ({ ...prev, company_technology_slug_or: tags.length ? tags : undefined }))}
+                  placeholder="e.g. react, nodejs — press Enter after each"
+                  label={undefined}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="employment_status">Employment Type</Label>
+                <MultiSelect
+                  value={searchFilters.employment_statuses_or ?? []}
+                  onChange={(vals) =>
+                    setSearchFilters((prev) => ({
+                      ...prev,
+                      employment_statuses_or: vals.length
+                        ? (vals as ('full_time' | 'part_time' | 'temporary' | 'internship' | 'contract' | 'freelance' | 'co_founder' | 'apprenticeship' | 'seasonal' | 'volunteer' | 'other')[])
+                        : undefined,
+                    }))
+                  }
+                  options={[
+                    { value: "full_time", label: "Full Time" },
+                    { value: "part_time", label: "Part Time" },
+                    { value: "temporary", label: "Temporary" },
+                    { value: "internship", label: "Internship" },
+                    { value: "contract", label: "Contract" },
+                    { value: "freelance", label: "Freelance" },
+                    { value: "co_founder", label: "Co-founder" },
+                    { value: "apprenticeship", label: "Apprenticeship" },
+                    { value: "seasonal", label: "Seasonal" },
+                    { value: "volunteer", label: "Volunteer" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  placeholder="Select employment types"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="funding_stage">Funding Stage</Label>
+                <MultiSelect
+                  value={searchFilters.funding_stage_or ?? []}
+                  onChange={(vals) =>
+                    setSearchFilters((prev) => ({
+                      ...prev,
+                      funding_stage_or: vals.length ? vals : undefined,
+                    }))
+                  }
+                  options={[
+                    { value: "seed", label: "Seed" },
+                    { value: "angel", label: "Angel" },
+                    { value: "convertible_note", label: "Convertible Note" },
+                    { value: "debt_financing", label: "Debt Financing" },
+                    { value: "equity_crowdfunding", label: "Equity Crowdfunding" },
+                    { value: "private_equity", label: "Private Equity" },
+                    { value: "series_a", label: "Series A" },
+                    { value: "series_b", label: "Series B" },
+                    { value: "series_c", label: "Series C" },
+                    { value: "series_d", label: "Series D" },
+                    { value: "series_e", label: "Series E" },
+                    { value: "series_f", label: "Series F" },
+                    { value: "series_g", label: "Series G" },
+                    { value: "series_h", label: "Series H" },
+                    { value: "venture_round_not_specified", label: "Venture (Round not Specified)" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  placeholder="Select funding stages"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="employee_count">Company Size (Employees)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={searchFilters.min_employee_count_or_null || ""}
+                    onChange={(e) => setSearchFilters(prev => ({ 
+                      ...prev, 
+                      min_employee_count_or_null: e.target.value ? parseInt(e.target.value) : undefined 
+                    }))}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={searchFilters.max_employee_count_or_null || ""}
+                    onChange={(e) => setSearchFilters(prev => ({ 
+                      ...prev, 
+                      max_employee_count_or_null: e.target.value ? parseInt(e.target.value) : undefined 
+                    }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="company_name">Company Name</Label>
                 <TagInput
                   value={searchFilters.company_name_or || []}
@@ -1435,11 +1548,16 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-4">
               <Button onClick={handleSearch} className="flex-1" disabled={loading}>
                 <Search className="mr-2 h-4 w-4" />
                 {loading ? "Searching..." : "Search Jobs"}
               </Button>
+              {onSaveFilters && (
+                <Button variant="secondary" onClick={onSaveFilters} className="flex-1 sm:flex-none" disabled={loading}>
+                  Save Filters
+                </Button>
+              )}
               {hasSearched && (
                 <Button variant="outline" onClick={() => setShowFilters(false)}>
                   Cancel
@@ -1462,12 +1580,19 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters }: { filters?: F
         />
         <Card>
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
-              <Button variant="outline" size="sm" onClick={handleEditFilters}>
-                <Filter className="mr-2 h-4 w-4" />
-                Edit Filters
-              </Button>
+              <div className="flex items-center gap-2">
+                {onSaveFilters && (
+                  <Button variant="secondary" size="sm" onClick={onSaveFilters}>
+                    Save Filters
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={handleEditFilters}>
+                  <Filter className="mr-2 h-4 w-4" />
+                  Edit Filters
+                </Button>
+              </div>
             </div>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
               <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>

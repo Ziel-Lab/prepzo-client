@@ -61,16 +61,16 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
     <div className="space-y-6">
       {/* Show banner when using saved filters */}
       {hideAISearch && activeFilter && (
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100/50">
+        <Card className="border-2 border-prepzo bg-gradient-to-r from-prepzo/10 to-prepzo/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-blue-600">
+                <div className="p-2 rounded-full bg-prepzo">
                   <Bookmark className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-blue-900">Using Saved Search</h3>
-                  <p className="text-sm text-blue-700">
+                  <h3 className="font-semibold text-prepzo">Using Saved Search</h3>
+                  <p className="text-sm text-prepzo">
                     Showing results for: {[
                       activeFilter.search && `"${activeFilter.search}"`,
                       activeFilter.location && `Location: ${activeFilter.location}`,
@@ -80,7 +80,7 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
                 </div>
               </div>
               {onBackToSearch && (
-                <Button variant="outline" size="sm" onClick={onBackToSearch} className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                <Button variant="outline" size="sm" onClick={onBackToSearch} className="border-prepzo text-prepzo hover:bg-prepzo/10">
                   <Search className="h-4 w-4 mr-2" />
                   New Search
                 </Button>
