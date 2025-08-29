@@ -1274,7 +1274,57 @@ const InterviewSessionsContent: React.FC = () => {
 
 
 
-  const handleNewSession = useCallback(async (sessionData: any) => {
+  // Handler for immediately adding new sessions
+  const handleNewSession = useCallback(async (sessionId: string) => {
+    console.log('🔄 Fetching new session:', sessionId);
+    
+    try {
+      const { data: newSession } = await supabase
+        .from('mock_interview')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (newSession) {
+        console.log('✨ Creating session object for:', newSession.title);
+        
+        // Create session object with empty attempts (since it's new)
+        const sessionItem: InterviewSession = {
+          id: newSession.id,
+          title: newSession.title || generateSessionTitle(newSession),
+          type: newSession.interview_type || 'behavioral',
+          duration: newSession.duration_minutes || 15,
+          status: mapBackendStatusToFrontend(newSession.status, newSession.status_prep, []),
+          date: new Date(newSession.created_at),
+          companyUrl: newSession.company_name,
+          companyName: newSession.company_name,
+          role: newSession.position,
+          attempts: [], // New session has no attempts
+          latestAttempt: undefined,
+          score: undefined,
+          feedback: undefined
+        };
+
+        // Add to sessions list
+        setSessions(prev => {
+          // Prevent duplicate additions
+          if (prev.some(s => s.id === sessionItem.id)) {
+            console.log('⚠️ Session already exists:', sessionItem.id);
+            return prev;
+          }
+          console.log('✅ Adding new session to list:', sessionItem.title);
+          return [sessionItem, ...prev];
+        });
+
+        // Refresh stats
+        fetchLiveStats();
+      }
+    } catch (error) {
+      console.error('Error fetching new session:', error);
+    }
+  }, [supabase, generateSessionTitle, mapBackendStatusToFrontend, fetchLiveStats]);
+
+  const handleModalSubmit = useCallback(async (sessionData: any) => {
     // Close modal immediately for better UX
     setIsNewSessionModalOpen(false);
     
@@ -1332,11 +1382,10 @@ const InterviewSessionsContent: React.FC = () => {
       const result = await response.json();
       console.log('Session created successfully:', result);
 
-      // Refresh stats immediately after creating session
-      fetchLiveStats();
-      
-      // Note: No manual refresh needed - real-time subscription will automatically
-      // add the new session to the list when it's created
+      // Immediately add the new session to the list
+      if (result.session_id) {
+        await handleNewSession(result.session_id);
+      }
       
       // Return the session data for modal tracking
       return result;
