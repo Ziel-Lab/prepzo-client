@@ -645,6 +645,11 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           setCreatedSessionId(sessionResult.session_id);
           setSessionStatus('preparing');
           
+          // Refresh sessions list immediately after creation
+          if (onSuccess) {
+            onSuccess();
+          }
+          
           // Set up real-time listener for this specific session
           setupSessionStatusListener(sessionResult.session_id);
         } else {
