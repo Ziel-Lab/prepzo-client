@@ -781,89 +781,36 @@ const InterviewSessionsContent: React.FC = () => {
                   type: newData.interview_type
                 });
 
-                // Fetch complete session data including attempts
-                const fetchCompleteSessionData = async () => {
-                  try {
-                    const { data: sessionData, error: authError } = await supabase.auth.getSession();
-                    if (authError || !sessionData?.session?.access_token) {
-                      console.error('Auth error fetching new session data:', authError);
-                      return;
-                    }
-
-                    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-                    if (!backendUrl) {
-                      console.error('Backend URL not configured');
-                      return;
-                    }
-
-                    // Fetch session details
-                    const response = await fetch(`${backendUrl}/mockInterview/session/${newData.id}`, {
-                      method: 'GET',
-                      headers: getHeaders(sessionData.session.access_token, backendUrl)
-                    });
-
-                    if (!response.ok) {
-                      console.error('Failed to fetch new session details:', response.status);
-                      return;
-                    }
-
-                    const sessionDetails = await response.json();
-                    
-                    // Fetch attempts for the new session
-                    const attemptsResponse = await fetch(`${backendUrl}/mockInterview/session/${newData.id}/attempts`, {
-                      method: 'GET',
-                      headers: getHeaders(sessionData.session.access_token, backendUrl)
-                    });
-
-                    let sessionAttempts = [];
-                    if (attemptsResponse.ok) {
-                      const attemptsResult = await attemptsResponse.json();
-                      sessionAttempts = attemptsResult.attempts || [];
-                    }
-
-                    // Create complete session object with all required data
-                    const completeSession: InterviewSession = {
-                      id: newData.id,
-                      title: sessionDetails.session?.title || newData.title || generateSessionTitle(newData),
-                      type: sessionDetails.session?.interview_type || newData.interview_type || 'behavioral',
-                      duration: sessionDetails.session?.duration_minutes || newData.duration_minutes || 15,
-                      status: mapBackendStatusToFrontend(
-                        sessionDetails.session?.status || newData.status,
-                        sessionDetails.session?.status_prep || newData.status_prep,
-                        sessionAttempts
-                      ) as 'completed' | 'ready' | 'preparing',
-                      score: calculateScoreFromAttempts(sessionAttempts),
-                      date: new Date(newData.created_at),
-                      companyUrl: sessionDetails.session?.company_url || newData.company_url,
-                      companyName: sessionDetails.session?.company_name || newData.company_name,
-                      role: sessionDetails.session?.position || newData.position,
-                      feedback: undefined,
-                      attempts: sessionAttempts,
-                      latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
-                    };
-
-                    // Add new session to the beginning of the list with proper type checking
-                    setSessions(prevSessions => {
-                      // Prevent duplicate additions
-                      if (prevSessions.some(s => s.id === completeSession.id)) {
-                        return prevSessions;
-                      }
-                      return [completeSession, ...prevSessions];
-                    });
-
-                    console.log('✅ New session added with complete data:', {
-                      sessionId: completeSession.id,
-                      status: completeSession.status,
-                      attempts: completeSession.attempts.length
-                    });
-
-                  } catch (error) {
-                    console.error('Error fetching complete session data:', error);
-                  }
+                // Create session object directly from real-time data
+                const sessionItem: InterviewSession = {
+                  id: newData.id,
+                  title: newData.title || generateSessionTitle(newData),
+                  type: newData.interview_type || 'behavioral',
+                  duration: newData.duration_minutes || 15,
+                  status: mapBackendStatusToFrontend(newData.status, newData.status_prep, []),
+                  date: new Date(newData.created_at),
+                  companyUrl: newData.company_url,
+                  companyName: newData.company_name,
+                  role: newData.position,
+                  attempts: [], // New session has no attempts
+                  latestAttempt: undefined,
+                  score: undefined,
+                  feedback: undefined
                 };
 
-                // Execute the fetch
-                fetchCompleteSessionData();
+                // Add new session to the beginning of the list
+                setSessions(prevSessions => {
+                  // Prevent duplicate additions
+                  if (prevSessions.some(s => s.id === sessionItem.id)) {
+                    console.log('⚠️ Session already exists:', sessionItem.id);
+                    return prevSessions;
+                  }
+                  console.log('✅ Adding new session to list:', sessionItem.title);
+                  return [sessionItem, ...prevSessions];
+                });
+
+                // Refresh stats
+                fetchLiveStats();
               }
               
               // Handle UPDATE events (status changes, etc.)
@@ -1276,46 +1223,74 @@ const InterviewSessionsContent: React.FC = () => {
 
   // Handler for immediately adding new sessions
   const handleNewSession = useCallback(async (sessionData: any) => {
-    console.log('🔄 Processing new session:', {
-      id: sessionData.session_id,
-      title: sessionData.title
-    });
+    // Close modal immediately for better UX
+    setIsNewSessionModalOpen(false);
     
     try {
-      // Create session object directly from the response data
-      const sessionItem: InterviewSession = {
-        id: sessionData.session_id,
-        title: sessionData.title || generateSessionTitle(sessionData),
-        type: sessionData.interview_type || 'behavioral',
-        duration: sessionData.duration_minutes || 15,
-        status: mapBackendStatusToFrontend(sessionData.status, sessionData.status_prep, []),
-        date: new Date(sessionData.created_at || new Date()),
-        companyUrl: sessionData.company_name,
-        companyName: sessionData.company_name,
-        role: sessionData.position,
-        attempts: [], // New session has no attempts
-        latestAttempt: undefined,
-        score: undefined,
-        feedback: undefined
-      };
+      // Check authentication
+      if (!authSession?.access_token) {
+        console.error('Authentication required');
+        setIsNewSessionModalOpen(true); // Reopen modal
+        return;
+      }
 
-      // Add to sessions list
-      setSessions(prev => {
-        // Prevent duplicate additions
-        if (prev.some(s => s.id === sessionItem.id)) {
-          console.log('⚠️ Session already exists:', sessionItem.id);
-          return prev;
-        }
-        console.log('✅ Adding new session to list:', sessionItem.title);
-        return [sessionItem, ...prev];
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        console.error('Backend URL not configured');
+        alert('Backend configuration error. Please contact support.');
+        setIsNewSessionModalOpen(true);
+        return;
+      }
+
+      // Prepare request body
+      const requestBody = {
+        title: sessionData.title,
+        interview_type: sessionData.type,
+        difficulty_level: 'medium', // Default
+        position: sessionData.role || 'Software Engineer',
+        company_url: sessionData.company || sessionData.company_name || '',
+        job_description: sessionData.jobDescription,
+        custom_instructions: sessionData.description || '',
+        resume_url: sessionData.resumeUrl,
+        resume_document_id: sessionData.resumeDocumentId,
+        cover_letter_url: sessionData.coverLetterUrl,
+        cover_letter_document_id: sessionData.coverLetterDocumentId
+      };
+      
+      console.log('🚀 Submitting session data:', requestBody);
+      
+      const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
+        method: 'POST',
+        headers: getHeaders(authSession.access_token, backendUrl),
+        body: JSON.stringify(requestBody)
       });
 
-      // Refresh stats
-      fetchLiveStats();
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // Handle specific error types
+        if (errorData.limit_reached) {
+          console.log(' Session limit reached:', errorData);
+        } else {
+          console.error('Failed to create session:', errorData.error);
+        }
+        
+        setIsNewSessionModalOpen(true); // Reopen modal for retry
+        return;
+      }
+
+      const result = await response.json();
+      console.log('Session created successfully:', result);
+      
+      // Return the session data for modal tracking
+      return result;
+      
     } catch (error) {
-      console.error('Error fetching new session:', error);
+      console.error(' Error creating session:', error);
+      setIsNewSessionModalOpen(true); // Reopen modal for retry
+      throw error; // Re-throw so modal can handle the error
     }
-  }, [supabase, generateSessionTitle, mapBackendStatusToFrontend, fetchLiveStats]);
+  }, [authSession]);
 
   const handleModalSubmit = useCallback(async (sessionData: any) => {
     // Close modal immediately for better UX
