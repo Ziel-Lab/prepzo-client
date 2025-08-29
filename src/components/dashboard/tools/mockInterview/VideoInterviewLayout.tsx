@@ -310,7 +310,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 )}
               </AnimatePresence>
 
-              {/* Transcript Overlay - Above Orb when camera is on */}
+              {/* Fixed Position Transcript Overlay */}
               <AnimatePresence>
                 {isTranscriptVisible && isCameraOn && (
                   <motion.div 
@@ -318,7 +318,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9, y: 20 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="absolute bottom-36 right-6 w-80 h-72 z-15"
+                    className="fixed bottom-28 right-6 w-96 h-[480px] z-50"
                     style={{ 
                       transform: 'translateZ(0)', // Force hardware acceleration
                       willChange: 'transform' // Optimize for animations
@@ -344,7 +344,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
             </div>
           </div>
 
-          {/* Right Side - Full Transcript (when camera is off and transcript is on) */}
+          {/* Unified Transcript Panel */}
           <AnimatePresence>
             {!isCameraOn && isTranscriptVisible && (
               <motion.div
@@ -352,20 +352,20 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 400, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="w-1/3 bg-black/40 backdrop-blur-md border-l border-white/20"
+                className="w-1/3 bg-black/90 backdrop-blur-lg border-l border-white/20"
               >
                 <div className="h-full flex flex-col">
-                  <div className="p-4 border-b border-white/20 flex justify-between items-center">
-                    <span className="text-white font-medium">Live Transcript</span>
+                  <div className="p-3 border-b border-white/20 flex justify-between items-center bg-black/50">
+                    <span className="text-white text-sm font-medium">Live Transcript</span>
                     <button 
                       onClick={() => setIsTranscriptVisible(false)}
                       className="text-white/60 hover:text-white transition-colors"
                     >
-                      <X size={20} />
+                      <X size={16} />
                     </button>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <LiveTranscript messages={messages} />
+                    <LiveTranscript messages={messages} compact={true} />
                   </div>
                 </div>
               </motion.div>
