@@ -526,14 +526,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
 
   return (
-    <Card 
-      className={`
-        hover:shadow-xl transition-all duration-300 
-        border border-gray-200/50 hover:border-green-300/50 
-        bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg
-        animate-in fade-in-0 slide-in-from-top-4 duration-700
-      `}
-    >
+    <Card className="hover:shadow-xl transition-all duration-300 border border-gray-200/50 hover:border-green-300/50 animate-fade-in bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg">
       <CardContent className="p-6 bg-gradient-to-br from-white to-gray-50/30 rounded-lg">
         {/* Main Session Info */}
         <div className="flex items-start justify-between mb-4">

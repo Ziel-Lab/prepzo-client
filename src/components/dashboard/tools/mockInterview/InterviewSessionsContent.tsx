@@ -773,44 +773,29 @@ const InterviewSessionsContent: React.FC = () => {
                 timestamp: new Date().toISOString()
               });
               
-              // Enhanced INSERT event handler for new sessions
+              // Handle INSERT events (new sessions created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log('🆕 New session created via real-time:', {
-                  sessionId: newData.id,
-                  title: newData.title,
-                  type: newData.interview_type
-                });
-
-                // Create session object directly from real-time data
-                const sessionItem: InterviewSession = {
+                console.log(' New session created via real-time, adding to list');
+                
+                // Create new session object and add to beginning of list
+                const newSession = {
                   id: newData.id,
                   title: newData.title || generateSessionTitle(newData),
                   type: newData.interview_type || 'behavioral',
-                  duration: newData.duration_minutes || 15,
-                  status: mapBackendStatusToFrontend(newData.status, newData.status_prep, []),
-                  date: new Date(newData.created_at),
-                  companyUrl: newData.company_url,
-                  companyName: newData.company_name,
-                  role: newData.position,
-                  attempts: [], // New session has no attempts
-                  latestAttempt: undefined,
+                  duration: newData.duration_minutes || 30,
+                  status: mapBackendStatusToFrontend(newData.status, newData.status_prep, []) as 'completed' | 'ready' | 'preparing',
                   score: undefined,
-                  feedback: undefined
+                  date: new Date(newData.created_at),
+                  companyUrl: newData.company_url || undefined,
+                  companyName: newData.company_name || undefined,
+                  role: newData.position || undefined,
+                  feedback: undefined,
+                  attempts: [],
+                  latestAttempt: undefined
                 };
-
+                
                 // Add new session to the beginning of the list
-                setSessions(prevSessions => {
-                  // Prevent duplicate additions
-                  if (prevSessions.some(s => s.id === sessionItem.id)) {
-                    console.log('⚠️ Session already exists:', sessionItem.id);
-                    return prevSessions;
-                  }
-                  console.log('✅ Adding new session to list:', sessionItem.title);
-                  return [sessionItem, ...prevSessions];
-                });
-
-                // Refresh stats
-                fetchLiveStats();
+                setSessions(prevSessions => [newSession, ...prevSessions]);
               }
               
               // Handle UPDATE events (status changes, etc.)
@@ -1221,7 +1206,6 @@ const InterviewSessionsContent: React.FC = () => {
 
 
 
-  // Handler for immediately adding new sessions
   const handleNewSession = useCallback(async (sessionData: any) => {
     // Close modal immediately for better UX
     setIsNewSessionModalOpen(false);
@@ -1257,76 +1241,6 @@ const InterviewSessionsContent: React.FC = () => {
         cover_letter_document_id: sessionData.coverLetterDocumentId
       };
       
-      console.log('🚀 Submitting session data:', requestBody);
-      
-      const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
-        method: 'POST',
-        headers: getHeaders(authSession.access_token, backendUrl),
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        
-        // Handle specific error types
-        if (errorData.limit_reached) {
-          console.log(' Session limit reached:', errorData);
-        } else {
-          console.error('Failed to create session:', errorData.error);
-        }
-        
-        setIsNewSessionModalOpen(true); // Reopen modal for retry
-        return;
-      }
-
-      const result = await response.json();
-      console.log('Session created successfully:', result);
-      
-      // Return the session data for modal tracking
-      return result;
-      
-    } catch (error) {
-      console.error(' Error creating session:', error);
-      setIsNewSessionModalOpen(true); // Reopen modal for retry
-      throw error; // Re-throw so modal can handle the error
-    }
-  }, [authSession]);
-
-  const handleModalSubmit = useCallback(async (sessionData: any) => {
-    // Close modal immediately for better UX
-    setIsNewSessionModalOpen(false);
-    
-    try {
-      // Check authentication
-      if (!authSession?.access_token) {
-        console.error('Authentication required');
-        setIsNewSessionModalOpen(true); // Reopen modal
-        return;
-      }
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-      if (!backendUrl) {
-        console.error('Backend URL not configured');
-        alert('Backend configuration error. Please contact support.');
-        setIsNewSessionModalOpen(true);
-        return;
-      }
-
-      // Prepare request body
-      const requestBody = {
-        title: sessionData.title,
-        interview_type: sessionData.type,
-        difficulty_level: 'medium', // Default
-        position: sessionData.role || 'Software Engineer',
-        company_url: sessionData.company || sessionData.company_name || '',
-        job_description: sessionData.jobDescription,
-        custom_instructions: sessionData.description || '',
-        resume_url: sessionData.resumeUrl,
-        resume_document_id: sessionData.resumeDocumentId,
-        cover_letter_url: sessionData.coverLetterUrl,
-        cover_letter_document_id: sessionData.coverLetterDocumentId
-      };
-      
       const response = await fetch(`${backendUrl}/mockInterview/create-session`, {
         method: 'POST',
         headers: getHeaders(authSession.access_token, backendUrl),
@@ -1350,10 +1264,11 @@ const InterviewSessionsContent: React.FC = () => {
       const result = await response.json();
       console.log('Session created successfully:', result);
 
-      // Immediately add the new session to the list
-      if (result) {
-        await handleNewSession(result);
-      }
+      // Refresh stats immediately after creating session
+      fetchLiveStats();
+      
+      // Note: No manual refresh needed - real-time subscription will automatically
+      // add the new session to the list when it's created
       
       // Return the session data for modal tracking
       return result;
@@ -1630,6 +1545,7 @@ const InterviewSessionsContent: React.FC = () => {
           onClose={() => setIsNewSessionModalOpen(false)}
           onSubmit={handleNewSession}
           userLimits={userLimits}
+          onSuccess={refreshSessions}
         />
       </div>
     </div>

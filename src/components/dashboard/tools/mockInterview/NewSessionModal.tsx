@@ -49,9 +49,10 @@ interface NewSessionModalProps {
   onSubmit: (data: any) => Promise<any>;
   isLoading?: boolean;
   userLimits?: UserLimits | null;
+  onSuccess?: () => void;
 }
 
-const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSubmit, isLoading = false, userLimits }) => {
+const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSubmit, isLoading = false, userLimits, onSuccess }) => {
   const [formData, setFormData] = useState({
     title: '',
     type: '',
@@ -718,6 +719,10 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             setTimeout(() => {
               supabase.removeChannel(channel);
               resetForm();
+              // Call onSuccess before closing modal
+              if (onSuccess) {
+                onSuccess();
+              }
               onClose();
             }, 1500);
           }
