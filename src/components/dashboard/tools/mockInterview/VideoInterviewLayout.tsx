@@ -353,6 +353,10 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 exit={{ x: 400, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="w-1/3 bg-black/90 backdrop-blur-lg border-l border-white/20"
+                style={{ 
+                  transform: 'translateZ(0)', // Force hardware acceleration
+                  willChange: 'transform' // Optimize for animations
+                }}
               >
                 <div className="h-full flex flex-col">
                   <div className="p-3 border-b border-white/20 flex justify-between items-center bg-black/50">
@@ -364,7 +368,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="flex-1 overflow-hidden">
+                  <div className="h-[calc(100%-52px)] overflow-hidden">
                     <LiveTranscript messages={messages} compact={true} />
                   </div>
                 </div>

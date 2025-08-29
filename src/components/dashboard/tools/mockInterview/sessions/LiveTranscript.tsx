@@ -25,49 +25,71 @@ const LiveTranscript: React.FC<LiveTranscriptProps> = ({ messages, compact = fal
   const [newMessageCount, setNewMessageCount] = useState(0);
   const lastScrollTop = useRef(0);
   const isAutoScrolling = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Enhanced scroll position detection
+  // Enhanced scroll position detection with tolerance
   const isAtBottom = useCallback((element: HTMLElement) => {
     const { scrollTop, scrollHeight, clientHeight } = element;
-    return scrollHeight - scrollTop - clientHeight < 50;
+    return Math.abs(scrollHeight - scrollTop - clientHeight) < 50;
   }, []);
 
-  // Enhanced scroll handler with debounce
+  // Scroll to bottom with retry mechanism
+  const performScroll = useCallback((scrollElement: HTMLElement, attempt = 0) => {
+    const maxAttempts = 3;
+    const retryDelay = 100;
+
+    if (attempt >= maxAttempts) return;
+
+    const initialHeight = scrollElement.scrollHeight;
+    scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: 'smooth' });
+
+    // Verify scroll was successful
+    setTimeout(() => {
+      if (!isAtBottom(scrollElement)) {
+        performScroll(scrollElement, attempt + 1);
+      }
+    }, retryDelay);
+  }, [isAtBottom]);
+
+  // Enhanced scroll handler
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     if (isAutoScrolling.current) return;
     
     const scrollElement = event.currentTarget;
     const atBottom = isAtBottom(scrollElement);
     
-    // Update scroll state
-    if (scrollElement.scrollTop < lastScrollTop.current && !atBottom) {
-      setIsUserScrolled(true);
-      setShowScrollToBottom(true);
-    } else if (atBottom) {
-      setIsUserScrolled(false);
-      setShowScrollToBottom(false);
-      setNewMessageCount(0);
+    // Clear any pending scroll timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
     
-    lastScrollTop.current = scrollElement.scrollTop;
+    // Update scroll state with debounce
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (scrollElement.scrollTop < lastScrollTop.current && !atBottom) {
+        setIsUserScrolled(true);
+        setShowScrollToBottom(true);
+      } else if (atBottom) {
+        setIsUserScrolled(false);
+        setShowScrollToBottom(false);
+        setNewMessageCount(0);
+      }
+      lastScrollTop.current = scrollElement.scrollTop;
+    }, 100);
   }, [isAtBottom]);
 
   // Enhanced auto-scroll with new message tracking
   useEffect(() => {
     const newMessages = messages.length - messagesLength;
     if (newMessages > 0) {
-      const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+      const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
       if (scrollElement) {
         if (!isUserScrolled) {
           // Auto-scroll if user hasn't scrolled up
           isAutoScrolling.current = true;
-          scrollElement.scrollTo({
-            top: scrollElement.scrollHeight,
-            behavior: 'smooth'
-          });
+          performScroll(scrollElement);
           setTimeout(() => {
             isAutoScrolling.current = false;
-          }, 300); // Reset after scroll animation
+          }, 500); // Longer reset to account for retry attempts
         } else {
           // Update new message count if user has scrolled up
           setNewMessageCount(prev => prev + newMessages);
@@ -76,20 +98,24 @@ const LiveTranscript: React.FC<LiveTranscriptProps> = ({ messages, compact = fal
       }
     }
     setMessagesLength(messages.length);
-  }, [messages, isUserScrolled, messagesLength]);
+  }, [messages, isUserScrolled, messagesLength, performScroll]);
 
-  // Scroll to bottom function
+  // Enhanced scroll to bottom function
   const scrollToBottom = useCallback(() => {
-    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     if (scrollElement) {
-      scrollElement.scrollTo({
-        top: scrollElement.scrollHeight,
-        behavior: 'smooth'
-      });
+      isAutoScrolling.current = true;
+      performScroll(scrollElement);
       setIsUserScrolled(false);
       setShowScrollToBottom(false);
+      setNewMessageCount(0);
+      
+      // Reset auto-scrolling flag after animation
+      setTimeout(() => {
+        isAutoScrolling.current = false;
+      }, 500);
     }
-  }, []);
+  }, [performScroll]);
 
   const formatTime = (timestamp: Date) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
