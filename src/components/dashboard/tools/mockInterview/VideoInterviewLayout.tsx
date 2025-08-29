@@ -229,46 +229,53 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 )}
               </motion.div>
 
-              {/* Centered Orb Layout - Always present but positioned based on camera state */}
+              {/* Fixed Position Orb Layout - Independent of scroll */}
               <motion.div 
                 animate={{ 
                   opacity: isCameraOn ? 0 : 1,
                   scale: isCameraOn ? 0.9 : 1 
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="absolute inset-0 flex items-center justify-center"
+                className="fixed inset-0 pointer-events-none"
+                style={{ 
+                  zIndex: 30,
+                  height: '100vh',
+                  width: isTranscriptVisible ? '66.666667%' : '100%'
+                }}
               >
-                <div className="text-center">
-                  {/* Centered Orb when camera is off */}
-                  <div className="mb-8">
-                    <AnimatedOrb isSpeaking={isSpeaking} size="large" />
-                  </div>
-                  
-                  {/* Status Indicators */}
-                  <div className="space-y-3">
-                    {isSpeaking && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-medium backdrop-blur-sm"
-                      >
-                        AI Interviewer Speaking
-                      </motion.div>
-                    )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center transform-gpu">
+                    {/* Centered Orb when camera is off */}
+                    <div className="mb-8">
+                      <AnimatedOrb isSpeaking={isSpeaking} size="large" />
+                    </div>
                     
-                    <AnimatePresence>
-                      {!isCameraOn && (
+                    {/* Status Indicators */}
+                    <div className="space-y-3">
+                      {isSpeaking && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ delay: 0.2 }}
-                          className="text-white/60 text-sm"
+                          className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-medium backdrop-blur-sm"
                         >
-                          Video is turned off
+                          AI Interviewer Speaking
                         </motion.div>
                       )}
-                    </AnimatePresence>
+                      
+                      <AnimatePresence>
+                        {!isCameraOn && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-white/60 text-sm"
+                          >
+                            Video is turned off
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -344,7 +351,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
             </div>
           </div>
 
-          {/* Unified Transcript Panel */}
+          {/* Fixed Position Transcript Panel for Video Off */}
           <AnimatePresence>
             {!isCameraOn && isTranscriptVisible && (
               <motion.div
@@ -352,14 +359,14 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 400, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="w-1/3 bg-black/90 backdrop-blur-lg border-l border-white/20"
+                className="fixed top-[72px] right-0 bottom-[88px] w-1/3 bg-black/90 backdrop-blur-lg border-l border-white/20 z-40"
                 style={{ 
                   transform: 'translateZ(0)', // Force hardware acceleration
                   willChange: 'transform' // Optimize for animations
                 }}
               >
-                <div className="h-full flex flex-col">
-                  <div className="p-3 border-b border-white/20 flex justify-between items-center bg-black/50">
+                <div className="absolute inset-0 flex flex-col">
+                  <div className="flex-shrink-0 p-3 border-b border-white/20 flex justify-between items-center bg-black/50">
                     <span className="text-white text-sm font-medium">Live Transcript</span>
                     <button 
                       onClick={() => setIsTranscriptVisible(false)}
@@ -368,7 +375,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="h-[calc(100%-52px)] overflow-hidden">
+                  <div className="flex-1 min-h-0">
                     <LiveTranscript messages={messages} compact={true} />
                   </div>
                 </div>
