@@ -773,29 +773,97 @@ const InterviewSessionsContent: React.FC = () => {
                 timestamp: new Date().toISOString()
               });
               
-              // Handle INSERT events (new sessions created)
+              // Enhanced INSERT event handler for new sessions
               if (payload.eventType === 'INSERT' && newData) {
-                console.log(' New session created via real-time, adding to list');
-                
-                // Create new session object and add to beginning of list
-                const newSession = {
-                  id: newData.id,
-                  title: newData.title || generateSessionTitle(newData),
-                  type: newData.interview_type || 'behavioral',
-                  duration: newData.duration_minutes || 30,
-                  status: mapBackendStatusToFrontend(newData.status, newData.status_prep, []) as 'completed' | 'ready' | 'preparing',
-                  score: undefined,
-                  date: new Date(newData.created_at),
-                  companyUrl: newData.company_url || undefined,
-                  companyName: newData.company_name || undefined,
-                  role: newData.position || undefined,
-                  feedback: undefined,
-                  attempts: [],
-                  latestAttempt: undefined
+                console.log('🆕 New session created via real-time:', {
+                  sessionId: newData.id,
+                  title: newData.title,
+                  type: newData.interview_type
+                });
+
+                // Fetch complete session data including attempts
+                const fetchCompleteSessionData = async () => {
+                  try {
+                    const { data: sessionData, error: authError } = await supabase.auth.getSession();
+                    if (authError || !sessionData?.session?.access_token) {
+                      console.error('Auth error fetching new session data:', authError);
+                      return;
+                    }
+
+                    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+                    if (!backendUrl) {
+                      console.error('Backend URL not configured');
+                      return;
+                    }
+
+                    // Fetch session details
+                    const response = await fetch(`${backendUrl}/mockInterview/session/${newData.id}`, {
+                      method: 'GET',
+                      headers: getHeaders(sessionData.session.access_token, backendUrl)
+                    });
+
+                    if (!response.ok) {
+                      console.error('Failed to fetch new session details:', response.status);
+                      return;
+                    }
+
+                    const sessionDetails = await response.json();
+                    
+                    // Fetch attempts for the new session
+                    const attemptsResponse = await fetch(`${backendUrl}/mockInterview/session/${newData.id}/attempts`, {
+                      method: 'GET',
+                      headers: getHeaders(sessionData.session.access_token, backendUrl)
+                    });
+
+                    let sessionAttempts = [];
+                    if (attemptsResponse.ok) {
+                      const attemptsResult = await attemptsResponse.json();
+                      sessionAttempts = attemptsResult.attempts || [];
+                    }
+
+                    // Create complete session object with all required data
+                    const completeSession: InterviewSession = {
+                      id: newData.id,
+                      title: sessionDetails.session?.title || newData.title || generateSessionTitle(newData),
+                      type: sessionDetails.session?.interview_type || newData.interview_type || 'behavioral',
+                      duration: sessionDetails.session?.duration_minutes || newData.duration_minutes || 15,
+                      status: mapBackendStatusToFrontend(
+                        sessionDetails.session?.status || newData.status,
+                        sessionDetails.session?.status_prep || newData.status_prep,
+                        sessionAttempts
+                      ) as 'completed' | 'ready' | 'preparing',
+                      score: calculateScoreFromAttempts(sessionAttempts),
+                      date: new Date(newData.created_at),
+                      companyUrl: sessionDetails.session?.company_url || newData.company_url,
+                      companyName: sessionDetails.session?.company_name || newData.company_name,
+                      role: sessionDetails.session?.position || newData.position,
+                      feedback: undefined,
+                      attempts: sessionAttempts,
+                      latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
+                    };
+
+                    // Add new session to the beginning of the list with proper type checking
+                    setSessions(prevSessions => {
+                      // Prevent duplicate additions
+                      if (prevSessions.some(s => s.id === completeSession.id)) {
+                        return prevSessions;
+                      }
+                      return [completeSession, ...prevSessions];
+                    });
+
+                    console.log('✅ New session added with complete data:', {
+                      sessionId: completeSession.id,
+                      status: completeSession.status,
+                      attempts: completeSession.attempts.length
+                    });
+
+                  } catch (error) {
+                    console.error('Error fetching complete session data:', error);
+                  }
                 };
-                
-                // Add new session to the beginning of the list
-                setSessions(prevSessions => [newSession, ...prevSessions]);
+
+                // Execute the fetch
+                fetchCompleteSessionData();
               }
               
               // Handle UPDATE events (status changes, etc.)
