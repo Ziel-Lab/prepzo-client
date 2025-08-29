@@ -1275,50 +1275,43 @@ const InterviewSessionsContent: React.FC = () => {
 
 
   // Handler for immediately adding new sessions
-  const handleNewSession = useCallback(async (sessionId: string) => {
-    console.log('🔄 Fetching new session:', sessionId);
+  const handleNewSession = useCallback(async (sessionData: any) => {
+    console.log('🔄 Processing new session:', {
+      id: sessionData.session_id,
+      title: sessionData.title
+    });
     
     try {
-      const { data: newSession } = await supabase
-        .from('mock_interview')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
+      // Create session object directly from the response data
+      const sessionItem: InterviewSession = {
+        id: sessionData.session_id,
+        title: sessionData.title || generateSessionTitle(sessionData),
+        type: sessionData.interview_type || 'behavioral',
+        duration: sessionData.duration_minutes || 15,
+        status: mapBackendStatusToFrontend(sessionData.status, sessionData.status_prep, []),
+        date: new Date(sessionData.created_at || new Date()),
+        companyUrl: sessionData.company_name,
+        companyName: sessionData.company_name,
+        role: sessionData.position,
+        attempts: [], // New session has no attempts
+        latestAttempt: undefined,
+        score: undefined,
+        feedback: undefined
+      };
 
-      if (newSession) {
-        console.log('✨ Creating session object for:', newSession.title);
-        
-        // Create session object with empty attempts (since it's new)
-        const sessionItem: InterviewSession = {
-          id: newSession.id,
-          title: newSession.title || generateSessionTitle(newSession),
-          type: newSession.interview_type || 'behavioral',
-          duration: newSession.duration_minutes || 15,
-          status: mapBackendStatusToFrontend(newSession.status, newSession.status_prep, []),
-          date: new Date(newSession.created_at),
-          companyUrl: newSession.company_name,
-          companyName: newSession.company_name,
-          role: newSession.position,
-          attempts: [], // New session has no attempts
-          latestAttempt: undefined,
-          score: undefined,
-          feedback: undefined
-        };
+      // Add to sessions list
+      setSessions(prev => {
+        // Prevent duplicate additions
+        if (prev.some(s => s.id === sessionItem.id)) {
+          console.log('⚠️ Session already exists:', sessionItem.id);
+          return prev;
+        }
+        console.log('✅ Adding new session to list:', sessionItem.title);
+        return [sessionItem, ...prev];
+      });
 
-        // Add to sessions list
-        setSessions(prev => {
-          // Prevent duplicate additions
-          if (prev.some(s => s.id === sessionItem.id)) {
-            console.log('⚠️ Session already exists:', sessionItem.id);
-            return prev;
-          }
-          console.log('✅ Adding new session to list:', sessionItem.title);
-          return [sessionItem, ...prev];
-        });
-
-        // Refresh stats
-        fetchLiveStats();
-      }
+      // Refresh stats
+      fetchLiveStats();
     } catch (error) {
       console.error('Error fetching new session:', error);
     }
@@ -1383,8 +1376,8 @@ const InterviewSessionsContent: React.FC = () => {
       console.log('Session created successfully:', result);
 
       // Immediately add the new session to the list
-      if (result.session_id) {
-        await handleNewSession(result.session_id);
+      if (result) {
+        await handleNewSession(result);
       }
       
       // Return the session data for modal tracking
