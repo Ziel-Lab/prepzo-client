@@ -261,7 +261,11 @@ const Applications = () => {
         </div>
         
         <div ref={advancedFiltersRef}>
-          <ApplicationsTable filters={combinedFilters} aiFilters={aiFilters} />
+          <ApplicationsTable 
+            filters={combinedFilters} 
+            aiFilters={aiFilters} 
+            onSaveFilters={handleSaveFilters}
+          />
         </div>
       </div>
     </DashboardLayout>
