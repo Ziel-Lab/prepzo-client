@@ -398,14 +398,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
       if (json?.data && Array.isArray(json.data)) {
         const jobs = json.data as Job[];
         
-        // Debug logging
-        console.log('Debug - Fetched jobs:', {
-          jobCount: jobs.length,
-          firstJob: jobs[0],
-          searchFilters,
-          hasSearched,
-          showFilters
-        });
+
         
         // Process jobs to handle already_revealed flag
         const processedJobs = jobs.map(job => {
@@ -421,9 +414,6 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
         });
         
         setApplications(processedJobs);
-        console.log('Debug - Set applications:', processedJobs.length);
-      } else {
-        console.log('Debug - No data in response:', json);
       }
     } catch (err: unknown) {
       console.error(err);
@@ -610,18 +600,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
         jobTitle.includes(term) || company.includes(term)
       );
       
-      // Debug logging for first few applications
-      if (applications.indexOf(app) < 3) {
-        console.log('Debug - Search matching:', {
-          appIndex: applications.indexOf(app),
-          jobTitle,
-          company,
-          searchTerms,
-          matchesSearch,
-          firstTermCheck: jobTitle.includes(searchTerms[0]),
-          companyCheck: company.includes(searchTerms[0])
-        });
-      }
+
       
       if (!matchesSearch) return false;
     }
@@ -644,25 +623,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
     return true;
   });
 
-  // Debug logging to help identify issues
-  console.log('Debug - Applications Table State:', {
-    applicationsCount: applications.length,
-    filteredCount: filteredApplications.length,
-    hasSearched,
-    showFilters,
-    loading,
-    filters,
-    tableSearchQuery,
-    firstApplication: applications[0],
-    filterDetails: {
-      hasSearchFilter: !!(filters.search && filters.search.trim() !== ''),
-      searchValue: filters.search,
-      hasStatusFilter: !!(filters.status),
-      statusValue: filters.status,
-      hasRemoteFilter: filters.remote !== undefined,
-      remoteValue: filters.remote
-    }
-  });
+
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 

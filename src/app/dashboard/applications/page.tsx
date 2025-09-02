@@ -232,13 +232,7 @@ const Applications = () => {
     location: filters.location || ''
   };
   
-  // Debug logging
-  console.log('Debug - Page.tsx filters:', {
-    originalFilters: filters,
-    combinedFilters,
-    hasSearchResults,
-    aiFilters
-  });
+
 
   return (
     <DashboardLayout>
