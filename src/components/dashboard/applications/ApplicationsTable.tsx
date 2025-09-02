@@ -398,6 +398,15 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
       if (json?.data && Array.isArray(json.data)) {
         const jobs = json.data as Job[];
         
+        // Debug logging
+        console.log('Debug - Fetched jobs:', {
+          jobCount: jobs.length,
+          firstJob: jobs[0],
+          searchFilters,
+          hasSearched,
+          showFilters
+        });
+        
         // Process jobs to handle already_revealed flag
         const processedJobs = jobs.map(job => {
           if (job.already_revealed) {
@@ -412,6 +421,9 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
         });
         
         setApplications(processedJobs);
+        console.log('Debug - Set applications:', processedJobs.length);
+      } else {
+        console.log('Debug - No data in response:', json);
       }
     } catch (err: unknown) {
       console.error(err);
@@ -424,7 +436,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [currentPage, searchFilters, supabase]);
+  }, [currentPage, searchFilters, supabase, hasSearched, showFilters]);
 
   // ---------------------------------------------------------------------------
   // Load previously revealed jobs on component mount so we don't re-charge users
@@ -562,8 +574,21 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
 
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
+    // If no filters are applied at all, show all applications
+    const hasAnyFilter = 
+      (tableSearchQuery && tableSearchQuery.trim() !== '') ||
+      (filters.search && filters.search.trim() !== '') ||
+      (filters.status && filters.status.trim() !== '') ||
+      (filters.remote !== undefined && filters.remote !== null);
+    
+    // For debugging: temporarily show all jobs regardless of filters
+    // Remove this condition once filtering is working correctly
+    if (!hasAnyFilter) {
+      return true; // Show all jobs if no filters are applied
+    }
+    
     // Table search filter
-    if (tableSearchQuery) {
+    if (tableSearchQuery && tableSearchQuery.trim() !== '') {
       const searchLower = tableSearchQuery.toLowerCase();
       const matchesSearch = 
         (app.job_title || '').toLowerCase().includes(searchLower) ||
@@ -573,21 +598,70 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
         getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
-    if (filters.search && !app.job_title.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !app.company.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
+    
+    // Only apply filters.search if it exists and is not empty
+    if (filters.search && filters.search.trim() !== '') {
+      const searchTerms = filters.search.toLowerCase().split(',').map(term => term.trim()).filter(Boolean);
+      const jobTitle = (app.job_title || '').toLowerCase();
+      const company = (app.company || '').toLowerCase();
+      
+      // Check if any of the search terms match the job title or company
+      const matchesSearch = searchTerms.some(term => 
+        jobTitle.includes(term) || company.includes(term)
+      );
+      
+      // Debug logging for first few applications
+      if (applications.indexOf(app) < 3) {
+        console.log('Debug - Search matching:', {
+          appIndex: applications.indexOf(app),
+          jobTitle,
+          company,
+          searchTerms,
+          matchesSearch,
+          firstTermCheck: jobTitle.includes(searchTerms[0]),
+          companyCheck: company.includes(searchTerms[0])
+        });
+      }
+      
+      if (!matchesSearch) return false;
     }
-    if (filters.status && (app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
-      return false;
+    
+    // Only apply status filter if it exists and is not empty
+    if (filters.status && filters.status.trim() !== '') {
+      if ((app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
+        return false;
+      }
     }
-    // if (filters.seniority && app.seniority !== filters.seniority) {
-    //   return false;
-    // }
-    if (filters.remote !== undefined && app.remote !== filters.remote) {
-      return false;
+    
+    // Only apply remote filter if it's explicitly set
+    if (filters.remote !== undefined && filters.remote !== null) {
+      if (app.remote !== filters.remote) {
+        return false;
+      }
     }
+    
     // Add more filter logic as needed
     return true;
+  });
+
+  // Debug logging to help identify issues
+  console.log('Debug - Applications Table State:', {
+    applicationsCount: applications.length,
+    filteredCount: filteredApplications.length,
+    hasSearched,
+    showFilters,
+    loading,
+    filters,
+    tableSearchQuery,
+    firstApplication: applications[0],
+    filterDetails: {
+      hasSearchFilter: !!(filters.search && filters.search.trim() !== ''),
+      searchValue: filters.search,
+      hasStatusFilter: !!(filters.status),
+      statusValue: filters.status,
+      hasRemoteFilter: filters.remote !== undefined,
+      remoteValue: filters.remote
+    }
   });
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
@@ -1608,7 +1682,21 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                 <JobSearchLoader label="Fetching jobs" sublabel="Please wait while we load fresh results" />
               </div>
             )}
-            {isMobile ? (
+            {filteredApplications.length === 0 && !loading ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Search className="h-8 w-8 text-gray-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h4>
+                <p className="text-gray-500 mb-4">
+                  {applications.length === 0 
+                    ? "Try searching with different filters or keywords"
+                    : "No jobs match your current filters"
+                  }
+                </p>
+                
+              </div>
+            ) : isMobile ? (
               // Mobile Layout
               <div className="p-4">
                 {filteredApplications.map((application) => (
