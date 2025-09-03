@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, X, Sparkles, Clock, Bookmark, Save, Trash2, History, Loader2, Building, MapPin, Calendar, DollarSign, Eye, FileText, Link2 } from "lucide-react";
+import { Search, Plus, X, Sparkles, Clock, Bookmark, Save, Trash2, History, Loader2, Building, MapPin, Calendar, DollarSign, Eye, FileText, Link2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { SavedFilter } from "@/utils/saveJobSearchFilters";
@@ -108,6 +108,8 @@ const ApplicationsFilters = ({
     setIsAISearching(true);
     try {
       await onAISearch(aiPrompt);
+      // Clear the prompt after successful search
+      setAiPrompt("");
     } catch (error) {
       console.error('AI Search failed:', error);
     } finally {
@@ -304,7 +306,7 @@ const ApplicationsFilters = ({
                             disabled={searchesCurrentPage === 1}
                             className="h-8 px-3"
                           >
-                            Previous
+                              <ArrowLeft className="h-4 w-4" />
                           </Button>
                           
                           <div className="flex items-center">
@@ -332,7 +334,7 @@ const ApplicationsFilters = ({
                             disabled={searchesCurrentPage === Math.ceil(savedFilters.length / searchesItemsPerPage)}
                             className="h-8 px-3"
                           >
-                            Next
+                            <ArrowRight className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
@@ -543,42 +545,74 @@ const ApplicationsFilters = ({
 
                     {/* Pagination */}
                     {Math.ceil(revealedJobsHistory.length / historyItemsPerPage) > 1 && (
-                      <div className="flex items-center justify-center gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setHistoryCurrentPage(p => Math.max(1, p - 1))}
-                          disabled={historyCurrentPage === 1}
-                          className="h-8 px-3"
-                        >
-                          Previous
-                        </Button>
-                        
-                        {Array.from({ length: Math.ceil(revealedJobsHistory.length / historyItemsPerPage) }, (_, i) => (
-                          <Button
-                            key={i + 1}
-                            variant={historyCurrentPage === i + 1 ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setHistoryCurrentPage(i + 1)}
-                            className={`h-8 w-8 p-0 ${
-                              historyCurrentPage === i + 1 
-                                ? "bg-primary text-primary-foreground" 
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {i + 1}
-                          </Button>
-                        ))}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                        {/* Page info - Mobile friendly */}
+                        <div className="text-sm text-gray-500 w-full sm:w-auto order-2 sm:order-1 text-center sm:text-left">
+                          Showing {(historyCurrentPage - 1) * historyItemsPerPage + 1}-
+                          {Math.min(historyCurrentPage * historyItemsPerPage, revealedJobsHistory.length)} of {revealedJobsHistory.length}
+                        </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setHistoryCurrentPage(p => Math.min(Math.ceil(revealedJobsHistory.length / historyItemsPerPage), p + 1))}
-                          disabled={historyCurrentPage === Math.ceil(revealedJobsHistory.length / historyItemsPerPage)}
-                          className="h-8 px-3"
-                        >
-                          Next
-                        </Button>
+                        {/* Pagination controls */}
+                        <div className="flex items-center justify-center w-full sm:w-auto gap-1 order-1 sm:order-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={historyCurrentPage === 1}
+                            className="h-8 px-3"
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                          </Button>
+
+                          <div className="hidden sm:flex items-center gap-1">
+                            {Array.from({ length: Math.ceil(revealedJobsHistory.length / historyItemsPerPage) }, (_, i) => {
+                              // Show first page, last page, and pages around current page
+                              const showPage = i === 0 || 
+                                             i === Math.ceil(revealedJobsHistory.length / historyItemsPerPage) - 1 || 
+                                             Math.abs(i + 1 - historyCurrentPage) <= 1;
+                              
+                              // Show dots for skipped pages
+                              if (!showPage && (i === 1 || i === Math.ceil(revealedJobsHistory.length / historyItemsPerPage) - 2)) {
+                                return (
+                                  <span key={`dots-${i}`} className="px-2 text-gray-400">
+                                    ...
+                                  </span>
+                                );
+                              }
+
+                              return showPage ? (
+                                <Button
+                                  key={i + 1}
+                                  variant={historyCurrentPage === i + 1 ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setHistoryCurrentPage(i + 1)}
+                                  className={`h-8 w-8 p-0 ${
+                                    historyCurrentPage === i + 1 
+                                      ? "bg-primary text-primary-foreground" 
+                                      : "text-gray-600"
+                                  }`}
+                                >
+                                  {i + 1}
+                                </Button>
+                              ) : null;
+                            })}
+                          </div>
+
+                          {/* Mobile current page indicator */}
+                          <span className="sm:hidden px-4 text-sm font-medium">
+                            Page {historyCurrentPage}
+                          </span>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(p => Math.min(Math.ceil(revealedJobsHistory.length / historyItemsPerPage), p + 1))}
+                            disabled={historyCurrentPage === Math.ceil(revealedJobsHistory.length / historyItemsPerPage)}
+                            className="h-8 px-3"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1564,6 +1564,19 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                     Save Filters
                   </Button>
                 )}
+                {aiFilters && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+                    className="border-prepzo text-prepzo hover:bg-prepzo/10"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    New Search
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={handleEditFilters}>
                   <Filter className="mr-2 h-4 w-4" />
                   Edit Filters
