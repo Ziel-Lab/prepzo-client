@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, X, Sparkles, Clock, Bookmark, Save, Trash2 } from "lucide-react";
+import { Search, Plus, X, Sparkles, Clock, Bookmark, Save, Trash2, History, Loader2, Building, MapPin, Calendar, DollarSign, Eye, FileText, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { SavedFilter } from "@/utils/saveJobSearchFilters";
+import { Job, JobStatus, JOB_STATUSES } from "./types";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface FilterOptions {
   search?: string;
@@ -34,11 +37,70 @@ interface ApplicationsFiltersProps {
   activeFilter?: FilterOptions | null;
   hideAISearch?: boolean;
   onBackToSearch?: () => void;
+  revealedJobsHistory?: Array<{ job_id: number; job_details?: Job; revealed_at: string }>;
+  historyLoading?: boolean;
+  jobStatuses?: Map<number, JobStatus>;
+  onStatusUpdate?: (jobId: number, newStatus: JobStatus) => void;
+  updatingStatus?: Set<number>;
+  generatedDocuments?: Map<string, { current_resume?: string; company_website?: string; created_at?: string }>;
 }
 
-const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISearch, aiFilters, onSaveFilters, savedFilters = [], onLoadFilter, activeFilter, hideAISearch = false, onBackToSearch }: ApplicationsFiltersProps) => {
+const getStatusBadgeColor = (status: JobStatus) => {
+  switch (status) {
+    case 'revealed':
+      return 'bg-gray-100 text-gray-800';
+    case 'applied':
+      return 'bg-blue-100 text-blue-800';
+    case 'scheduled':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'interview':
+      return 'bg-purple-100 text-purple-800';
+    case 'offered':
+      return 'bg-green-100 text-green-800';
+    case 'accepted':
+      return 'bg-green-600 text-white';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    case 'withdrawn':
+      return 'bg-orange-100 text-orange-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+};
+
+const ApplicationsFilters = ({ 
+  onFiltersChange, 
+  hasSearchResults = false, 
+  onAISearch, 
+  aiFilters, 
+  onSaveFilters, 
+  savedFilters = [], 
+  onLoadFilter, 
+  activeFilter, 
+  hideAISearch = false, 
+  onBackToSearch,
+  revealedJobsHistory = [],
+  historyLoading = false,
+  jobStatuses = new Map(),
+  onStatusUpdate,
+  updatingStatus = new Set(),
+  generatedDocuments = new Map()
+}: ApplicationsFiltersProps) => {
   const [aiPrompt, setAiPrompt] = useState<string>("");
   const [isAISearching, setIsAISearching] = useState(false);
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage] = useState(5);
+  const [searchesCurrentPage, setSearchesCurrentPage] = useState(1);
+  const [searchesItemsPerPage] = useState(5);
 
   const handleAISearch = async () => {
     if (!aiPrompt.trim() || !onAISearch) return;
@@ -52,10 +114,6 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
       setIsAISearching(false);
     }
   };
-
-
-
-
 
   return (
     <div className="space-y-6">
@@ -160,76 +218,376 @@ const ApplicationsFilters = ({ onFiltersChange, hasSearchResults = false, onAISe
               )}
             </Button>
           </div>
-          {/* Saved Searches Section */}
+          {/* Saved Searches & History Section */}
           <div className="w-full max-w-4xl mx-auto px-4 mt-12">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-prepzo-50">
-                  <Bookmark className="h-5 w-5 text-prepzo" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900">Saved Searches</h3>
-              </div>
-              
-              {savedFilters.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
-                    <Bookmark className="h-8 w-8 text-prepzo-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Saved Searches */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-prepzo-50">
+                      <Bookmark className="h-5 w-5 text-prepzo" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Saved Searches ({savedFilters.length})
+                    </h3>
                   </div>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">No saved searches</h4>
-                  <p className="text-gray-500">Save your searches for quick access later</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {savedFilters.map((filter) => (
-                    <div key={filter.id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200 cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-600 mb-2">
-                            {new Date(filter.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                          <div className="space-y-1">
-                            {filter.filters.search && (
-                              <div className="text-sm text-gray-900">
-                                <span className="font-medium">Search:</span> {filter.filters.search}
+                
+                {savedFilters.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
+                      <Bookmark className="h-8 w-8 text-prepzo-400" />
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">No saved searches</h4>
+                    <p className="text-gray-500">Save your searches for quick access later</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {savedFilters
+                      .slice((searchesCurrentPage - 1) * searchesItemsPerPage, searchesCurrentPage * searchesItemsPerPage)
+                      .map((filter) => (
+                        <div key={filter.id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-600 mb-2">
+                                {new Date(filter.created_at).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
                               </div>
-                            )}
-                            {filter.filters.location && (
-                              <div className="text-sm text-gray-900">
-                                <span className="font-medium">Location:</span> {filter.filters.location}
+                              <div className="space-y-2">
+                                {filter.filters.search && (
+                                  <div className="text-sm text-gray-900">
+                                    <span className="font-medium">Search:</span> {filter.filters.search}
+                                  </div>
+                                )}
+                                {filter.filters.location && (
+                                  <div className="text-sm text-gray-900">
+                                    <span className="font-medium">Location:</span> {filter.filters.location}
+                                  </div>
+                                )}
+                                {filter.filters.seniority && (
+                                  <div className="text-sm text-gray-900">
+                                    <span className="font-medium">Seniority:</span> {filter.filters.seniority}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {filter.filters.seniority && (
-                              <div className="text-sm text-gray-900">
-                                <span className="font-medium">Seniority:</span> {filter.filters.seniority}
-                              </div>
+                            </div>
+                            {onLoadFilter && (
+                              <Button
+                                onClick={() => onLoadFilter(filter)}
+                                className="w-full sm:w-auto opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-prepzo hover:bg-prepzo-dark text-white px-4 py-2 rounded-lg"
+                              >
+                                <Search className="h-4 w-4 mr-2" />
+                                Load Search
+                              </Button>
                             )}
                           </div>
                         </div>
-                        {onLoadFilter && (
+                    ))}
+
+                    {/* Pagination */}
+                    {Math.ceil(savedFilters.length / searchesItemsPerPage) > 1 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+                        <div className="text-sm text-gray-500 w-full sm:w-auto order-2 sm:order-1 text-center sm:text-left">
+                          Showing {(searchesCurrentPage - 1) * searchesItemsPerPage + 1}-
+                          {Math.min(searchesCurrentPage * searchesItemsPerPage, savedFilters.length)} of {savedFilters.length}
+                        </div>
+                        <div className="flex items-center justify-center w-full sm:w-auto gap-1 order-1 sm:order-2">
                           <Button
-                            onClick={() => onLoadFilter(filter)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-prepzo hover:bg-prepzo-dark text-white px-4 py-2 rounded-lg"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSearchesCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={searchesCurrentPage === 1}
+                            className="h-8 px-3"
                           >
-                            <Search className="h-4 w-4 mr-2" />
-                            Load
+                            Previous
                           </Button>
-                        )}
+                          
+                          <div className="flex items-center">
+                            {Array.from({ length: Math.ceil(savedFilters.length / searchesItemsPerPage) }, (_, i) => (
+                              <Button
+                                key={i + 1}
+                                variant={searchesCurrentPage === i + 1 ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setSearchesCurrentPage(i + 1)}
+                                className={`h-8 w-8 p-0 ${
+                                  searchesCurrentPage === i + 1 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {i + 1}
+                              </Button>
+                            ))}
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSearchesCurrentPage(p => Math.min(Math.ceil(savedFilters.length / searchesItemsPerPage), p + 1))}
+                            disabled={searchesCurrentPage === Math.ceil(savedFilters.length / searchesItemsPerPage)}
+                            className="h-8 px-3"
+                          >
+                            Next
+                          </Button>
+                        </div>
                       </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Saved Jobs */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-prepzo-50">
+                      <History className="h-5 w-5 text-prepzo" />
                     </div>
-                  ))}
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Saved Jobs ({revealedJobsHistory.length})
+                    </h3>
+                  </div>
                 </div>
-              )}
+
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin text-prepzo" />
+                    <span className="text-gray-600">Loading saved jobs...</span>
+                  </div>
+                ) : revealedJobsHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
+                      <History className="h-8 w-8 text-prepzo-400" />
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">No saved jobs</h4>
+                    <p className="text-gray-500">Your revealed jobs will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {revealedJobsHistory
+                      .slice((historyCurrentPage - 1) * historyItemsPerPage, historyCurrentPage * historyItemsPerPage)
+                      .map((item) => (
+                        <div key={item.job_id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200">
+                          <div className="space-y-3">
+                            {/* Job title and status */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start gap-2 mb-2">
+                                  <h4 className="font-semibold text-base sm:text-sm text-gray-900 line-clamp-2">
+                                    {item.job_details?.job_title || `Unknown Position (ID: ${item.job_id})`}
+                                  </h4>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={`text-xs font-medium ${getStatusBadgeColor(jobStatuses.get(item.job_id) || 'revealed')} border-0`}
+                                  >
+                                    {JOB_STATUSES[jobStatuses.get(item.job_id) || 'revealed']}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              {/* Status dropdown */}
+                              {onStatusUpdate && (
+                                <div className="w-full sm:w-auto">
+                                  <Select
+                                    value={jobStatuses.get(item.job_id) || 'revealed'}
+                                    onValueChange={(value: JobStatus) => onStatusUpdate(item.job_id, value)}
+                                    disabled={updatingStatus.has(item.job_id)}
+                                  >
+                                    <SelectTrigger 
+                                      className={`
+                                        w-full sm:w-36 h-9 text-sm 
+                                        border-2 border-prepzo-500 
+                                        bg-prepzo-50 
+                                        hover:bg-prepzo-100 
+                                        transition-all 
+                                        duration-200 
+                                        focus:ring-2 
+                                        focus:ring-prepzo-200 
+                                        focus:border-prepzo-500
+                                        ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                      `}
+                                    >
+                                      <SelectValue placeholder="Update Status" className="text-prepzo-700 font-medium" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(JOB_STATUSES).map(([key, label]) => (
+                                        <SelectItem 
+                                          key={key} 
+                                          value={key} 
+                                          className="text-sm hover:bg-prepzo-50 cursor-pointer"
+                                        >
+                                          {label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Company and job details */}
+                            {item.job_details && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                  <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <span className="font-medium">{item.job_details.company}</span>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                                  {item.job_details.location && (
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="h-3 w-3 text-gray-400" />
+                                      <span>{item.job_details.location}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {item.job_details.seniority && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-gray-400">•</span>
+                                      <span>{item.job_details.seniority}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {item.job_details.remote && (
+                                    <Badge variant="outline" className="text-xs border-prepzo-200 text-prepzo-700 bg-prepzo-50">
+                                      Remote
+                                    </Badge>
+                                  )}
+                                  
+                                  {item.job_details.hybrid && (
+                                    <Badge variant="outline" className="text-xs border-prepzo-300 text-prepzo-600 bg-prepzo-50">
+                                      Hybrid
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Footer with date and actions */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Calendar className="h-3 w-3" />
+                                <span>Revealed on {formatDate(item.revealed_at)}</span>
+                              </div>
+                              
+                              {/* Action buttons */}
+                              {item.job_details && (
+                                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                                  {item.job_details.url && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      className="flex-1 sm:flex-none h-8 text-xs"
+                                    >
+                                      <Link href={item.job_details.url} target="_blank" rel="noopener noreferrer">
+                                        <Link2 className="h-3 w-3 mr-1" />
+                                        Apply
+                                      </Link>
+                                    </Button>
+                                  )}
+                                  
+                                  {item.job_details.company_object?.domain && (
+                                    <>
+                                      {/* Resume button */}
+                                      {generatedDocuments.has(item.job_details.company_object.domain) ? (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          asChild
+                                          className="flex-1 sm:flex-none h-8 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                        >
+                                          <Link 
+                                            href={generatedDocuments.get(item.job_details.company_object.domain)?.current_resume || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                          >
+                                            <FileText className="h-3 w-3 mr-1" />
+                                            View Resume
+                                          </Link>
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          asChild
+                                          className="flex-1 sm:flex-none h-8 text-xs"
+                                        >
+                                          <Link 
+                                            href={`/dashboard/tools/resume-generator?jobDescription=${encodeURIComponent(
+                                              item.job_details.description || ""
+                                            )}&companyWebsite=${encodeURIComponent(
+                                              item.job_details.company_object.domain || ""
+                                            )}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                          >
+                                            <FileText className="h-3 w-3 mr-1" />
+                                            Generate Resume
+                                          </Link>
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                    {/* Pagination */}
+                    {Math.ceil(revealedJobsHistory.length / historyItemsPerPage) > 1 && (
+                      <div className="flex items-center justify-center gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={historyCurrentPage === 1}
+                          className="h-8 px-3"
+                        >
+                          Previous
+                        </Button>
+                        
+                        {Array.from({ length: Math.ceil(revealedJobsHistory.length / historyItemsPerPage) }, (_, i) => (
+                          <Button
+                            key={i + 1}
+                            variant={historyCurrentPage === i + 1 ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setHistoryCurrentPage(i + 1)}
+                            className={`h-8 w-8 p-0 ${
+                              historyCurrentPage === i + 1 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {i + 1}
+                          </Button>
+                        ))}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHistoryCurrentPage(p => Math.min(Math.ceil(revealedJobsHistory.length / historyItemsPerPage), p + 1))}
+                          disabled={historyCurrentPage === Math.ceil(revealedJobsHistory.length / historyItemsPerPage)}
+                          className="h-8 px-3"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
-
-
     </div>
   );
 };

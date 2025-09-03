@@ -90,60 +90,7 @@ const getCountryName = (countryCode?: string) => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type Job = {
-  id: number;
-  job_title: string;
-  url: string;
-  date_posted: string;
-  company: string;
-  location: string;
-  remote: boolean;
-  hybrid: boolean;
-  salary_string?: string;
-  seniority: string;
-  easy_apply?: boolean;
-  description?: string;
-  company_object?: {
-    name?: string;
-    domain?: string;
-    logo?: string;
-    industry?: string;
-    annual_revenue_usd_readable?: string;
-    founded_year?: string;
-    employee_count_range?: string;
-  };
-  hiring_team?: Array<{
-    first_name?: string;
-    full_name?: string;
-    linkedin_url?: string;
-  }>;
-  applied_at?: string;
-  status?: string;
-  match_score?: number;
-  revealed?: boolean;
-  employment_statuses?: string[];
-  has_blurred_data?: boolean;
-  country_code?: string;
-  already_revealed?: boolean;
-};
-
-// Valid job application statuses
-const JOB_STATUSES = {
-  revealed: "Revealed",
-  applied: "Applied", 
-  scheduled: "Scheduled",
-  interview: "Interview",
-  rejected: "Rejected",
-  offered: "Offered",
-  accepted: "Accepted",
-  withdrawn: "Withdrawn"
-} as const;
-
-type JobStatus = keyof typeof JOB_STATUSES;
+import { Job, JobStatus, JOB_STATUSES, Filters } from "./types";
 
 // Type for the API response structure from revealed jobs history
 type RevealedJobApiResponse = {
@@ -174,13 +121,7 @@ export type SearchFilters = {
   funding_stage_or?: string[];
 };
 
-export type Filters = {
-  search?: string;
-  status?: string;
-  remote?: boolean;
-  seniority?: string;
-  location?: string;
-};
+
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
 type ExtendedFeatureUsage = FeatureUsage & { job_search_results_period_count?: number };
@@ -426,7 +367,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [currentPage, searchFilters, supabase, hasSearched, showFilters]);
+  }, [currentPage, searchFilters, supabase]);
 
   // ---------------------------------------------------------------------------
   // Load previously revealed jobs on component mount so we don't re-charge users
@@ -1630,8 +1571,8 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
               </div>
             </div>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
-              <span>•</span>
+              
+              
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
               </span>
