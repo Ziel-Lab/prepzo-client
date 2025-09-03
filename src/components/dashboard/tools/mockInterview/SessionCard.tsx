@@ -541,10 +541,19 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               <Button
                 size="sm"
                 onClick={handleStartInterview}
-                className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg font-medium"
+                className="
+                  w-full sm:w-auto
+                  flex items-center justify-center
+                  bg-gradient-to-r from-emerald-600 to-green-600
+                  hover:from-emerald-700 hover:to-green-700
+                  text-white shadow-lg font-medium
+                  px-3 sm:px-4 py-2
+                  text-sm sm:text-base
+                "
               >
-                <Play size={14} className="mr-1" />
-                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'} ({getTotalAttemptsCount() + 1}/3)
+                <Play size={14} className="mr-1 shrink-0" />
+                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
+                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
               </Button>
             )}
 

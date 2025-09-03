@@ -381,7 +381,7 @@ const CoverLetterContent = () => {
     const jwtToken = sessionData.session.access_token;
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("document_type", "Cover Letter");
+    formData.append("document_type", "cover_letter");
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;

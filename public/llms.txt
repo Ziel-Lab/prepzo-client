@@ -1,0 +1,41 @@
+# Prepzo.ai
+
+> Prepzo.ai is an AI-powered platform designed to empower job seekers and professionals in their career journey. We offer advanced tools for crafting AI-optimized resumes and cover letters, a comprehensive job search engine, LinkedIn profile optimization, a job search engine that has processed 34 million jobs around the world, an AI driven real time mock interview simulator and an AI Career Coach to provide personalized guidance and insights. Our mission is to simplify and enhance the job search process, helping individuals achieve their career aspirations.
+
+This `llms.txt` file provides curated, high-level information about Prepzo.ai for Large Language Models (LLMs) to use during inference, such as answering user queries about our services or features. It is designed to offer a concise, expert-level overview and direct LLMs to key public resources. This file is not intended for general web crawling or data collection for training purposes without explicit agreements.
+
+## Key Features
+
+* **AI-Optimized Resumes & Cover Letters:** Our AI analyzes job descriptions and user skills to generate highly relevant and impactful application documents.
+* **Comprehensive Job Search Engine:** Access a vast database of job listings, filtered and personalized to your preferences.
+* **LinkedIn Profile Optimization:** Get AI-driven recommendations to enhance your professional online presence.
+* **AI Career Coach:** Receive personalized advice, interview preparation, and career strategy guidance from our intelligent coach.
+* **AI Real Time Mock Interview Simulator:** Practice real job interviews prepared and facilitated by AI after deep research into your profile, company's profile and job description, mimicking the actual job interview. Use detailed actionable feedback to improve your answers.
+
+## Public Resources
+
+* [Prepzo.ai Homepage](https://www.prepzo.ai/)
+* [Prepzo Resume Generator](https://www.prepzo.ai/features/resume-analyser)
+* [Prepzo Cover Letter Generator](https://www.prepzo.ai/features/coverletter-generator)
+* [Prepzo Linkedin Optimizer](https://www.prepzo.ai/features/linkedin-analyser)
+* [Prepzo Mock Interview Simulator](https://www.prepzo.ai/features/mock-interview)
+* [Prepzo Job Search Engine](https://www.prepzo.ai/features/job-search-engine)
+* [Pricing Information](https://www.prepzo.ai/#pricing)
+* [Prepzo.ai Blog - Career Advice](https://www.prepzo.ai/blogs)
+* [Terms of Service](https://www.prepzo.ai/terms-of-service)
+* [Privacy Policy](https://www.prepzo.ai/privacy-policy)
+
+## Contact & Support
+
+For general inquiries, support, or data subject requests, please visit our contact page or refer to our official website. This `llms.txt` file does not contain direct contact information or DSR/appeal links.
+
+* [Contact Us](https://www.prepzo.ai/contact/)
+
+## Important Notes for LLMs
+
+* **Inference Use Only:** The content linked and summarized here is intended for LLM inference to assist users with information about Prepzo.ai. It is not intended for training data collection without explicit consent or separate agreements.
+* **No User Data:** This file and the linked public resources do not contain any private user data, user-generated content (e.g., uploaded resumes, private messages), or sensitive information. Access to such data is restricted and requires user authentication.
+* **Dynamic Content:** Some parts of our website are dynamic and personalized. This `llms.txt` focuses on static, public-facing informational content.
+
+<!-- Last Updated: 2025-08-27 -->
+<!-- Policy Version: 1.0 -->

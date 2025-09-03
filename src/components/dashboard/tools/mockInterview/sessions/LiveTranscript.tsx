@@ -22,56 +22,100 @@ const LiveTranscript: React.FC<LiveTranscriptProps> = ({ messages, compact = fal
   const [isUserScrolled, setIsUserScrolled] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [messagesLength, setMessagesLength] = useState(messages.length);
+  const [newMessageCount, setNewMessageCount] = useState(0);
   const lastScrollTop = useRef(0);
+  const isAutoScrolling = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Check if user has scrolled up manually
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const scrollElement = event.currentTarget;
-    const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-    
-    // Consider user at bottom if within 50px of bottom
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-    
-    // If user scrolled up from the bottom, they're manually controlling scroll
-    if (scrollTop < lastScrollTop.current && !isAtBottom) {
-      setIsUserScrolled(true);
-      setShowScrollToBottom(true);
-    } else if (isAtBottom) {
-      setIsUserScrolled(false);
-      setShowScrollToBottom(false);
-    }
-    
-    lastScrollTop.current = scrollTop;
+  // Enhanced scroll position detection with tolerance
+  const isAtBottom = useCallback((element: HTMLElement) => {
+    const { scrollTop, scrollHeight, clientHeight } = element;
+    return Math.abs(scrollHeight - scrollTop - clientHeight) < 50;
   }, []);
 
-  // Auto-scroll to bottom only if user hasn't manually scrolled up
+  // Scroll to bottom with retry mechanism
+  const performScroll = useCallback((scrollElement: HTMLElement, attempt = 0) => {
+    const maxAttempts = 3;
+    const retryDelay = 100;
+
+    if (attempt >= maxAttempts) return;
+
+    const initialHeight = scrollElement.scrollHeight;
+    scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: 'smooth' });
+
+    // Verify scroll was successful
+    setTimeout(() => {
+      if (!isAtBottom(scrollElement)) {
+        performScroll(scrollElement, attempt + 1);
+      }
+    }, retryDelay);
+  }, [isAtBottom]);
+
+  // Enhanced scroll handler
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (isAutoScrolling.current) return;
+    
+    const scrollElement = event.currentTarget;
+    const atBottom = isAtBottom(scrollElement);
+    
+    // Clear any pending scroll timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Update scroll state with debounce
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (scrollElement.scrollTop < lastScrollTop.current && !atBottom) {
+        setIsUserScrolled(true);
+        setShowScrollToBottom(true);
+      } else if (atBottom) {
+        setIsUserScrolled(false);
+        setShowScrollToBottom(false);
+        setNewMessageCount(0);
+      }
+      lastScrollTop.current = scrollElement.scrollTop;
+    }, 100);
+  }, [isAtBottom]);
+
+  // Enhanced auto-scroll with new message tracking
   useEffect(() => {
-    // Only auto-scroll if new messages were added and user hasn't manually scrolled
-    if (messages.length > messagesLength && !isUserScrolled) {
-      const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const newMessages = messages.length - messagesLength;
+    if (newMessages > 0) {
+      const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
       if (scrollElement) {
-        // Use smooth scrolling for a better UX
-        scrollElement.scrollTo({
-          top: scrollElement.scrollHeight,
-          behavior: 'smooth'
-        });
+        if (!isUserScrolled) {
+          // Auto-scroll if user hasn't scrolled up
+          isAutoScrolling.current = true;
+          performScroll(scrollElement);
+          setTimeout(() => {
+            isAutoScrolling.current = false;
+          }, 500); // Longer reset to account for retry attempts
+        } else {
+          // Update new message count if user has scrolled up
+          setNewMessageCount(prev => prev + newMessages);
+          setShowScrollToBottom(true);
+        }
       }
     }
     setMessagesLength(messages.length);
-  }, [messages, isUserScrolled, messagesLength]);
+  }, [messages, isUserScrolled, messagesLength, performScroll]);
 
-  // Scroll to bottom function
+  // Enhanced scroll to bottom function
   const scrollToBottom = useCallback(() => {
-    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollElement = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     if (scrollElement) {
-      scrollElement.scrollTo({
-        top: scrollElement.scrollHeight,
-        behavior: 'smooth'
-      });
+      isAutoScrolling.current = true;
+      performScroll(scrollElement);
       setIsUserScrolled(false);
       setShowScrollToBottom(false);
+      setNewMessageCount(0);
+      
+      // Reset auto-scrolling flag after animation
+      setTimeout(() => {
+        isAutoScrolling.current = false;
+      }, 500);
     }
-  }, []);
+  }, [performScroll]);
 
   const formatTime = (timestamp: Date) => {
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -133,18 +177,23 @@ const LiveTranscript: React.FC<LiveTranscriptProps> = ({ messages, compact = fal
         </div>
       </ScrollArea>
 
-      {/* Scroll to Bottom Button */}
+      {/* Enhanced Scroll to Bottom Button */}
       {showScrollToBottom && (
         <button
           onClick={scrollToBottom}
-          className={`absolute bottom-4 right-4 z-10 w-10 h-10 rounded-full shadow-lg transition-all duration-200 hover:scale-110 ${
+          className={`absolute bottom-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-full shadow-lg transition-all duration-200 hover:scale-105 ${
             compact 
               ? 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 border border-white/30' 
               : 'bg-blue-500 text-white hover:bg-blue-600 shadow-blue-500/25'
           }`}
           title="Scroll to bottom"
         >
-          <ChevronDown size={16} className="mx-auto" />
+          {newMessageCount > 0 && (
+            <span className={`text-xs font-medium ${compact ? 'text-white' : 'text-white'}`}>
+              {newMessageCount} new {newMessageCount === 1 ? 'message' : 'messages'}
+            </span>
+          )}
+          <ChevronDown size={16} className="flex-shrink-0" />
         </button>
       )}
     </div>

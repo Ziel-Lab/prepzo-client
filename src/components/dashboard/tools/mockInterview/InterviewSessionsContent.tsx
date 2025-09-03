@@ -1520,6 +1520,7 @@ const InterviewSessionsContent: React.FC = () => {
           onClose={() => setIsNewSessionModalOpen(false)}
           onSubmit={handleNewSession}
           userLimits={userLimits}
+          onSuccess={refreshSessions}
         />
       </div>
     </div>

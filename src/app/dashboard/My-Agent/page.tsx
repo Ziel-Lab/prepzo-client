@@ -1,17 +1,15 @@
 "use client";
 
-import React from "react";
-import { useRouter } from "next/navigation";
-import TalkToAgentLiveKit from "@/components/dashboard/TalkToAgent/TalkToAgentLiveKit";
-import TalkToAgentAssistant from "@/components/dashboard/TalkToAgent/TalkToAgentAssistant";
+import React from 'react';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import TalkToAgentContent from '@/components/dashboard/TalkToAgent/talkToAgent';
 
-export default function Page() {
-  const router = useRouter();
-  return (
-    <TalkToAgentLiveKit>
-      <TalkToAgentAssistant onExit={() => router.push("/dashboard")} />
-    </TalkToAgentLiveKit>
-  );
-}
+const MyAgentPage = () => {
+    return (
+        <DashboardLayout>
+            <TalkToAgentContent />
+        </DashboardLayout>
+    );
+};
 
-
+export default MyAgentPage;

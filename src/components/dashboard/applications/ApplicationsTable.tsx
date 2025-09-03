@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ import countries from 'world-countries';
 import CountryMultiSelect from "@/components/ui/CountryMultiSelect";
 import ApplicationsFilters from "./ApplicationsFilters";
 import Link from "next/link";
+import JobSearchLoader from "@/components/ui/JobSearchLoader";
+import MultiSelect from "@/components/ui/multi-select";
 
 
 
@@ -165,13 +167,19 @@ export type SearchFilters = {
   company_name_or?: string[];
   hiring_managers_exists?: boolean;
   job_location_pattern_or?: string[];
+  company_technology_slug_or?: string[];
+  employment_statuses_or?: ('full_time' | 'part_time' | 'temporary' | 'internship' | 'contract' | 'freelance' | 'co_founder' | 'apprenticeship' | 'seasonal' | 'volunteer' | 'other')[];
+  min_employee_count_or_null?: number;
+  max_employee_count_or_null?: number;
+  funding_stage_or?: string[];
 };
 
 export type Filters = {
   search?: string;
   status?: string;
   remote?: boolean;
-  seniority?: string; 
+  seniority?: string;
+  location?: string;
 };
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
@@ -188,7 +196,24 @@ type GeneratedDocument = {
   created_at?: string;
 };
 
-const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) => {
+interface AIFilters {
+  search?: string;
+  location?: string;
+  seniority?: string;
+  company?: string;
+  country?: string;
+  min_salary_usd?: string;
+  max_salary_usd?: string;
+  posted_at_max_age_days?: string;
+}
+
+interface ApplicationsTableProps {
+  filters?: Filters;
+  aiFilters?: AIFilters | null;
+  onSaveFilters?: () => void;
+}
+
+const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }: ApplicationsTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyItemsPerPage] = useState(5);
@@ -217,6 +242,58 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   // Change the Map key type from number to string
   const [generatedDocuments, setGeneratedDocuments] = useState<Map<string, GeneratedDocument>>(new Map());
 
+  // Populate main form filters when AI filters are received (works in both filter and results views)
+  useEffect(() => {
+    if (!aiFilters) return;
+
+    const toArray = (val?: string): string[] | undefined => {
+      if (!val) return undefined;
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    setSearchFilters(prev => ({
+      ...prev,
+      job_description_contains_or: toArray(aiFilters.search) ?? prev.job_description_contains_or,
+      company_name_or: toArray(aiFilters.company) ?? prev.company_name_or,
+      job_location_pattern_or: toArray(aiFilters.location) ?? prev.job_location_pattern_or,
+      job_country_code_or: aiFilters.country ? toArray(aiFilters.country) : prev.job_country_code_or,
+      job_seniority_or: aiFilters.seniority ? toArray(aiFilters.seniority) : prev.job_seniority_or,
+      min_salary_usd: aiFilters.min_salary_usd ? parseInt(aiFilters.min_salary_usd) : prev.min_salary_usd,
+      max_salary_usd: aiFilters.max_salary_usd ? parseInt(aiFilters.max_salary_usd) : prev.max_salary_usd,
+      posted_at_max_age_days: aiFilters.posted_at_max_age_days ? parseInt(aiFilters.posted_at_max_age_days) : prev.posted_at_max_age_days,
+    }));
+
+    // Auto-trigger search once AI filters are applied, and ensure filter UI hides
+    setHasSearched(true);
+    setShowFilters(false);
+    setCurrentPage(1);
+  }, [aiFilters]);
+
+  // Auto-trigger search when basic filters are passed from saved filters
+  useEffect(() => {
+    if (!filters || (!filters.search && !filters.seniority && !filters.location)) return;
+    // If AI filters are present, let the AI flow handle the trigger to avoid double fetch
+    if (aiFilters) return;
+    
+    const toArray = (val?: string): string[] | undefined => {
+      if (!val) return undefined;
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    // Convert basic filters to search filters format
+    setSearchFilters(prev => ({
+      ...prev,
+      job_description_contains_or: filters.search ? toArray(filters.search) : prev.job_description_contains_or,
+      job_location_pattern_or: filters.location ? toArray(filters.location) : prev.job_location_pattern_or,
+      job_seniority_or: filters.seniority ? [filters.seniority] : prev.job_seniority_or,
+    }));
+
+    // Auto-trigger search (fetch will be invoked by the pagination/useEffect watcher)
+    setHasSearched(true);
+    setShowFilters(false);
+    setCurrentPage(1);
+  }, [filters, aiFilters]);
+
   // Initialize Supabase client once for this component
   const supabase = createClient();
 
@@ -239,9 +316,12 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
   const creditsLeft = JOB_SEARCH_LIMIT - backendCreditsUsed - creditsUsedThisSession;
 
   // ---------------------------------------------------------------------------
-  // Data fetching
+  // Data fetching (guard against duplicate calls "in flight")
   // ---------------------------------------------------------------------------
-  const fetchJobs = async () => {
+  const isFetchingRef = useRef(false);
+  const fetchJobs = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       setLoading(true);
 
@@ -260,6 +340,11 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         ...(searchFilters.max_salary_usd && { max_salary_usd: searchFilters.max_salary_usd }),
         ...(searchFilters.hiring_managers_exists !== undefined && { hiring_managers_exists: searchFilters.hiring_managers_exists }),
         ...(searchFilters.job_location_pattern_or && searchFilters.job_location_pattern_or.length > 0 && { job_location_pattern_or: searchFilters.job_location_pattern_or }),
+        ...(searchFilters.company_technology_slug_or && searchFilters.company_technology_slug_or.length > 0 && { company_technology_slug_or: searchFilters.company_technology_slug_or }),
+        ...(searchFilters.employment_statuses_or && searchFilters.employment_statuses_or.length > 0 && { employment_statuses_or: searchFilters.employment_statuses_or }),
+        ...(searchFilters.min_employee_count_or_null !== undefined && { min_employee_count_or_null: searchFilters.min_employee_count_or_null }),
+        ...(searchFilters.max_employee_count_or_null !== undefined && { max_employee_count_or_null: searchFilters.max_employee_count_or_null }),
+        ...(searchFilters.funding_stage_or && searchFilters.funding_stage_or.length > 0 && { funding_stage_or: searchFilters.funding_stage_or }),
       };
 
       // Retrieve JWT token from Supabase session for Authorization header
@@ -313,6 +398,8 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       if (json?.data && Array.isArray(json.data)) {
         const jobs = json.data as Job[];
         
+
+        
         // Process jobs to handle already_revealed flag
         const processedJobs = jobs.map(job => {
           if (job.already_revealed) {
@@ -337,8 +424,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
       });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [currentPage, searchFilters, supabase, hasSearched, showFilters]);
 
   // ---------------------------------------------------------------------------
   // Load previously revealed jobs on component mount so we don't re-charge users
@@ -457,7 +545,7 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     setHasSearched(true);
     setShowFilters(false);
     setCurrentPage(1);
-    fetchJobs();
+    // fetchJobs will be called by the watcher effect when state settles
   };
 
   const handleEditFilters = () => {
@@ -469,15 +557,28 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     if (hasSearched && !showFilters) {
       fetchJobs();
     }
-  }, [currentPage, hasSearched, showFilters]);
+  }, [currentPage, hasSearched, showFilters, fetchJobs]);
 
   // Add state for table search query
   const [tableSearchQuery, setTableSearchQuery] = useState<string>("");
 
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
+    // If no filters are applied at all, show all applications
+    const hasAnyFilter = 
+      (tableSearchQuery && tableSearchQuery.trim() !== '') ||
+      (filters.search && filters.search.trim() !== '') ||
+      (filters.status && filters.status.trim() !== '') ||
+      (filters.remote !== undefined && filters.remote !== null);
+    
+    // For debugging: temporarily show all jobs regardless of filters
+    // Remove this condition once filtering is working correctly
+    if (!hasAnyFilter) {
+      return true; // Show all jobs if no filters are applied
+    }
+    
     // Table search filter
-    if (tableSearchQuery) {
+    if (tableSearchQuery && tableSearchQuery.trim() !== '') {
       const searchLower = tableSearchQuery.toLowerCase();
       const matchesSearch = 
         (app.job_title || '').toLowerCase().includes(searchLower) ||
@@ -487,22 +588,42 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
-    if (filters.search && !app.job_title.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !app.company.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
+    
+    // Only apply filters.search if it exists and is not empty
+    if (filters.search && filters.search.trim() !== '') {
+      const searchTerms = filters.search.toLowerCase().split(',').map(term => term.trim()).filter(Boolean);
+      const jobTitle = (app.job_title || '').toLowerCase();
+      const company = (app.company || '').toLowerCase();
+      
+      // Check if any of the search terms match the job title or company
+      const matchesSearch = searchTerms.some(term => 
+        jobTitle.includes(term) || company.includes(term)
+      );
+      
+
+      
+      if (!matchesSearch) return false;
     }
-    if (filters.status && (app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
-      return false;
+    
+    // Only apply status filter if it exists and is not empty
+    if (filters.status && filters.status.trim() !== '') {
+      if ((app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
+        return false;
+      }
     }
-    // if (filters.seniority && app.seniority !== filters.seniority) {
-    //   return false;
-    // }
-    if (filters.remote !== undefined && app.remote !== filters.remote) {
-      return false;
+    
+    // Only apply remote filter if it's explicitly set
+    if (filters.remote !== undefined && filters.remote !== null) {
+      if (app.remote !== filters.remote) {
+        return false;
+      }
     }
+    
     // Add more filter logic as needed
     return true;
   });
+
+
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 
@@ -910,38 +1031,45 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
     const currentHistoryItems = revealedJobsHistory.slice(startIndex, endIndex);
 
     return (
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold flex items-center">
-              <History className="mr-2 h-5 w-5" />
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="flex items-center justify-between ">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-prepzo-50">
+              <History className="h-5 w-5 text-prepzo" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
               Saved Jobs ({revealedJobsHistory.length})
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHistory(!showHistory)}
-            >
-              {showHistory ? "Hide" : "Show"} History
-            </Button>
+            </h3>
           </div>
-        </CardHeader>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistory(!showHistory)}
+            className="border-prepzo-200 text-prepzo hover:bg-prepzo-50 hover:border-prepzo"
+          >
+            {showHistory ? "Hide" : "Show"} History
+          </Button>
+        </div>
         {showHistory && (
-          <CardContent>
+          <div>
             {historyLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Loading revealed jobs history...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin text-prepzo" />
+                <span className="text-gray-600">Loading revealed jobs history...</span>
               </div>
             ) : revealedJobsHistory.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No previously revealed jobs found.
-              </p>
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-prepzo-50 flex items-center justify-center">
+                  <History className="h-8 w-8 text-prepzo-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No revealed jobs yet</h4>
+                <p className="text-gray-500">Your revealed jobs will appear here for quick access</p>
+              </div>
             ) : (
               <>
                 <div className="space-y-4">
                   {currentHistoryItems.map((item) => (
-                    <div key={item.job_id} className="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
+                    <div key={item.job_id} className="group bg-gray-50 hover:bg-prepzo-50 rounded-lg p-4 border border-transparent hover:border-prepzo-200 transition-all duration-200">
                       {/* Mobile-first layout */}
                       <div className="space-y-3">
                         {/* Job title and status - full width on mobile */}
@@ -970,25 +1098,25 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               <SelectTrigger 
                                 className={`
                                   w-full sm:w-36 h-9 text-sm 
-                                  border-2 border-green-500 
-                                  bg-green-50 
-                                  hover:bg-green-100 
+                                  border-2 border-prepzo-500 
+                                  bg-prepzo-50 
+                                  hover:bg-prepzo-100 
                                   transition-all 
                                   duration-200 
                                   focus:ring-2 
-                                  focus:ring-green-200 
-                                  focus:border-green-500
+                                  focus:ring-prepzo-200 
+                                  focus:border-prepzo-500
                                   ${updatingStatus.has(item.job_id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                                 `}
                               >
-                                <SelectValue placeholder="Update Status" className="text-green-700 font-medium" />
+                                <SelectValue placeholder="Update Status" className="text-prepzo-700 font-medium" />
                               </SelectTrigger>
                               <SelectContent>
                                 {Object.entries(JOB_STATUSES).map(([key, label]) => (
                                   <SelectItem 
                                     key={key} 
                                     value={key} 
-                                    className="text-sm hover:bg-green-50 cursor-pointer"
+                                    className="text-sm hover:bg-prepzo-50 cursor-pointer"
                                   >
                                     {label}
                                   </SelectItem>
@@ -1022,13 +1150,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                               )}
                               
                               {item.job_details.remote && (
-                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
+                                <Badge variant="outline" className="text-xs border-prepzo-200 text-prepzo-700 bg-prepzo-50">
                                   Remote
                                 </Badge>
                               )}
                               
                               {item.job_details.hybrid && (
-                                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                                <Badge variant="outline" className="text-xs border-prepzo-300 text-prepzo-600 bg-prepzo-50">
                                   Hybrid
                                 </Badge>
                               )}
@@ -1215,13 +1343,13 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                 )}
               </>
             )}
-          </CardContent>
+          </div>
         )}
-      </Card>
+      </div>
     );
   };
 
-  if (showFilters || !hasSearched) {
+  if (showFilters && hasSearched) {
     filterSection = (
       <>
         <HistorySection />
@@ -1243,6 +1371,102 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
                   placeholder="e.g. React, Python — press Enter after each"
                   label={undefined}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="technologies">Technologies</Label>
+                <TagInput
+                  value={searchFilters.company_technology_slug_or || []}
+                  onChange={tags => setSearchFilters(prev => ({ ...prev, company_technology_slug_or: tags.length ? tags : undefined }))}
+                  placeholder="e.g. react, nodejs — press Enter after each"
+                  label={undefined}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="employment_status">Employment Type</Label>
+                <MultiSelect
+                  value={searchFilters.employment_statuses_or ?? []}
+                  onChange={(vals) =>
+                    setSearchFilters((prev) => ({
+                      ...prev,
+                      employment_statuses_or: vals.length
+                        ? (vals as ('full_time' | 'part_time' | 'temporary' | 'internship' | 'contract' | 'freelance' | 'co_founder' | 'apprenticeship' | 'seasonal' | 'volunteer' | 'other')[])
+                        : undefined,
+                    }))
+                  }
+                  options={[
+                    { value: "full_time", label: "Full Time" },
+                    { value: "part_time", label: "Part Time" },
+                    { value: "temporary", label: "Temporary" },
+                    { value: "internship", label: "Internship" },
+                    { value: "contract", label: "Contract" },
+                    { value: "freelance", label: "Freelance" },
+                    { value: "co_founder", label: "Co-founder" },
+                    { value: "apprenticeship", label: "Apprenticeship" },
+                    { value: "seasonal", label: "Seasonal" },
+                    { value: "volunteer", label: "Volunteer" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  placeholder="Select employment types"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="funding_stage">Funding Stage</Label>
+                <MultiSelect
+                  value={searchFilters.funding_stage_or ?? []}
+                  onChange={(vals) =>
+                    setSearchFilters((prev) => ({
+                      ...prev,
+                      funding_stage_or: vals.length ? vals : undefined,
+                    }))
+                  }
+                  options={[
+                    { value: "seed", label: "Seed" },
+                    { value: "angel", label: "Angel" },
+                    { value: "convertible_note", label: "Convertible Note" },
+                    { value: "debt_financing", label: "Debt Financing" },
+                    { value: "equity_crowdfunding", label: "Equity Crowdfunding" },
+                    { value: "private_equity", label: "Private Equity" },
+                    { value: "series_a", label: "Series A" },
+                    { value: "series_b", label: "Series B" },
+                    { value: "series_c", label: "Series C" },
+                    { value: "series_d", label: "Series D" },
+                    { value: "series_e", label: "Series E" },
+                    { value: "series_f", label: "Series F" },
+                    { value: "series_g", label: "Series G" },
+                    { value: "series_h", label: "Series H" },
+                    { value: "venture_round_not_specified", label: "Venture (Round not Specified)" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  placeholder="Select funding stages"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="employee_count">Company Size (Employees)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={searchFilters.min_employee_count_or_null || ""}
+                    onChange={(e) => setSearchFilters(prev => ({ 
+                      ...prev, 
+                      min_employee_count_or_null: e.target.value ? parseInt(e.target.value) : undefined 
+                    }))}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={searchFilters.max_employee_count_or_null || ""}
+                    onChange={(e) => setSearchFilters(prev => ({ 
+                      ...prev, 
+                      max_employee_count_or_null: e.target.value ? parseInt(e.target.value) : undefined 
+                    }))}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1359,11 +1583,16 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-4">
               <Button onClick={handleSearch} className="flex-1" disabled={loading}>
                 <Search className="mr-2 h-4 w-4" />
                 {loading ? "Searching..." : "Search Jobs"}
               </Button>
+              {onSaveFilters && (
+                <Button variant="secondary" onClick={onSaveFilters} className="flex-1 sm:flex-none" disabled={loading}>
+                  Save Filters
+                </Button>
+              )}
               {hasSearched && (
                 <Button variant="outline" onClick={() => setShowFilters(false)}>
                   Cancel
@@ -1374,22 +1603,31 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         </Card>
       </>
     );
-  } else {
+  } else if (hasSearched) {
     filterSection = (
       <>
         <HistorySection />
         <ApplicationsFilters
-          onFiltersChange={(filters) => setTableSearchQuery(filters.search || "")}
-          hasSearchResults={filteredApplications.length > 0}
+          onFiltersChange={() => {}} // No-op since this component doesn't use table filters
+          hasSearchResults={true}
+          aiFilters={aiFilters}
+          hideAISearch={true}
         />
         <Card>
           <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <CardTitle className="text-lg font-semibold">Applications ({filteredApplications.length})</CardTitle>
-              <Button variant="outline" size="sm" onClick={handleEditFilters}>
-                <Filter className="mr-2 h-4 w-4" />
-                Edit Filters
-              </Button>
+              <div className="flex items-center gap-2">
+                {onSaveFilters && (
+                  <Button variant="secondary" size="sm" onClick={onSaveFilters}>
+                    Save Filters
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={handleEditFilters}>
+                  <Filter className="mr-2 h-4 w-4" />
+                  Edit Filters
+                </Button>
+              </div>
             </div>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
               <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
@@ -1397,13 +1635,29 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
               </span>
-              {loading && (
-                <span className="text-blue-600 animate-pulse">Fetching latest jobs…</span>
-              )}
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {isMobile ? (
+            {loading && (
+              <div className="px-4 sm:px-6 py-4">
+                <JobSearchLoader label="Fetching jobs" sublabel="Please wait while we load fresh results" />
+              </div>
+            )}
+            {filteredApplications.length === 0 && !loading ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Search className="h-8 w-8 text-gray-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h4>
+                <p className="text-gray-500 mb-4">
+                  {applications.length === 0 
+                    ? "Try searching with different filters or keywords"
+                    : "No jobs match your current filters"
+                  }
+                </p>
+                
+              </div>
+            ) : isMobile ? (
               // Mobile Layout
               <div className="p-4">
                 {filteredApplications.map((application) => (
@@ -1687,6 +1941,9 @@ const ApplicationsTable = ({ filters = {} as Filters }: { filters?: Filters }) =
         </Card>
       </>
     );
+  } else {
+    // Initial state - show nothing, let ApplicationsFilters handle the AI search interface
+    filterSection = null;
   }
 
   return (

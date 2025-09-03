@@ -98,14 +98,20 @@ const MockInterview = () => {
                   Join thousands of professionals who've landed their dream jobs
                 </p>
               </div>
-              <div className="relative z-10 mt-8 lg:mt-0 hidden sm:block">
-                <div className="relative overflow-hidden max-w-2xl mx-auto bg-white/10 backdrop-blur-sm rounded-2xl p-8">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Play className="w-8 h-8 text-white" />
-                    </div>
-                    <p className="text-white/90 text-lg font-medium">Mock Interview Dashboard</p>
-                    <p className="text-white/70 text-sm mt-2">Interactive demo coming soon</p>
+              <div className="relative z-10 lg:mt-0">
+                <div className="relative max-w-2xl mx-auto p-4 lg:mt-20">
+                  <div className="video-wrapper relative w-full overflow-hidden rounded-xl shadow-2xl bg-black/10" style={{ aspectRatio: '16/9' }}>
+                    <iframe 
+                      className="absolute top-0 left-0 w-full h-full"
+                      src="https://www.youtube-nocookie.com/embed/NjSb3W4UwDA?si=kpNw1mD7FbHFBLDg&controls=0" 
+                      title="YouTube video player" 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                      referrerPolicy="strict-origin-when-cross-origin" 
+                      allowFullScreen
+                      loading="lazy"
+                      style={{ clipPath: 'inset(0% 0% 0% 0% round 0.75rem)' }}
+                    />
                   </div>
                 </div>
               </div>
