@@ -73,6 +73,10 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
+  // New optimized fields from backend
+  attemptsCount?: number;
+  remainingAttempts?: number;
+  hasCompletedAttempts?: boolean;
 }
 
 // Lazy loading wrapper for SessionCard
@@ -173,35 +177,6 @@ const InterviewSessionsContent: React.FC = () => {
     return baseHeaders;
   };
 
-  // Diagnostic function to test endpoints
-  const testEndpoints = useCallback(async () => {
-    if (!authSession?.access_token) return;
-    
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-    if (!backendUrl) return;
-    
-    const endpoints = [
-      '/mockInterview/sessions',
-      '/mockInterview/sessions/stats', 
-      '/mockInterview/user-limits'
-    ];
-    
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(`${backendUrl}${endpoint}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authSession.access_token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        console.log(`${endpoint}: ${response.status} ${response.statusText}`);
-      } catch (error) {
-        console.log(`${endpoint}: ERROR -`, error);
-      }
-    }
-  }, [authSession]);
-
   // Initialize auth session once
   useEffect(() => {
     const initAuth = async () => {
@@ -246,7 +221,7 @@ const InterviewSessionsContent: React.FC = () => {
         return;
       }
 
-              const response = await fetch(`${backendUrl}/mockInterview/sessions/stats`, {
+              const response = await fetch(`${backendUrl}/mockInterview/sessions/stats-light`, {
           method: 'GET',
           headers: getHeaders(authSession.access_token, backendUrl)
         });
@@ -395,7 +370,7 @@ const InterviewSessionsContent: React.FC = () => {
           params.append('cursor', cursor);
         }
 
-        const url = `${backendUrl}/mockInterview/sessions?${params.toString()}`;
+        const url = `${backendUrl}/mockInterview/sessions/optimized?${params.toString()}`;
 
         const response = await fetch(url, {
           method: 'GET',
@@ -475,57 +450,37 @@ const InterviewSessionsContent: React.FC = () => {
         }
 
 
-        // Fetch attempts for each session individually
-        const sessionData: InterviewSession[] = await Promise.all(
-          sessionsFromBackend.map(async (backendSession: any) => {
-            // Fetch attempts for this specific session
-            let sessionAttempts: MockInterviewAttempt[] = [];
-            
-            try {
-              const attemptsResponse = await fetch(`${backendUrl}/mockInterview/session/${backendSession.id}/attempts`, {
-                method: 'GET',
-                headers: getHeaders(authSession.access_token, backendUrl)
-              });
-
-              if (attemptsResponse.ok) {
-                const attemptsResult = await attemptsResponse.json();
-                sessionAttempts = attemptsResult.attempts || [];
-                console.log(`Loaded ${sessionAttempts.length} attempts for session ${backendSession.id}`);
-              } else {
-                console.warn(`Failed to load attempts for session ${backendSession.id}`);
-              }
-            } catch (error) {
-              console.warn(`Error loading attempts for session ${backendSession.id}:`, error);
-            }
-            
-            const calculatedScore = calculateScoreFromAttempts(sessionAttempts);
-            
-            // Map backend session to frontend format using backend display_status if available
-            const mappedStatus = mapBackendStatusToFrontend(
-              backendSession.display_status || backendSession.status, 
-              backendSession.status_prep, 
-              sessionAttempts
-            );
+        // OPTIMIZED: Sessions now come with attempt summaries from backend
+        const sessionData: InterviewSession[] = sessionsFromBackend.map((backendSession: any) => {
+          // Backend now provides computed fields, no individual API calls needed
+          const mappedStatus = mapBackendStatusToFrontend(
+            backendSession.display_status || backendSession.status, 
+            backendSession.status_prep, 
+            [] // Will load full attempts on-demand when needed
+          );
+        
+          const sessionItem: InterviewSession = {
+            id: backendSession.id,
+            title: backendSession.title || generateSessionTitle(backendSession),
+            type: backendSession.interview_type || 'behavioral',
+            duration: backendSession.duration_minutes || 15,
+            status: mappedStatus,
+            score: backendSession.calculated_score, // Pre-calculated by backend
+            date: new Date(backendSession.created_at),
+            companyUrl: backendSession.company_name || undefined,
+            companyName: backendSession.company_name || undefined,
+            role: backendSession.position || undefined,
+            feedback: undefined,
+            attempts: [], // Will be populated on-demand
+            latestAttempt: undefined,
+            // Add metadata from backend
+            attemptsCount: backendSession.attempts_count || 0,
+            remainingAttempts: backendSession.remaining_attempts || 3,
+            hasCompletedAttempts: backendSession.has_completed_attempts || false
+          };
           
-            const sessionItem: InterviewSession = {
-              id: backendSession.id,
-              title: backendSession.title || generateSessionTitle(backendSession), // Use database title first
-              type: backendSession.interview_type || 'behavioral',
-              duration: backendSession.duration_minutes || 15, // Backend always returns 15 minutes
-              status: mappedStatus,
-              score: calculatedScore,
-              date: new Date(backendSession.created_at),
-              companyUrl: backendSession.company_name || undefined, // company_name contains URL
-              companyName: backendSession.company_name || undefined,
-              role: backendSession.position || undefined,
-              feedback: undefined,
-              attempts: sessionAttempts,
-              latestAttempt: sessionAttempts.length > 0 ? sessionAttempts[sessionAttempts.length - 1] : undefined
-            };
-            
-            return sessionItem;
-          })
-        );
+          return sessionItem;
+        });
 
         // Update sessions state based on cursor
         if (!cursor || isRefresh) {
@@ -717,24 +672,44 @@ const InterviewSessionsContent: React.FC = () => {
     }
   }, [sessions, authSession]);
 
-  // Fallback periodic checking for status updates (less aggressive)
+  // OPTIMIZED: Smart periodic checking with visibility detection
   useEffect(() => {
-    // Only set up periodic checking if we have preparing sessions
     const hasPreparingSessions = sessions.some(s => s.status === 'preparing');
     
     if (!hasPreparingSessions) {
       return; // No need for periodic checking
     }
     
-    console.log('Setting up targeted status checking for preparing sessions');
+    // Only poll when page is visible and user is active
+    let intervalId: NodeJS.Timeout;
     
-    const intervalId = setInterval(() => {
-      checkPreparingSessionsStatus();
-    }, 12000); // Check every 12 seconds, optimized for performance
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is hidden, clear interval
+        if (intervalId) clearInterval(intervalId);
+      } else {
+        // Page is visible, restart polling
+        console.log('Setting up smart status checking for preparing sessions');
+        intervalId = setInterval(() => {
+          checkPreparingSessionsStatus();
+        }, 45000); // Increased to 45 seconds for better performance
+      }
+    };
+    
+    // Set up initial polling if page is visible
+    if (!document.hidden) {
+      intervalId = setInterval(() => {
+        checkPreparingSessionsStatus();
+      }, 45000);
+    }
+    
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      console.log('Cleaning up targeted status checking');
-      clearInterval(intervalId);
+      console.log('Cleaning up smart status checking');
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sessions, checkPreparingSessionsStatus]);
 
@@ -750,13 +725,13 @@ const InterviewSessionsContent: React.FC = () => {
         }
 
         const userId = authSession.user.id;
-        // Subscribe to changes in mock_interview table for current user
+        // OPTIMIZED: Subscribe to critical session status changes only
         channel = supabase
-          .channel('mock_interview_realtime_updates')
+          .channel('mock_interview_status_updates')
           .on(
             'postgres_changes',
             {
-              event: '*', // Listen to INSERT, UPDATE, DELETE
+              event: '*', // Listen to INSERT, UPDATE for new sessions and status changes
               schema: 'public',
               table: 'mock_interview',
               filter: `user_id=eq.${userId}`

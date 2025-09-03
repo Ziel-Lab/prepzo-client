@@ -686,10 +686,10 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
   };
 
   const setupSessionStatusListener = (sessionId: string) => {
-    console.log('🔔 Setting up status listener for session:', sessionId);
+    console.log('🔔 Setting up optimized status listener for session:', sessionId);
     
     const channel = supabase
-      .channel(`session_status_${sessionId}`)
+      .channel(`session_prep_${sessionId}`)
       .on(
         'postgres_changes',
         {
@@ -702,19 +702,12 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
-          console.log('🔔 Session status update received:', {
-            sessionId,
-            oldStatusPrep: oldData?.status_prep,
-            newStatusPrep: newData?.status_prep,
-            oldStatus: oldData?.status,
-            newStatus: newData?.status
-          });
-          
-          if (newData.status_prep === 'DONE') {
-            console.log('🎉 Session is ready! Closing modal');
+          // OPTIMIZED: Only care about status_prep changes from PENDING to DONE
+          if (oldData?.status_prep !== newData?.status_prep && newData?.status_prep === 'DONE') {
+            console.log('🎉 Session preparation complete! Agent is ready');
             setSessionStatus('ready');
             
-            // Close modal after a brief delay to show success
+            // Close modal after showing success
             setTimeout(() => {
               supabase.removeChannel(channel);
               resetForm();
@@ -724,7 +717,10 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
         }
       )
       .subscribe((status) => {
-        console.log('🔔 Session status subscription:', status);
+        console.log('🔔 Session preparation subscription:', status);
+        if (status !== 'SUBSCRIBED') {
+          console.warn('⚠️ Real-time subscription failed, will rely on polling fallback');
+        }
       });
   };
 

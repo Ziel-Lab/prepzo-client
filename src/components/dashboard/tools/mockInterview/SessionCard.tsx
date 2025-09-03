@@ -42,6 +42,10 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
+  // Optimized fields from backend
+  attemptsCount?: number;
+  remainingAttempts?: number;
+  hasCompletedAttempts?: boolean;
 }
 
 
@@ -248,13 +252,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
 
 
-        // Subscribe to changes in mock_interview_attempts table for this session
+        // OPTIMIZED: Subscribe to status changes only for this session
         channel = supabase
-          .channel(`attempt_updates_${session.id}`)
+          .channel(`attempt_status_${session.id}`)
           .on(
             'postgres_changes',
             {
-              event: '*', // Listen to INSERT, UPDATE, DELETE
+              event: 'UPDATE', // Only listen to updates, not inserts/deletes
               schema: 'public',
               table: 'mock_interview_attempts',
               filter: `mock_interview_id=eq.${session.id}`
@@ -263,59 +267,43 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               const newData = payload.new as MockInterviewAttempt;
               const oldData = payload.old as MockInterviewAttempt;
               
+              // OPTIMIZED: Only handle status changes that matter
+              const statusChanged = oldData?.status !== newData?.status;
+              if (!statusChanged) return; // Ignore non-status updates
               
-              // Handle INSERT events (new attempts created)
-              if (payload.eventType === 'INSERT' && newData) {
-                setAttempts(prevAttempts => {
-                  // Check if attempt already exists to avoid duplicates
-                  const exists = prevAttempts.some(attempt => attempt.id === newData.id);
-                  if (exists) return prevAttempts;
-                  
-                  // Add new attempt and sort by attempt_number
-                  return [...prevAttempts, newData].sort((a, b) => a.attempt_number - b.attempt_number);
-                });
-              }
+              console.log('📡 Status change detected:', {
+                sessionId: session.id,
+                attemptId: newData.id,
+                oldStatus: oldData.status,
+                newStatus: newData.status
+              });
               
-              // Handle UPDATE events (status changes, feedback ready, etc.)
-              else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                
-                setAttempts(prevAttempts => {
-                  return prevAttempts.map(attempt => {
-                    if (attempt.id === newData.id) {
-                      console.log(' Updating attempt:', attempt.id, 'from', oldData.status, 'to', newData.status);
-                      return { ...attempt, ...newData };
-                    }
-                    return attempt;
-                  });
+              // Update attempt status in local state (lightweight update)
+              setAttempts(prevAttempts => {
+                return prevAttempts.map(attempt => {
+                  if (attempt.id === newData.id) {
+                    return { 
+                      ...attempt, 
+                      status: newData.status,
+                      // Only update evaluation_score if it's a meaningful change
+                      ...(newData.evaluation_score && { evaluation_score: newData.evaluation_score })
+                    };
+                  }
+                  return attempt;
                 });
+              });
 
-                // Handle status transitions and notifications
-                const statusChanged = oldData.status !== newData.status;
-                if (statusChanged) {
-                  
-                  
-                  // Show appropriate notifications based on status change
-                  if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
-                    
-                  } else if (newData.status === 'completed' && oldData.status === 'active') {
-               
-                  } else if (newData.status === 'active' && oldData.status === 'pending') {
-      
-                  }
-                  
-                  // Force re-render of parent component to update stats for any status change
-                  if (window.dispatchEvent) {
-                    window.dispatchEvent(new CustomEvent('attemptStatusChanged', { 
-                      detail: { 
-                        sessionId: session.id, 
-                        attemptId: newData.id, 
-                        oldStatus: oldData.status,
-                        newStatus: newData.status,
-                        isCompleted: newData.status === 'PROCESSED'
-                      } 
-                    }));
-                  }
-                }
+              // Emit event for parent component stats update (critical status changes only)
+              if (newData.status === 'PROCESSED' || newData.status === 'completed' || newData.status === 'active') {
+                window.dispatchEvent?.(new CustomEvent('attemptStatusChanged', { 
+                  detail: { 
+                    sessionId: session.id, 
+                    attemptId: newData.id, 
+                    oldStatus: oldData.status,
+                    newStatus: newData.status,
+                    isCompleted: newData.status === 'PROCESSED'
+                  } 
+                }));
               }
             }
           )
@@ -341,70 +329,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     };
   }, [supabase, session.id]); // Always active for real-time updates
 
-  // Fallback polling for active attempts to ensure status updates aren't missed
-  useEffect(() => {
-    const hasActiveAttempts = attempts.some(attempt => 
-      attempt.status === 'active' || attempt.status === 'completed'
-    );
-    
-    if (!hasActiveAttempts) return;
-    
-    
-    const pollInterval = setInterval(async () => {
-      try {
-        const timeSinceLastCheck = Date.now() - lastStatusCheck;
-        
-        // Only poll if it's been more than 30 seconds since last check
-        if (timeSinceLastCheck < 30000) return;
-        
-        const { data: sessionData, error: authError } = await supabase.auth.getSession();
-        if (authError || !sessionData?.session?.access_token) return;
-
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
-        if (!backendUrl) return;
-
-        const response = await fetch(`${backendUrl}/mockInterview/session/${session.id}/attempts`, {
-          method: 'GET',
-          headers: getHeaders(sessionData.session.access_token, backendUrl)
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          const latestAttempts = result.attempts || [];
-          
-          // Check if any attempt status has changed
-          const hasChanges = latestAttempts.some((latest: MockInterviewAttempt) => {
-            const current = attempts.find(a => a.id === latest.id);
-            return current && current.status !== latest.status;
-          });
-          
-          if (hasChanges) {
-            setAttempts(latestAttempts);
-            setLastStatusCheck(Date.now());
-          }
-        }
-      } catch (error) {
-        console.error('Error in fallback polling:', error);
-      }
-    }, 15000); // Poll every 15 seconds for active attempts
-    
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [attempts, session.id, lastStatusCheck, supabase.auth, getHeaders]);
+  // REMOVED: Polling fallback - using optimized real-time + backend approach instead
 
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
     
-    // If session already has attempts, use them and don't fetch again
-    if (session.attempts && session.attempts.length > 0) {
-      setAttempts(session.attempts);
-      return;
-    }
-    
+    // OPTIMIZED: Use lightweight attempts-summary endpoint
     setLoadingAttempts(true);
     try {
-      // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
       if (authError || !sessionData?.session?.access_token) {
         console.error('Authentication required');
@@ -417,14 +349,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
         return;
       }
 
-      // Fetch attempts for this session
-      const response = await fetch(`${backendUrl}/mockInterview/session/${session.id}/attempts`, {
+      // Use the new lightweight attempts-summary endpoint
+      const response = await fetch(`${backendUrl}/mockInterview/session/${session.id}/attempts-summary`, {
         method: 'GET',
         headers: getHeaders(sessionData.session.access_token, backendUrl)
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch attempts');
+        console.error('Failed to fetch attempts summary');
         return;
       }
 
@@ -432,7 +364,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       const fetchedAttempts = result.attempts || [];
       setAttempts(fetchedAttempts);
     } catch (error) {
-      console.error('Error fetching attempts:', error);
+      console.error('Error fetching attempts summary:', error);
     } finally {
       setLoadingAttempts(false);
     }
@@ -440,10 +372,9 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
   const handleToggleAttempts = () => {
     if (!showAttempts) {
-      // Use session's attempts if available, otherwise fetch
-      if (session.attempts && session.attempts.length > 0) {
-        setAttempts(session.attempts);
-      } else if (attempts.length === 0) {
+      // OPTIMIZED: Always fetch on-demand using lightweight endpoint
+      // This ensures we get the latest data without impacting initial page load
+      if (attempts.length === 0) {
         fetchAttempts();
       }
     }
