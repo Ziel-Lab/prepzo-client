@@ -60,6 +60,19 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   const supabase = createClient();
   const [showAttempts, setShowAttempts] = useState(false);
 
+  // Helper to get current attempt number
+  const getCurrentAttemptNumber = () => {
+    // Use the count from optimized endpoint, fallback to attempts length
+    const attemptCount = session.attemptsCount ?? attempts.length;
+    // Next attempt will be current + 1, max at 3
+    return Math.min(attemptCount + 1, 3);
+  };
+
+  // Helper to check if reached limit
+  const hasReachedAttemptLimit = () => {
+    return (session.attemptsCount ?? attempts.length) >= 3;
+  };
+
   // Helper function to conditionally add ngrok headers
   const getHeaders = (authToken: string, backendUrl?: string) => {
     const baseHeaders = {
@@ -158,9 +171,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     return currentAttempts.length;
   };
 
-  const hasReachedAttemptLimit = () => {
-    return getTotalAttemptsCount() >= 3; // Check total attempts, not just processed
-  };
+  // Using optimized hasReachedAttemptLimit from above
 
   const getTypeColor = (type: string) => {
     // Normalize type for consistent display
@@ -552,8 +563,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 "
               >
                 <Play size={14} className="mr-1 shrink-0" />
-                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
-                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
+                {getCurrentAttemptNumber() === 1 ? 'Start Interview' : 'Continue'}
+                <span className="ml-1">({getCurrentAttemptNumber()}/3)</span>
               </Button>
             )}
 
