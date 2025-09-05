@@ -15,6 +15,11 @@ export const metadata: Metadata = {
     "Land your dream job faster with AI-powered resumes, cover letters, LinkedIn makeovers & job search tools tailored to you. Try Prepzo for free!",
   keywords: [
     "job search",
+    "mock interview",
+    "mock interview with Prepzo AI",
+    "cover letter generator",
+    "cover letter tool",
+    "resume generator",
     "resume creator",
     "resume optimization",
     "cover letter tool",
@@ -100,6 +105,23 @@ const faqSchema = {
       },
     },
   ],
+} as const;
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Prepzo.ai",
+  "url": "https://www.prepzo.ai",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Prepzo.ai",
+    "url": "https://www.prepzo.ai",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.prepzo.ai/og.jpeg"
+    }
+  },
+  "description": "AI-powered career tools for job seekers and professionals: resumes, cover letters, LinkedIn optimization, and job search."
 } as const;
 
 const organizationSchema = {
@@ -216,6 +238,15 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
+        <Script
+          id="website-schema"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+          __html: JSON.stringify(websiteSchema),
+          }}
+        />
+
         <Script
           id="software-schema"
           type="application/ld+json"
