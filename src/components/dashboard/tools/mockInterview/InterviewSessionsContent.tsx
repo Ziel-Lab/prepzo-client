@@ -1153,9 +1153,8 @@ const InterviewSessionsContent: React.FC = () => {
 
   // Memoized stats calculation - TEMPORARILY using local calculation only until backend is updated
   const stats = useMemo(() => {
-    // TEMPORARILY DISABLED: Use live stats from backend if available
-    // Will re-enable once backend logic is updated to match frontend
-    if (false && liveStats && !statsLoading) {
+    // Use live stats from backend if available
+    if (liveStats && !statsLoading) {
       return {
         total: liveStats.total_sessions || 0,
         completed: liveStats.completed_sessions || 0,
@@ -1386,7 +1385,7 @@ const InterviewSessionsContent: React.FC = () => {
           />
           <SessionStatsCard
             title="Completed"
-            value={statsLoading ? '...' : stats.completed.toString()}
+            value={statsLoading ? '...' : (liveStats?.completed_sessions?.toString() || stats.completed.toString())}
             icon={Clock}
             color="green"
           />
