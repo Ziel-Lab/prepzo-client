@@ -51,7 +51,6 @@ interface MockInterviewAttempt {
   completed_at?: string;
   actual_duration_minutes?: number;
   live_transcription?: any;
-  transcript?: any;
   feedback?: any;
   evaluation_score?: number;
   created_at: string;
