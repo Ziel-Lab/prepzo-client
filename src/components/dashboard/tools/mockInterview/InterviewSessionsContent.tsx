@@ -1367,7 +1367,7 @@ const InterviewSessionsContent: React.FC = () => {
             color="green"
           />
           <SessionStatsCard
-            title="Avg Score"
+            title="Avg. Score"
             value={statsLoading ? '...' : (liveStats?.avg_score_display || `${stats.avgScore}/10`)}
             icon={Award}
             color="purple"
