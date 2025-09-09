@@ -90,60 +90,7 @@ const getCountryName = (countryCode?: string) => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type Job = {
-  id: number;
-  job_title: string;
-  url: string;
-  date_posted: string;
-  company: string;
-  location: string;
-  remote: boolean;
-  hybrid: boolean;
-  salary_string?: string;
-  seniority: string;
-  easy_apply?: boolean;
-  description?: string;
-  company_object?: {
-    name?: string;
-    domain?: string;
-    logo?: string;
-    industry?: string;
-    annual_revenue_usd_readable?: string;
-    founded_year?: string;
-    employee_count_range?: string;
-  };
-  hiring_team?: Array<{
-    first_name?: string;
-    full_name?: string;
-    linkedin_url?: string;
-  }>;
-  applied_at?: string;
-  status?: string;
-  match_score?: number;
-  revealed?: boolean;
-  employment_statuses?: string[];
-  has_blurred_data?: boolean;
-  country_code?: string;
-  already_revealed?: boolean;
-};
-
-// Valid job application statuses
-const JOB_STATUSES = {
-  revealed: "Revealed",
-  applied: "Applied", 
-  scheduled: "Scheduled",
-  interview: "Interview",
-  rejected: "Rejected",
-  offered: "Offered",
-  accepted: "Accepted",
-  withdrawn: "Withdrawn"
-} as const;
-
-type JobStatus = keyof typeof JOB_STATUSES;
+import { Job, JobStatus, JOB_STATUSES, Filters } from "./types";
 
 // Type for the API response structure from revealed jobs history
 type RevealedJobApiResponse = {
@@ -174,13 +121,7 @@ export type SearchFilters = {
   funding_stage_or?: string[];
 };
 
-export type Filters = {
-  search?: string;
-  status?: string;
-  remote?: boolean;
-  seniority?: string;
-  location?: string;
-};
+
 
 // Extend FeatureUsage and SubscriptionPlan to accommodate job search credits
 type ExtendedFeatureUsage = FeatureUsage & { job_search_results_period_count?: number };
@@ -398,6 +339,8 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
       if (json?.data && Array.isArray(json.data)) {
         const jobs = json.data as Job[];
         
+
+        
         // Process jobs to handle already_revealed flag
         const processedJobs = jobs.map(job => {
           if (job.already_revealed) {
@@ -562,8 +505,21 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
 
   // Apply filters to applications
   const filteredApplications = applications.filter((app) => {
+    // If no filters are applied at all, show all applications
+    const hasAnyFilter = 
+      (tableSearchQuery && tableSearchQuery.trim() !== '') ||
+      (filters.search && filters.search.trim() !== '') ||
+      (filters.status && filters.status.trim() !== '') ||
+      (filters.remote !== undefined && filters.remote !== null);
+    
+    // For debugging: temporarily show all jobs regardless of filters
+    // Remove this condition once filtering is working correctly
+    if (!hasAnyFilter) {
+      return true; // Show all jobs if no filters are applied
+    }
+    
     // Table search filter
-    if (tableSearchQuery) {
+    if (tableSearchQuery && tableSearchQuery.trim() !== '') {
       const searchLower = tableSearchQuery.toLowerCase();
       const matchesSearch = 
         (app.job_title || '').toLowerCase().includes(searchLower) ||
@@ -573,22 +529,42 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
         getSeniorityLevel(app.seniority).toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
     }
-    if (filters.search && !app.job_title.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !app.company.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
+    
+    // Only apply filters.search if it exists and is not empty
+    if (filters.search && filters.search.trim() !== '') {
+      const searchTerms = filters.search.toLowerCase().split(',').map(term => term.trim()).filter(Boolean);
+      const jobTitle = (app.job_title || '').toLowerCase();
+      const company = (app.company || '').toLowerCase();
+      
+      // Check if any of the search terms match the job title or company
+      const matchesSearch = searchTerms.some(term => 
+        jobTitle.includes(term) || company.includes(term)
+      );
+      
+
+      
+      if (!matchesSearch) return false;
     }
-    if (filters.status && (app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
-      return false;
+    
+    // Only apply status filter if it exists and is not empty
+    if (filters.status && filters.status.trim() !== '') {
+      if ((app.status || '').toLowerCase() !== filters.status.toLowerCase()) {
+        return false;
+      }
     }
-    // if (filters.seniority && app.seniority !== filters.seniority) {
-    //   return false;
-    // }
-    if (filters.remote !== undefined && app.remote !== filters.remote) {
-      return false;
+    
+    // Only apply remote filter if it's explicitly set
+    if (filters.remote !== undefined && filters.remote !== null) {
+      if (app.remote !== filters.remote) {
+        return false;
+      }
     }
+    
     // Add more filter logic as needed
     return true;
   });
+
+
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 
@@ -1588,6 +1564,19 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                     Save Filters
                   </Button>
                 )}
+                {aiFilters && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+                    className="border-prepzo text-prepzo hover:bg-prepzo/10"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    New Search
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={handleEditFilters}>
                   <Filter className="mr-2 h-4 w-4" />
                   Edit Filters
@@ -1595,8 +1584,8 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
               </div>
             </div>
             <div className="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-              <span>Credits Left: {creditsLeft}/{JOB_SEARCH_LIMIT}</span>
-              <span>•</span>
+              
+              
               <span>
                 Showing 1-{Math.min(itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
               </span>
@@ -1608,7 +1597,21 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                 <JobSearchLoader label="Fetching jobs" sublabel="Please wait while we load fresh results" />
               </div>
             )}
-            {isMobile ? (
+            {filteredApplications.length === 0 && !loading ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Search className="h-8 w-8 text-gray-400" />
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h4>
+                <p className="text-gray-500 mb-4">
+                  {applications.length === 0 
+                    ? "Try searching with different filters or keywords"
+                    : "No jobs match your current filters"
+                  }
+                </p>
+                
+              </div>
+            ) : isMobile ? (
               // Mobile Layout
               <div className="p-4">
                 {filteredApplications.map((application) => (
