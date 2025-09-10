@@ -190,7 +190,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     switch (status.toLowerCase()) {
       case 'processed':
         return { label: 'Feedback Ready', color: 'bg-green-100 text-green-700 border-green-200' };
-      case 'completed':
+      case 'COMPLETED':
         return { label: 'Analyzing...', color: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'active':
         return { label: 'Interview in Progress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
@@ -278,6 +278,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
+                // Specifically watch for COMPLETED to PROCESSED transition
+                if (oldData.status === 'COMPLETED' && newData.status === 'PROCESSED') {
+                  console.log('🎯 Status transition detected:', {
+                    attemptId: newData.id,
+                    from: 'COMPLETED',
+                    to: 'PROCESSED',
+                    timestamp: new Date().toISOString()
+                  });
+                }
                 
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
@@ -393,6 +402,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     };
   }, [attempts, session.id, lastStatusCheck, supabase.auth, getHeaders]);
 
+  // 🚀 OPTIMIZED: Smart attempt fetching with caching
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
     
@@ -402,7 +412,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       return;
     }
     
+    // If we already have attempts in state, don't fetch again
+    if (attempts.length > 0) {
+      return;
+    }
+    
     setLoadingAttempts(true);
+    console.log(`🚀 Loading attempts for session ${session.id} on-demand...`);
+    
     try {
       // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
@@ -424,15 +441,28 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch attempts');
+        console.error(`Failed to fetch attempts for session ${session.id}`);
         return;
       }
 
       const result = await response.json();
       const fetchedAttempts = result.attempts || [];
       setAttempts(fetchedAttempts);
+      
+      console.log(`✅ Loaded ${fetchedAttempts.length} attempts for session ${session.id}`);
+      
+      // Trigger parent component update with loaded attempts for stats calculation
+      if (window.dispatchEvent && fetchedAttempts.length > 0) {
+        window.dispatchEvent(new CustomEvent('attemptsLoaded', { 
+          detail: { 
+            sessionId: session.id, 
+            attempts: fetchedAttempts
+          } 
+        }));
+      }
+      
     } catch (error) {
-      console.error('Error fetching attempts:', error);
+      console.error(`Error fetching attempts for session ${session.id}:`, error);
     } finally {
       setLoadingAttempts(false);
     }
@@ -621,8 +651,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 "
               >
                 <Play size={14} className="mr-1 shrink-0" />
-                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
-                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
+                Start Interview
               </Button>
             )}
 
