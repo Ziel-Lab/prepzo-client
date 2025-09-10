@@ -609,7 +609,7 @@ const AnalyzerToolContent = () => {
       }
     };
 
-    pollIntervalRef.current = setInterval(poll, 10000); // Poll every 10 seconds
+    pollIntervalRef.current = setInterval(poll, 30000); // Poll every 30 seconds
     
     pollingTimeoutRef.current = setTimeout(() => {
       stopPolling();
@@ -629,7 +629,7 @@ const AnalyzerToolContent = () => {
         description: "The analysis is taking longer than expected. Please check back later.",
         duration: 5000,
       });
-    }, 180000); // 3 minutes timeout
+    }, 300000); // 5 minutes timeout
   };
 
   const startRoastPolling = (
@@ -758,7 +758,7 @@ const AnalyzerToolContent = () => {
     // Call immediately once, then start interval
     pollRoast();
     
-    roastPollIntervalRef.current = setInterval(pollRoast, 10000); // Poll every 10 seconds
+    roastPollIntervalRef.current = setInterval(pollRoast, 30000); // Poll every 30 seconds
     
     roastPollingTimeoutRef.current = setTimeout(() => {
       stopRoastPolling();
@@ -778,7 +778,7 @@ const AnalyzerToolContent = () => {
         description: "The roast is taking longer than expected. Please check back later.",
         duration: 5000,
       });
-    }, 180000); // 3 minutes timeout
+    }, 300000); // 5 minutes timeout
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

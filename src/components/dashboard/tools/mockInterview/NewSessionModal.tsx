@@ -717,7 +717,6 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           });
           
           if (newData.status_prep === 'DONE') {
-            console.log('🎉 Session is ready! Closing modal');
             setSessionStatus('ready');
             
             // Close modal after a brief delay to show success
