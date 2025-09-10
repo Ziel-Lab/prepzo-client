@@ -91,11 +91,37 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const { toast } = useToast();
   const router = useRouter();
   
-  // Listen for participant changes to show notifications
+  // Enhanced participant connection handling with loading state
   useEffect(() => {
     if (room) {
+      const [isLoading, setIsLoading] = useState(true);
+      const [hasAgent, setHasAgent] = useState(false);
+      
+      // Check if agent is already connected
+      const checkExistingAgent = () => {
+        const agentExists = Array.from(room.remoteParticipants.values()).some(
+          p => p.identity?.includes('agent') || p.identity?.includes('assistant')
+        );
+        setHasAgent(agentExists);
+        if (agentExists) {
+          setIsLoading(false);
+        }
+      };
+
+      // Initial check
+      checkExistingAgent();
+
       const handleParticipantConnected = (participant: RemoteParticipant) => {
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
+          setHasAgent(true);
+          setIsLoading(false);
+          
+          // Enable local tracks
+          if (localParticipant?.localParticipant) {
+            localParticipant.localParticipant.setMicrophoneEnabled(true);
+            localParticipant.localParticipant.setCameraEnabled(true);
+          }
+          
           toast({
             title: "AI Interviewer Connected",
             description: "The interview will begin shortly.",
@@ -106,13 +132,30 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 
       const handleParticipantDisconnected = (participant: RemoteParticipant) => {
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
+          setHasAgent(false);
+          
           toast({
             title: "AI Interviewer Disconnected",
-            description: "The AI interviewer has left the session.",
+            description: "The AI interviewer has left the session. Attempting to reconnect...",
             duration: 5000,
           });
+
+          // Disable local tracks when agent disconnects
+          if (localParticipant?.localParticipant) {
+            localParticipant.localParticipant.setMicrophoneEnabled(false);
+            localParticipant.localParticipant.setCameraEnabled(false);
+          }
         }
       };
+
+      // Show loading state
+      if (isLoading) {
+        toast({
+          title: "Connecting to AI Interviewer",
+          description: "Please wait while we connect you to your interviewer...",
+          duration: 3000,
+        });
+      }
 
       room.on('participantConnected', handleParticipantConnected);
       room.on('participantDisconnected', handleParticipantDisconnected);
@@ -122,7 +165,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         room.off('participantDisconnected', handleParticipantDisconnected);
       };
     }
-  }, [room, toast]);
+  }, [room, toast, localParticipant]);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [messages, setMessages] = useState<InterviewTranscriptionMessage[]>([]);
   const [sessionStartTime] = useState(new Date());

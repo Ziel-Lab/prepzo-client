@@ -356,12 +356,16 @@ const RpcHandler: React.FC<{
     return () => clearInterval(checkActivityTimeout);
   }, [room, lastAgentActivity, toast, cleanupInterview, disconnectRoom, router]);
 
-  // Track agent activity and handle 20-second timeout
+  // Track agent activity and handle connection with retries
   useEffect(() => {
     if (!room) return;
 
     let agentJoined = false;
     let timeoutId: NodeJS.Timeout;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 5000; // 5 seconds between retries
+    const INITIAL_TIMEOUT = 30000; // 30 seconds initial timeout
 
     const handleParticipantConnected = (participant: any) => {
       if (participant.identity && 
@@ -373,6 +377,18 @@ const RpcHandler: React.FC<{
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
+
+        // Enable local tracks only after agent joins
+        if (room.localParticipant) {
+          room.localParticipant.setMicrophoneEnabled(true);
+          room.localParticipant.setCameraEnabled(true);
+        }
+
+        toast({
+          title: "AI Interviewer Connected",
+          description: "The interview will begin shortly.",
+          duration: 3000,
+        });
       }
     };
 
@@ -382,18 +398,47 @@ const RpcHandler: React.FC<{
       }
     };
 
-    // Set 20-second timeout for agent connection
-    timeoutId = setTimeout(() => {
-      if (!agentJoined) {
-        toast({
-          title: "Interview Connection Failed",
-          description: "AI interviewer could not join within 20 seconds. Please try again.",
-          variant: "destructive",
-          duration: 4000,
-        });
-        navigateToSessionsPage(2000);
-      }
-    }, 20000);
+    const attemptConnection = () => {
+      timeoutId = setTimeout(async () => {
+        if (!agentJoined) {
+          if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            toast({
+              title: "Connecting to AI Interviewer",
+              description: `Attempt ${retryCount + 1} of ${MAX_RETRIES + 1}...`,
+              duration: 4000,
+            });
+            
+            // Attempt reconnection
+            try {
+              await room.disconnect();
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              await room.connect((room as any).url, (room as any).token);
+              attemptConnection(); // Start new timeout for this attempt
+            } catch (error) {
+              console.error('Reconnection attempt failed:', error);
+            }
+          } else {
+            toast({
+              title: "Interview Connection Failed",
+              description: "AI interviewer could not join. Please try again later.",
+              variant: "destructive",
+              duration: 4000,
+            });
+            navigateToSessionsPage(2000);
+          }
+        }
+      }, retryCount === 0 ? INITIAL_TIMEOUT : RETRY_DELAY);
+    };
+
+    // Start initial connection attempt
+    attemptConnection();
+
+    // Initially disable local tracks until agent joins
+    if (room.localParticipant) {
+      room.localParticipant.setMicrophoneEnabled(false);
+      room.localParticipant.setCameraEnabled(false);
+    }
 
     room.on('participantConnected', handleParticipantConnected);
     room.on('dataReceived', handleDataReceived);
