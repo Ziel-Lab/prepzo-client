@@ -102,12 +102,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     }
   };
 
-  const getStatusDisplayText = (status: string, attemptCount: number) => {
+  const getStatusDisplayText = (status: string) => {
     switch (status) {
       case 'completed':
-        return `All Attempts Used (${attemptCount}/3)`;
+        return `All Attempts Used (${session.attempts_count}/3)`;
       case 'ready':
-        return attemptCount === 0 ? 'Ready to Begin' : 'Ready to Continue';
+        return session.attempts_count === 0 ? 'Ready to Begin' : 'Ready to Continue';
       case 'preparing':
         return 'Setting up...';
       default:
@@ -158,7 +158,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   };
 
   const hasReachedAttemptLimit = () => {
-    return getTotalAttemptsCount() >= 3; // Check total attempts, not just processed
+    return session.is_attempts_exhausted || session.attempts_count >= 3;
   };
 
   const getTypeColor = (type: string) => {
@@ -567,7 +567,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{session.title}</h3>
               <Badge className={`text-xs ${getStatusColor(session.status)}`}>
-                {getStatusDisplayText(session.status, getTotalAttemptsCount())}
+                {getStatusDisplayText(session.status)}
               </Badge>
               <Badge variant="outline" className={`text-xs ${getTypeColor(session.type)}`}>
                 {formatType(session.type)}

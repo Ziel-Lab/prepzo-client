@@ -112,6 +112,8 @@ const InterviewSessionsContent: React.FC = () => {
   const supabase = createClient();
   const SESSIONS_PER_PAGE = 10;
 
+
+
   // Helper function to conditionally add ngrok headers
   const getHeaders = (authToken: string, backendUrl?: string) => {
     const baseHeaders = {
@@ -732,13 +734,20 @@ const InterviewSessionsContent: React.FC = () => {
                       );
                                            
                       const willPreserveTitle = session.status === 'preparing';
+                        // Update attempts info from backend
+                      const attempts_count = newData.attempts_count || session.attempts_count || 0;
+                      const is_attempts_exhausted = newData.is_attempts_exhausted || attempts_count >= 3;
+                      const processed_attempts_count = newData.processed_attempts_count || 0;
                       
                       return {
                         ...session,
                         status: newStatus,
                         title: willPreserveTitle ? session.title : (newData.title || session.title),
                         companyName: willPreserveTitle ? session.companyName : (newData.company_name || session.companyName),
-                        role: willPreserveTitle ? session.role : (newData.position || session.role)
+                        role: willPreserveTitle ? session.role : (newData.position || session.role),
+                        attempts_count,
+                        is_attempts_exhausted,
+                        processed_attempts_count
                       };
                     }
                     return session;
