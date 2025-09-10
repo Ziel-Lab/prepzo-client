@@ -190,7 +190,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     switch (status.toLowerCase()) {
       case 'processed':
         return { label: 'Feedback Ready', color: 'bg-green-100 text-green-700 border-green-200' };
-      case 'completed':
+      case 'COMPLETED':
         return { label: 'Analyzing...', color: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'active':
         return { label: 'Interview in Progress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
@@ -278,6 +278,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
+                // Specifically watch for COMPLETED to PROCESSED transition
+                if (oldData.status === 'COMPLETED' && newData.status === 'PROCESSED') {
+                  console.log('🎯 Status transition detected:', {
+                    attemptId: newData.id,
+                    from: 'COMPLETED',
+                    to: 'PROCESSED',
+                    timestamp: new Date().toISOString()
+                  });
+                }
                 
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
