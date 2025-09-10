@@ -360,12 +360,13 @@ const RpcHandler: React.FC<{
   useEffect(() => {
     if (!room) return;
 
+    let isConnecting = false;
     let agentJoined = false;
     let timeoutId: NodeJS.Timeout;
     let retryCount = 0;
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 5000; // 5 seconds between retries
-    const INITIAL_TIMEOUT = 30000; // 30 seconds initial timeout
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY = 8000; // 8 seconds between retries
+    const INITIAL_TIMEOUT = 20000; // 20 seconds initial timeout
 
     const handleParticipantConnected = (participant: any) => {
       if (participant.identity && 
@@ -398,41 +399,59 @@ const RpcHandler: React.FC<{
       }
     };
 
-    const attemptConnection = () => {
-      timeoutId = setTimeout(async () => {
-        if (!agentJoined) {
-          if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            toast({
-              title: "Connecting to AI Interviewer",
-              description: `Attempt ${retryCount + 1} of ${MAX_RETRIES + 1}...`,
-              duration: 4000,
-            });
-            
-            // Attempt reconnection
-            try {
-              await room.disconnect();
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              await room.connect((room as any).url, (room as any).token);
-              attemptConnection(); // Start new timeout for this attempt
-            } catch (error) {
-              console.error('Reconnection attempt failed:', error);
-            }
-          } else {
-            toast({
-              title: "Interview Connection Failed",
-              description: "AI interviewer could not join. Please try again later.",
-              variant: "destructive",
-              duration: 4000,
-            });
-            navigateToSessionsPage(2000);
-          }
+    const handleConnectionStateChange = (state: string) => {
+      if (state === 'disconnected' && !agentJoined) {
+        // Only attempt reconnect if we're not already connecting
+        if (!isConnecting) {
+          attemptConnection();
         }
-      }, retryCount === 0 ? INITIAL_TIMEOUT : RETRY_DELAY);
+      }
     };
 
-    // Start initial connection attempt
-    attemptConnection();
+    const attemptConnection = async () => {
+      if (isConnecting || agentJoined || retryCount >= MAX_RETRIES) return;
+
+      isConnecting = true;
+      retryCount++;
+
+      try {
+        // Clear any existing timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // Show attempt notification
+        toast({
+          title: "Connecting to AI Interviewer",
+          description: `Attempt ${retryCount} of ${MAX_RETRIES}...`,
+          duration: 4000,
+        });
+
+        // Set timeout for this attempt
+        timeoutId = setTimeout(() => {
+          if (!agentJoined) {
+            if (retryCount < MAX_RETRIES) {
+              // Try next attempt
+              isConnecting = false;
+              attemptConnection();
+            } else {
+              // All attempts failed
+              toast({
+                title: "Interview Connection Failed",
+                description: "AI interviewer could not join. Please try again later.",
+                variant: "destructive",
+                duration: 4000,
+              });
+              navigateToSessionsPage(2000);
+            }
+          }
+        }, retryCount === 1 ? INITIAL_TIMEOUT : RETRY_DELAY);
+
+      } catch (error) {
+        console.error('Connection attempt failed:', error);
+        isConnecting = false;
+      }
+    };
 
     // Initially disable local tracks until agent joins
     if (room.localParticipant) {
@@ -440,13 +459,19 @@ const RpcHandler: React.FC<{
       room.localParticipant.setCameraEnabled(false);
     }
 
+    // Start monitoring connection state
+    room.on('connectionStateChanged', handleConnectionStateChange);
     room.on('participantConnected', handleParticipantConnected);
     room.on('dataReceived', handleDataReceived);
+
+    // Start initial connection monitoring
+    attemptConnection();
 
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      room.off('connectionStateChanged', handleConnectionStateChange);
       room.off('participantConnected', handleParticipantConnected);
       room.off('dataReceived', handleDataReceived);
     };
