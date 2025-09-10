@@ -356,35 +356,60 @@ const RpcHandler: React.FC<{
     return () => clearInterval(checkActivityTimeout);
   }, [room, lastAgentActivity, toast, cleanupInterview, disconnectRoom, router]);
 
-  // Track agent activity
+  // Track agent activity and handle 20-second timeout
   useEffect(() => {
     if (!room) return;
+
+    let agentJoined = false;
+    let timeoutId: NodeJS.Timeout;
 
     const handleParticipantConnected = (participant: any) => {
       if (participant.identity && 
           (participant.identity.includes('agent') || 
            participant.identity.includes('assistant') || 
            participant.identity.includes('mock_interview_agent'))) {
+        agentJoined = true;
         setLastAgentActivity(Date.now());
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       }
     };
 
     const handleDataReceived = () => {
-      setLastAgentActivity(Date.now());
+      if (agentJoined) {
+        setLastAgentActivity(Date.now());
+      }
     };
+
+    // Set 20-second timeout for agent connection
+    timeoutId = setTimeout(() => {
+      if (!agentJoined) {
+        toast({
+          title: "Interview Connection Failed",
+          description: "AI interviewer could not join within 20 seconds. Please try again.",
+          variant: "destructive",
+          duration: 4000,
+        });
+        navigateToSessionsPage(2000);
+      }
+    }, 20000);
 
     room.on('participantConnected', handleParticipantConnected);
     room.on('dataReceived', handleDataReceived);
 
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       room.off('participantConnected', handleParticipantConnected);
       room.off('dataReceived', handleDataReceived);
     };
-  }, [room]);
+  }, [room, toast, navigateToSessionsPage]);
 
   // Initialize Krisp noise cancellation
   useEffect(() => {
-    if (!room || !localParticipant?.localParticipant) return;
+    if (!room || !localParticipant?.localParticipant || krispProcessor) return;
 
     const initializeKrisp = async () => {
       try {
@@ -412,21 +437,45 @@ const RpcHandler: React.FC<{
               console.log('Initializing Krisp noise filter for microphone track');
               const processor = KrispNoiseFilter();
               
-              await trackPublication.track.setProcessor(processor);
-              await processor.setEnabled(true);
-              
+              // Set up processor first
               setKrispProcessor(processor);
-              setIsKrispEnabled(true);
-              setIsKrispPending(false);
-              onKrispStatusChange?.(true, false);
               
-              toast({
-                title: "Noise Cancellation Enabled",
-                description: "AI-powered noise cancellation is now active for clearer audio.",
-                duration: 3000,
-              });
-              
-              console.log('Krisp noise filter enabled successfully');
+              // Try to enable noise cancellation
+              try {
+                await trackPublication.track.setProcessor(processor);
+                await processor.setEnabled(true);
+                
+                setIsKrispEnabled(true);
+                setIsKrispPending(false);
+                onKrispStatusChange?.(true, false);
+                
+                toast({
+                  title: "Noise Cancellation Enabled",
+                  description: "AI-powered noise cancellation is now active for clearer audio.",
+                  duration: 3000,
+                });
+                
+                console.log('Krisp noise filter enabled successfully');
+              } catch (processorError) {
+                // If processor fails, continue without noise cancellation
+                console.warn('Krisp processor setup failed:', processorError);
+                setIsKrispEnabled(false);
+                setIsKrispPending(false);
+                onKrispStatusChange?.(false, false);
+                
+                // Remove the processor to prevent issues
+                try {
+                  await trackPublication.track.stopProcessor();
+                } catch (stopError) {
+                  console.warn('Failed to stop processor:', stopError);
+                }
+                
+                toast({
+                  title: "Using Standard Audio",
+                  description: "Continuing with standard audio quality.",
+                  duration: 3000,
+                });
+              }
             } catch (error) {
               console.error('Failed to enable Krisp noise filter:', error);
               setIsKrispPending(false);

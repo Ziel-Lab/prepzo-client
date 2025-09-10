@@ -474,8 +474,10 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                       {krispStatus.pending && (
                         <motion.div
                           className="absolute inset-0 rounded-full border-2 border-t-transparent border-white/50"
+                          initial={{ rotate: 0 }}
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          key="krisp-loading-spinner"
                         />
                       )}
                     </Button>
