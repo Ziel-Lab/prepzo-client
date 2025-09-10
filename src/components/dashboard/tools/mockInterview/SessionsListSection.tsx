@@ -36,6 +36,9 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
+  attempts_count: number;
+  is_attempts_exhausted: boolean;
+  processed_attempts_count: number;
 }
 
 interface SessionsListSectionProps {

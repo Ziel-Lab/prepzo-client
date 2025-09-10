@@ -74,6 +74,9 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
+  attempts_count: number;
+  is_attempts_exhausted: boolean;
+  processed_attempts_count: number;
 }
 
 // Lazy loading is now handled in SessionsListSection component
@@ -438,7 +441,10 @@ const InterviewSessionsContent: React.FC = () => {
             role: backendSession.position || undefined,
             feedback: undefined,
             attempts: [], // Empty initially - loaded on demand
-            latestAttempt: undefined
+            latestAttempt: undefined,
+            attempts_count: backendSession.attempts_count || 0,
+            is_attempts_exhausted: backendSession.is_attempts_exhausted || false,
+            processed_attempts_count: backendSession.processed_attempts_count || 0
           };
           
           return sessionItem;
@@ -681,7 +687,7 @@ const InterviewSessionsContent: React.FC = () => {
               if (payload.eventType === 'INSERT' && newData) {
                 
                 // Create new session object and add to beginning of list
-                const newSession = {
+                const newSession: InterviewSession = {
                   id: newData.id,
                   title: newData.title || generateSessionTitle(newData),
                   type: newData.interview_type || 'behavioral',
@@ -694,7 +700,10 @@ const InterviewSessionsContent: React.FC = () => {
                   role: newData.position || undefined,
                   feedback: undefined,
                   attempts: [],
-                  latestAttempt: undefined
+                  latestAttempt: undefined,
+                  attempts_count: newData.attempts_count || 0,
+                  is_attempts_exhausted: newData.is_attempts_exhausted || false,
+                  processed_attempts_count: newData.processed_attempts_count || 0
                 };
                 
                 // Add new session to the beginning of the list
