@@ -642,8 +642,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 "
               >
                 <Play size={14} className="mr-1 shrink-0" />
-                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
-                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
+                Start Interview
               </Button>
             )}
 
