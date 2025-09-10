@@ -42,6 +42,9 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
+  attempts_count: number;
+  is_attempts_exhausted: boolean;
+  processed_attempts_count: number;
 }
 
 
@@ -635,8 +638,24 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
 
 
-            {/* Primary Action Button - Only show if haven't reached 3 attempts */}
-            {session.status === 'ready' && !hasReachedAttemptLimit() && (
+            {/* Primary Action Button or Status States */}
+            {session.is_attempts_exhausted ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-full shadow-sm">
+                <Award size={14} className="text-orange-600" />
+                <span className="text-sm font-bold text-orange-700">
+                  All Attempts Exhausted ({session.attempts_count}/3)
+                </span>
+              </div>
+            ) : session.status === 'preparing' ? (
+              <Button
+                size="sm"
+                disabled
+                className="bg-gradient-to-r from-orange-400 to-amber-400 text-white cursor-not-allowed shadow-sm font-medium"
+              >
+                <Clock size={14} className="mr-1 animate-pulse" />
+                AI Agent Preparing...
+              </Button>
+            ) : session.status === 'ready' && (
               <Button
                 size="sm"
                 onClick={handleStartInterview}
@@ -653,27 +672,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 <Play size={14} className="mr-1 shrink-0" />
                 Start Interview
               </Button>
-            )}
-
-            {session.status === 'preparing' && (
-              <Button
-                size="sm"
-                disabled
-                className="bg-gradient-to-r from-orange-400 to-amber-400 text-white cursor-not-allowed shadow-sm font-medium"
-              >
-                <Clock size={14} className="mr-1 animate-pulse" />
-                AI Agent Preparing...
-              </Button>
-            )}
-
-            {/* Show completion message when 3 attempts reached */}
-            {session.status === 'completed' && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-full shadow-sm">
-                <Award size={14} className="text-orange-600" />
-                <span className="text-sm font-bold text-orange-700">
-                  All Attempts Exhausted ({getTotalAttemptsCount()}/3)
-                </span>
-              </div>
             )}
           </div>
         </div>

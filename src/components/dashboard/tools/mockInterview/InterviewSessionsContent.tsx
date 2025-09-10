@@ -149,7 +149,6 @@ const InterviewSessionsContent: React.FC = () => {
             'Content-Type': 'application/json'
           }
         });
-        console.log(`${endpoint}: ${response.status} ${response.statusText}`);
       } catch (error) {
         console.log(`${endpoint}: ERROR -`, error);
       }
@@ -241,7 +240,6 @@ const InterviewSessionsContent: React.FC = () => {
       // Handle both formats: direct stats or nested in stats property
       const statsData = result.stats || result;
       setLiveStats(statsData);
-      console.log('✅ Live stats fetched:', statsData);
     } catch (error) {
       console.error('Error fetching live stats:', error);
     } finally {
@@ -303,7 +301,6 @@ const InterviewSessionsContent: React.FC = () => {
       
       const limitsData = JSON.parse(responseText);
       setUserLimits(limitsData);
-      console.log('✅ User limits fetched:', limitsData);
     } catch (error) {
       console.error('Error fetching user limits:', error);
     } finally {
@@ -354,7 +351,6 @@ const InterviewSessionsContent: React.FC = () => {
           headers: getHeaders(authSession.access_token, backendUrl)
         });
 
-        console.log('📡 Backend response status:', response.status, response.statusText);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Network error' }));
@@ -413,7 +409,6 @@ const InterviewSessionsContent: React.FC = () => {
 
         // Handle empty responses properly
         if ((!cursor || isRefresh) && sessionsFromBackend.length === 0) {
-          console.log('No sessions returned from backend');
           setSessions([]);
           setHasMore(false);
           setNextCursor(null);
@@ -460,7 +455,6 @@ const InterviewSessionsContent: React.FC = () => {
         setHasMore(backendHasMore);
         setNextCursor(effectiveNextCursor);
 
-        console.log(`🚀 Fast load complete: ${sessionData.length} sessions loaded (attempts will load on-demand)`);
 
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to fetch interview data');
@@ -609,7 +603,6 @@ const InterviewSessionsContent: React.FC = () => {
       });
 
       if (updatedSessions.length > 0) {
-        console.log(' Updating status for', updatedSessions.length, 'sessions');
         
         setSessions(prevSessions => {
           return prevSessions.map(session => {
@@ -648,14 +641,12 @@ const InterviewSessionsContent: React.FC = () => {
       return; // No need for periodic checking
     }
     
-    console.log('Setting up targeted status checking for preparing sessions');
     
     const intervalId = setInterval(() => {
       checkPreparingSessionsStatus();
     }, 12000); // Check every 12 seconds, optimized for performance
     
     return () => {
-      console.log('Cleaning up targeted status checking');
       clearInterval(intervalId);
     };
   }, [sessions, checkPreparingSessionsStatus]);
@@ -667,7 +658,6 @@ const InterviewSessionsContent: React.FC = () => {
     const setupRealtimeSubscription = async () => {
       try {
         if (!authSession?.user?.id) {
-          console.log(' No authenticated user for real-time subscription');
           return;
         }
 
@@ -686,18 +676,9 @@ const InterviewSessionsContent: React.FC = () => {
             (payload) => {
               const newData = payload.new as any;
               const oldData = payload.old as any;
-              
-              console.log('🔔 Real-time event received for mock_interview:', {
-                eventType: payload.eventType,
-                sessionId: newData?.id,
-                oldStatusPrep: oldData?.status_prep,
-                newStatusPrep: newData?.status_prep,
-                timestamp: new Date().toISOString()
-              });
-              
+                            
               // Handle INSERT events (new sessions created)
               if (payload.eventType === 'INSERT' && newData) {
-                console.log(' New session created via real-time, adding to list');
                 
                 // Create new session object and add to beginning of list
                 const newSession = {
@@ -722,21 +703,11 @@ const InterviewSessionsContent: React.FC = () => {
               
               // Handle UPDATE events (status changes, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                console.log('Session updated via real-time, updating display');
                 
                 // Check if this is a status_prep change (agent is ready)
                 if (oldData.status_prep !== newData.status_prep) {
-                  console.log(' status_prep changed:', {
-                    sessionId: newData.id,
-                    oldStatusPrep: oldData.status_prep,
-                    newStatusPrep: newData.status_prep,
-                    oldStatus: oldData.status,
-                    newStatus: newData.status
-                  });
                   
                   if (newData.status_prep === 'DONE') {
-                    console.log(' Agent is ready! Session can now be started');
-                    // Refresh stats when session becomes ready
                     fetchLiveStats();
                   }
                 }
@@ -750,16 +721,7 @@ const InterviewSessionsContent: React.FC = () => {
                         newData.status_prep, 
                         session.attempts
                       );
-                      
-                      console.log(' Updating session display:', {
-                        sessionId: session.id,
-                        oldStatus: session.status,
-                        newStatus: newStatus,
-                        oldStatusPrep: oldData.status_prep,
-                        newStatusPrep: newData.status_prep,
-                        statusChanged: session.status !== newStatus
-                      });
-                      
+                                           
                       const willPreserveTitle = session.status === 'preparing';
                       
                       return {
@@ -788,7 +750,6 @@ const InterviewSessionsContent: React.FC = () => {
     setupRealtimeSubscription();
 
     return () => {
-      console.log(' Cleaning up real-time subscription');
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -802,7 +763,6 @@ const InterviewSessionsContent: React.FC = () => {
       
       // Refresh stats when significant status changes occur
       if (newStatus === 'PROCESSED' || newStatus === 'completed' || newStatus === 'active') {
-        console.log(' Refreshing stats due to significant status change');
         fetchLiveStats();
       }
       
@@ -820,17 +780,7 @@ const InterviewSessionsContent: React.FC = () => {
                 undefined, 
                 updatedAttempts
               );
-              
-              console.log('Updating session status based on attempt change:', {
-                sessionId,
-                oldSessionStatus: session.status,
-                newSessionStatus,
-                attemptId,
-                attemptStatus: newStatus,
-                totalAttempts: updatedAttempts.length,
-                isSessionCompleted: updatedAttempts.length >= 3
-              });
-              
+                           
               return {
                 ...session,
                 status: newSessionStatus,
@@ -846,7 +796,6 @@ const InterviewSessionsContent: React.FC = () => {
     // 🚀 NEW: Handle progressive attempt loading for better stats
     const handleAttemptsLoaded = (event: CustomEvent) => {
       const { sessionId, attempts: loadedAttempts } = event.detail;
-      console.log(`📊 Progressive update: Loaded ${loadedAttempts.length} attempts for session ${sessionId}`);
       
       setSessions(prevSessions => {
         return prevSessions.map(session => {
@@ -869,7 +818,6 @@ const InterviewSessionsContent: React.FC = () => {
 
     // Listen for both old and new event types for compatibility
     const handleAttemptCompleted = (event: CustomEvent) => {
-      console.log(' Attempt completed event received (legacy):', event.detail);
       fetchLiveStats();
     };
 
@@ -1209,7 +1157,6 @@ const InterviewSessionsContent: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log('Session created successfully:', result);
 
       // Refresh stats immediately after creating session
       fetchLiveStats();
