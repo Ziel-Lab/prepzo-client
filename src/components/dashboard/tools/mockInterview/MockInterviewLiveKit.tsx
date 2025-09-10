@@ -7,7 +7,7 @@ import {
   useLocalParticipant,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind, ConnectionQuality } from "livekit-client";
+import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind, ConnectionQuality, Track, LocalAudioTrack, RoomEvent } from "livekit-client";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
@@ -60,13 +60,18 @@ const RpcHandler: React.FC<{
   sessionConfig: any;
   onEndInterview: () => void;
   onEndingCountdown: (countdown: number | null) => void;
-}> = ({ sessionConfig, onEndInterview, onEndingCountdown }) => {
+  onKrispStatusChange?: (enabled: boolean, pending: boolean) => void;
+}> = ({ sessionConfig, onEndInterview, onEndingCountdown, onKrispStatusChange }) => {
   const room = useRoomContext();
   const localParticipant = useLocalParticipant();
   const router = useRouter();
   const { toast } = useToast();
   const [isRpcRegistered, setIsRpcRegistered] = useState(false);
   const [lastAgentActivity, setLastAgentActivity] = useState(Date.now());
+  const [krispProcessor, setKrispProcessor] = useState<any>(null);
+  const [isKrispEnabled, setIsKrispEnabled] = useState(false);
+  const [isKrispPending, setIsKrispPending] = useState(false);
+  const [isKrispSupported, setIsKrispSupported] = useState(false);
 
   const cleanupInterview = useCallback(async () => {
     if (room?.localParticipant) {
@@ -377,6 +382,133 @@ const RpcHandler: React.FC<{
     };
   }, [room]);
 
+  // Initialize Krisp noise cancellation
+  useEffect(() => {
+    if (!room || !localParticipant?.localParticipant) return;
+
+    const initializeKrisp = async () => {
+      try {
+        // Dynamic import to load Krisp only when needed
+        const { KrispNoiseFilter, isKrispNoiseFilterSupported } = await import('@livekit/krisp-noise-filter');
+        
+        if (!isKrispNoiseFilterSupported()) {
+          console.warn('Krisp noise filter is not supported on this browser');
+          setIsKrispSupported(false);
+          return;
+        }
+        
+        setIsKrispSupported(true);
+        
+        // Listen for local track publications
+        const handleLocalTrackPublished = async (trackPublication: any) => {
+          if (
+            trackPublication.source === Track.Source.Microphone &&
+            trackPublication.track instanceof LocalAudioTrack
+          ) {
+            try {
+              setIsKrispPending(true);
+              onKrispStatusChange?.(false, true);
+              
+              console.log('Initializing Krisp noise filter for microphone track');
+              const processor = KrispNoiseFilter();
+              
+              await trackPublication.track.setProcessor(processor);
+              await processor.setEnabled(true);
+              
+              setKrispProcessor(processor);
+              setIsKrispEnabled(true);
+              setIsKrispPending(false);
+              onKrispStatusChange?.(true, false);
+              
+              toast({
+                title: "Noise Cancellation Enabled",
+                description: "AI-powered noise cancellation is now active for clearer audio.",
+                duration: 3000,
+              });
+              
+              console.log('Krisp noise filter enabled successfully');
+            } catch (error) {
+              console.error('Failed to enable Krisp noise filter:', error);
+              setIsKrispPending(false);
+              onKrispStatusChange?.(false, false);
+              
+              toast({
+                title: "Noise Cancellation Warning",
+                description: "Could not enable noise cancellation, but audio will still work.",
+                variant: "default",
+                duration: 3000,
+              });
+            }
+          }
+        };
+        
+        room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+        
+        // Check if microphone track is already published
+        const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
+          .find(pub => pub.source === Track.Source.Microphone);
+        
+        if (micTrackPub) {
+          await handleLocalTrackPublished(micTrackPub);
+        }
+        
+        return () => {
+          room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+        };
+        
+      } catch (error) {
+        console.error('Failed to initialize Krisp:', error);
+        setIsKrispSupported(false);
+      }
+    };
+    
+    // Small delay to ensure room is fully connected
+    const timeout = setTimeout(initializeKrisp, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, [room, localParticipant, toast, onKrispStatusChange]);
+
+  // Toggle Krisp noise filter
+  const toggleKrispFilter = useCallback(async () => {
+    if (!krispProcessor || isKrispPending) return;
+    
+    try {
+      setIsKrispPending(true);
+      onKrispStatusChange?.(isKrispEnabled, true);
+      
+      const newState = !isKrispEnabled;
+      await krispProcessor.setEnabled(newState);
+      
+      setIsKrispEnabled(newState);
+      setIsKrispPending(false);
+      onKrispStatusChange?.(newState, false);
+      
+      toast({
+        title: newState ? "Noise Cancellation Enabled" : "Noise Cancellation Disabled",
+        description: newState 
+          ? "AI-powered noise cancellation is now active." 
+          : "Noise cancellation has been disabled.",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to toggle Krisp filter:', error);
+      setIsKrispPending(false);
+      onKrispStatusChange?.(isKrispEnabled, false);
+    }
+  }, [krispProcessor, isKrispEnabled, isKrispPending, toast, onKrispStatusChange]);
+
+  // Expose toggle function globally for UI components
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).toggleKrispFilter = toggleKrispFilter;
+      (window as any).krispStatus = {
+        enabled: isKrispEnabled,
+        pending: isKrispPending,
+        supported: isKrispSupported
+      };
+    }
+  }, [toggleKrispFilter, isKrispEnabled, isKrispPending, isKrispSupported]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -387,8 +519,22 @@ const RpcHandler: React.FC<{
           // Silent cleanup error
         }
       }
+      
+      // Cleanup Krisp processor
+      if (krispProcessor) {
+        try {
+          const micTrackPub = Array.from(room?.localParticipant?.audioTrackPublications?.values() || [])
+            .find(pub => pub.source === Track.Source.Microphone);
+          
+          if (micTrackPub?.track) {
+            micTrackPub.track.stopProcessor();
+          }
+        } catch (error) {
+          console.error('Error cleaning up Krisp processor:', error);
+        }
+      }
     };
-  }, [localParticipant, isRpcRegistered]);
+  }, [localParticipant, isRpcRegistered, krispProcessor, room]);
 
   return null; // This component only handles RPC registration
 };
@@ -403,6 +549,7 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   const router = useRouter();
   const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
+  const [krispStatus, setKrispStatus] = useState({ enabled: false, pending: false });
 
   console.log(' MockInterviewLiveKit received:', {
     sessionConfig,
@@ -485,6 +632,10 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
     onEndInterview();
   };
 
+  const handleKrispStatusChange = useCallback((enabled: boolean, pending: boolean) => {
+    setKrispStatus({ enabled, pending });
+  }, []);
+
   // Validate connection details before rendering LiveKitRoom
   const validateConnectionDetails = (details: any) => {
     console.log(' Validating connection details:', details);
@@ -560,12 +711,14 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
                 sessionConfig={sessionConfig}
                 onEndInterview={handleInterviewEnd}
                 onEndingCountdown={() => {}} // Not used in this simplified setup
+                onKrispStatusChange={handleKrispStatusChange}
               />
               
               <MockInterviewVoiceAssistant
                 sessionConfig={sessionConfig}
                 connectionDetails={connectionDetails}
                 onEndInterview={handleInterviewEnd}
+                krispStatus={krispStatus}
               />
             </LiveKitRoom>
           )}

@@ -365,7 +365,9 @@ const SubscriptionContent = () => {
         <Card className="mt-12">
           <CardHeader>
             <CardTitle>Monthly Usage</CardTitle>
-            <CardDescription>Your usage resets on {formattedEnd}.</CardDescription>
+            {subscription.current_period_end && (
+              <CardDescription>Your usage resets on {formattedEnd}.</CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             <div className="space-y-6">

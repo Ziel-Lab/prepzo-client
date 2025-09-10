@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Camera, Mic, MicOff } from "lucide-react";
 import AnimatedOrb from "@/components/dashboard/tools/mockInterview/sessions/AnimatedOrb";
 import LiveTranscript from "@/components/dashboard/tools/mockInterview/sessions/LiveTranscript";
-import VideoInterviewLayout from "./VideoInterviewLayout";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
+import VideoInterviewLayout from "./VideoInterviewLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -46,6 +46,7 @@ interface MockInterviewVoiceAssistantProps {
   connectionDetails: MockInterviewConnectionDetails | null;
   onEndInterview: () => void;
   endingCountdown?: number | null; // Optional countdown from parent RPC handler
+  krispStatus?: { enabled: boolean; pending: boolean }; // Krisp noise cancellation status
 }
 
 export interface InterviewTranscriptionMessage {
@@ -80,7 +81,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   sessionConfig,
   connectionDetails,
   onEndInterview,
-  endingCountdown: parentEndingCountdown
+  endingCountdown: parentEndingCountdown,
+  krispStatus
 }) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const remoteParticipants = useRemoteParticipants();
@@ -136,7 +138,10 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   // Use parent's endingCountdown if available, otherwise use local
   const endingCountdown = parentEndingCountdown !== undefined ? parentEndingCountdown : localEndingCountdown;
   
-
+  // Krisp noise cancellation state
+  const [showKrispControls, setShowKrispControls] = useState(false);
+  const isKrispEnabled = krispStatus?.enabled || false;
+  const isKrispPending = krispStatus?.pending || false;
   
   // Refs for audio feedback prevention
   const lastAgentTranscriptionRef = useRef<string>("");
@@ -463,6 +468,16 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
     // Camera functionality
   }, []);
 
+  const toggleKrispFilter = useCallback(() => {
+    if (typeof window !== 'undefined' && (window as any).toggleKrispFilter) {
+      (window as any).toggleKrispFilter();
+    }
+  }, []);
+
+  const toggleKrispControls = useCallback(() => {
+    setShowKrispControls(!showKrispControls);
+  }, [showKrispControls]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -485,6 +500,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       endingCountdown={endingCountdown}
       onEndInterview={() => navigateToSessionsPage(500)}
       onNavigateBack={() => navigateToSessionsPage(500)}
+      krispStatus={krispStatus}
+      onToggleKrisp={toggleKrispFilter}
     >
       {/* Audio Components for Agent Playback */}
       {remoteParticipants.length > 0 && (
@@ -515,7 +532,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({ 
   sessionConfig,
   onEndInterview,
-  endingCountdown: parentEndingCountdown
+  endingCountdown: parentEndingCountdown,
+  krispStatus
 }) => {
   const { toast } = useToast();
   const router = useRouter();
@@ -628,6 +646,8 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
       endingCountdown={endingCountdown}
       onEndInterview={() => router.push('/dashboard/tools/mock-Interview')}
       onNavigateBack={() => router.push('/dashboard/tools/mock-Interview')}
+      krispStatus={krispStatus}
+      onToggleKrisp={() => {}}
     />
   );
 };

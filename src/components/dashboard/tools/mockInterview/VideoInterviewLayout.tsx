@@ -35,6 +35,8 @@ interface VideoInterviewLayoutProps {
   onEndInterview: () => void;
   onNavigateBack: () => void;
   children?: React.ReactNode;
+  krispStatus?: { enabled: boolean; pending: boolean }; // Krisp noise cancellation status
+  onToggleKrisp?: () => void; // Krisp toggle handler
 }
 
 const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
@@ -46,7 +48,9 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
   endingCountdown,
   onEndInterview,
   onNavigateBack,
-  children
+  children,
+  krispStatus,
+  onToggleKrisp
 }) => {
   const localParticipant = useLocalParticipant();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -444,6 +448,38 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                   >
                     <MessageSquare size={20} />
                   </Button>
+
+                  {/* Krisp Noise Cancellation Toggle */}
+                  {krispStatus && onToggleKrisp && (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={onToggleKrisp}
+                      disabled={krispStatus.pending}
+                      className={`rounded-full w-12 h-12 border-2 transition-all relative ${
+                        krispStatus.enabled 
+                          ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600' 
+                          : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+                      } ${krispStatus.pending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={krispStatus.enabled ? 'Noise Cancellation: ON' : 'Noise Cancellation: OFF'}
+                    >
+                      <motion.div
+                        key={krispStatus.enabled ? 'nc-on' : 'nc-off'}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Settings size={20} />
+                      </motion.div>
+                      {krispStatus.pending && (
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-t-transparent border-white/50"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                      )}
+                    </Button>
+                  )}
 
                   {/* End Interview */}
                   <Button
