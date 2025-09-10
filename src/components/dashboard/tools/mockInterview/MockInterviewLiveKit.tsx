@@ -7,7 +7,7 @@ import {
   useLocalParticipant,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind, ConnectionQuality, Track, LocalAudioTrack, RoomEvent } from "livekit-client";
+import { MediaDeviceFailure, RemoteParticipant, DataPacket_Kind, ConnectionQuality } from "livekit-client";
 import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
@@ -60,18 +60,13 @@ const RpcHandler: React.FC<{
   sessionConfig: any;
   onEndInterview: () => void;
   onEndingCountdown: (countdown: number | null) => void;
-  onKrispStatusChange?: (enabled: boolean, pending: boolean) => void;
-}> = ({ sessionConfig, onEndInterview, onEndingCountdown, onKrispStatusChange }) => {
+}> = ({ sessionConfig, onEndInterview, onEndingCountdown }) => {
   const room = useRoomContext();
   const localParticipant = useLocalParticipant();
   const router = useRouter();
   const { toast } = useToast();
   const [isRpcRegistered, setIsRpcRegistered] = useState(false);
   const [lastAgentActivity, setLastAgentActivity] = useState(Date.now());
-  const [krispProcessor, setKrispProcessor] = useState<any>(null);
-  const [isKrispEnabled, setIsKrispEnabled] = useState(false);
-  const [isKrispPending, setIsKrispPending] = useState(false);
-  const [isKrispSupported, setIsKrispSupported] = useState(false);
 
   const cleanupInterview = useCallback(async () => {
     if (room?.localParticipant) {
@@ -356,331 +351,31 @@ const RpcHandler: React.FC<{
     return () => clearInterval(checkActivityTimeout);
   }, [room, lastAgentActivity, toast, cleanupInterview, disconnectRoom, router]);
 
-  // Track agent activity and handle connection with retries
+  // Track agent activity
   useEffect(() => {
     if (!room) return;
-
-    let isConnecting = false;
-    let agentJoined = false;
-    let timeoutId: NodeJS.Timeout;
-    let retryCount = 0;
-    const MAX_RETRIES = 2;
-    const RETRY_DELAY = 8000; // 8 seconds between retries
-    const INITIAL_TIMEOUT = 20000; // 20 seconds initial timeout
 
     const handleParticipantConnected = (participant: any) => {
       if (participant.identity && 
           (participant.identity.includes('agent') || 
            participant.identity.includes('assistant') || 
            participant.identity.includes('mock_interview_agent'))) {
-        agentJoined = true;
         setLastAgentActivity(Date.now());
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        // Enable local tracks only after agent joins
-        if (room.localParticipant) {
-          room.localParticipant.setMicrophoneEnabled(true);
-          room.localParticipant.setCameraEnabled(true);
-        }
-
-        toast({
-          title: "AI Interviewer Connected",
-          description: "The interview will begin shortly.",
-          duration: 3000,
-        });
       }
     };
 
     const handleDataReceived = () => {
-      if (agentJoined) {
-        setLastAgentActivity(Date.now());
-      }
+      setLastAgentActivity(Date.now());
     };
 
-    const handleConnectionStateChange = (state: string) => {
-      if (state === 'disconnected' && !agentJoined) {
-        // Only attempt reconnect if we're not already connecting
-        if (!isConnecting) {
-          attemptConnection();
-        }
-      }
-    };
-
-    const attemptConnection = async () => {
-      if (isConnecting || agentJoined || retryCount >= MAX_RETRIES) return;
-
-      isConnecting = true;
-      retryCount++;
-
-      try {
-        // Clear any existing timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        // Show attempt notification
-        toast({
-          title: "Connecting to AI Interviewer",
-          description: `Attempt ${retryCount} of ${MAX_RETRIES}...`,
-          duration: 4000,
-        });
-
-        // Set timeout for this attempt
-        timeoutId = setTimeout(() => {
-          if (!agentJoined) {
-            if (retryCount < MAX_RETRIES) {
-              // Try next attempt
-              isConnecting = false;
-              attemptConnection();
-            } else {
-              // All attempts failed
-              toast({
-                title: "Interview Connection Failed",
-                description: "AI interviewer could not join. Please try again later.",
-                variant: "destructive",
-                duration: 4000,
-              });
-              navigateToSessionsPage(2000);
-            }
-          }
-        }, retryCount === 1 ? INITIAL_TIMEOUT : RETRY_DELAY);
-
-      } catch (error) {
-        console.error('Connection attempt failed:', error);
-        isConnecting = false;
-      }
-    };
-
-    // Initially disable local tracks until agent joins
-    if (room.localParticipant) {
-      room.localParticipant.setMicrophoneEnabled(false);
-      room.localParticipant.setCameraEnabled(false);
-    }
-
-    // Start monitoring connection state
-    room.on('connectionStateChanged', handleConnectionStateChange);
     room.on('participantConnected', handleParticipantConnected);
     room.on('dataReceived', handleDataReceived);
 
-    // Start initial connection monitoring
-    attemptConnection();
-
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      room.off('connectionStateChanged', handleConnectionStateChange);
       room.off('participantConnected', handleParticipantConnected);
       room.off('dataReceived', handleDataReceived);
     };
-  }, [room, toast, navigateToSessionsPage]);
-
-  // Initialize Krisp noise cancellation after agent joins
-  useEffect(() => {
-    if (!room || !localParticipant?.localParticipant || krispProcessor) return;
-
-    let isAgentConnected = false;
-    let initTimeout: NodeJS.Timeout;
-    let cleanupRequired = false;
-
-    const initializeKrisp = async () => {
-      if (!isAgentConnected) return;
-      
-      try {
-        // Dynamic import to load Krisp only when needed
-        const { KrispNoiseFilter, isKrispNoiseFilterSupported } = await import('@livekit/krisp-noise-filter');
-        
-        if (!isKrispNoiseFilterSupported()) {
-          console.warn('Krisp noise filter is not supported on this browser');
-          setIsKrispSupported(false);
-          return;
-        }
-        
-        setIsKrispSupported(true);
-        
-        // Listen for local track publications
-        const handleLocalTrackPublished = async (trackPublication: any) => {
-          if (
-            trackPublication.source === Track.Source.Microphone &&
-            trackPublication.track instanceof LocalAudioTrack
-          ) {
-            try {
-              setIsKrispPending(true);
-              onKrispStatusChange?.(false, true);
-              
-              console.log('Initializing Krisp noise filter for microphone track');
-              const processor = KrispNoiseFilter();
-              
-              // Set up processor first
-              setKrispProcessor(processor);
-              
-              // Try to enable noise cancellation
-              try {
-                if (!trackPublication.track.isEnabled) {
-                  await trackPublication.track.enable();
-                }
-                
-                await trackPublication.track.setProcessor(processor);
-                await processor.setEnabled(true);
-                
-                setIsKrispEnabled(true);
-                setIsKrispPending(false);
-                onKrispStatusChange?.(true, false);
-                
-                toast({
-                  title: "Noise Cancellation Enabled",
-                  description: "AI-powered noise cancellation is now active for clearer audio.",
-                  duration: 3000,
-                });
-                
-                console.log('Krisp noise filter enabled successfully');
-                cleanupRequired = true;
-              } catch (processorError) {
-                // If processor fails, continue without noise cancellation
-                console.warn('Krisp processor setup failed:', processorError);
-                setIsKrispEnabled(false);
-                setIsKrispPending(false);
-                onKrispStatusChange?.(false, false);
-                
-                // Remove the processor to prevent issues
-                try {
-                  await trackPublication.track.stopProcessor();
-                } catch (stopError) {
-                  console.warn('Failed to stop processor:', stopError);
-                }
-                
-                toast({
-                  title: "Using Standard Audio",
-                  description: "Continuing with standard audio quality.",
-                  duration: 3000,
-                });
-              }
-            } catch (error) {
-              console.error('Failed to enable Krisp noise filter:', error);
-              setIsKrispPending(false);
-              onKrispStatusChange?.(false, false);
-              
-              toast({
-                title: "Noise Cancellation Warning",
-                description: "Could not enable noise cancellation, but audio will still work.",
-                variant: "default",
-                duration: 3000,
-              });
-            }
-          }
-        };
-
-        // Wait for agent to connect before initializing Krisp
-        const handleParticipantConnected = (participant: any) => {
-          if (participant.identity && 
-              (participant.identity.includes('agent') || 
-               participant.identity.includes('assistant') || 
-               participant.identity.includes('mock_interview_agent'))) {
-            isAgentConnected = true;
-            
-            // Check if microphone track is already published
-            const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
-              .find(pub => pub.source === Track.Source.Microphone);
-            
-            if (micTrackPub) {
-              handleLocalTrackPublished(micTrackPub);
-            }
-          }
-        };
-        
-        // Check if agent is already connected
-        const hasAgent = Array.from(room.remoteParticipants.values()).some(
-          p => p.identity?.includes('agent') || p.identity?.includes('assistant')
-        );
-        
-        if (hasAgent) {
-          isAgentConnected = true;
-          const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
-            .find(pub => pub.source === Track.Source.Microphone);
-          
-          if (micTrackPub) {
-            await handleLocalTrackPublished(micTrackPub);
-          }
-        }
-        
-        room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
-        room.on('participantConnected', handleParticipantConnected);
-        
-        return () => {
-          room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
-          room.off('participantConnected', handleParticipantConnected);
-        };
-        
-      } catch (error) {
-        console.error('Failed to initialize Krisp:', error);
-        setIsKrispSupported(false);
-      }
-    };
-    
-    // Start initialization with delay
-    initTimeout = setTimeout(initializeKrisp, 2000);
-    
-    return () => {
-      clearTimeout(initTimeout);
-      
-      // Cleanup Krisp if it was initialized
-      if (cleanupRequired) {
-        try {
-          const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
-            .find(pub => pub.source === Track.Source.Microphone);
-          
-          if (micTrackPub?.track) {
-            micTrackPub.track.stopProcessor();
-          }
-        } catch (error) {
-          console.error('Error cleaning up Krisp processor:', error);
-        }
-      }
-    };
-  }, [room, localParticipant, toast, onKrispStatusChange]);
-
-  // Toggle Krisp noise filter
-  const toggleKrispFilter = useCallback(async () => {
-    if (!krispProcessor || isKrispPending) return;
-    
-    try {
-      setIsKrispPending(true);
-      onKrispStatusChange?.(isKrispEnabled, true);
-      
-      const newState = !isKrispEnabled;
-      await krispProcessor.setEnabled(newState);
-      
-      setIsKrispEnabled(newState);
-      setIsKrispPending(false);
-      onKrispStatusChange?.(newState, false);
-      
-      toast({
-        title: newState ? "Noise Cancellation Enabled" : "Noise Cancellation Disabled",
-        description: newState 
-          ? "AI-powered noise cancellation is now active." 
-          : "Noise cancellation has been disabled.",
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error('Failed to toggle Krisp filter:', error);
-      setIsKrispPending(false);
-      onKrispStatusChange?.(isKrispEnabled, false);
-    }
-  }, [krispProcessor, isKrispEnabled, isKrispPending, toast, onKrispStatusChange]);
-
-  // Expose toggle function globally for UI components
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).toggleKrispFilter = toggleKrispFilter;
-      (window as any).krispStatus = {
-        enabled: isKrispEnabled,
-        pending: isKrispPending,
-        supported: isKrispSupported
-      };
-    }
-  }, [toggleKrispFilter, isKrispEnabled, isKrispPending, isKrispSupported]);
+  }, [room]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -692,22 +387,8 @@ const RpcHandler: React.FC<{
           // Silent cleanup error
         }
       }
-      
-      // Cleanup Krisp processor
-      if (krispProcessor) {
-        try {
-          const micTrackPub = Array.from(room?.localParticipant?.audioTrackPublications?.values() || [])
-            .find(pub => pub.source === Track.Source.Microphone);
-          
-          if (micTrackPub?.track) {
-            micTrackPub.track.stopProcessor();
-          }
-        } catch (error) {
-          console.error('Error cleaning up Krisp processor:', error);
-        }
-      }
     };
-  }, [localParticipant, isRpcRegistered, krispProcessor, room]);
+  }, [localParticipant, isRpcRegistered]);
 
   return null; // This component only handles RPC registration
 };
@@ -722,7 +403,6 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
   const router = useRouter();
   const [connectionDetails, updateConnectionDetails] = useState<MockInterviewConnectionDetails | undefined>(providedConnectionDetails);
   const [roomKey, setRoomKey] = useState(Date.now());
-  const [krispStatus, setKrispStatus] = useState({ enabled: false, pending: false });
 
   console.log(' MockInterviewLiveKit received:', {
     sessionConfig,
@@ -805,10 +485,6 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
     onEndInterview();
   };
 
-  const handleKrispStatusChange = useCallback((enabled: boolean, pending: boolean) => {
-    setKrispStatus({ enabled, pending });
-  }, []);
-
   // Validate connection details before rendering LiveKitRoom
   const validateConnectionDetails = (details: any) => {
     console.log(' Validating connection details:', details);
@@ -884,14 +560,12 @@ const MockInterviewLiveKit: React.FC<MockInterviewLiveKitProps> = ({
                 sessionConfig={sessionConfig}
                 onEndInterview={handleInterviewEnd}
                 onEndingCountdown={() => {}} // Not used in this simplified setup
-                onKrispStatusChange={handleKrispStatusChange}
               />
               
               <MockInterviewVoiceAssistant
                 sessionConfig={sessionConfig}
                 connectionDetails={connectionDetails}
                 onEndInterview={handleInterviewEnd}
-                krispStatus={krispStatus}
               />
             </LiveKitRoom>
           )}

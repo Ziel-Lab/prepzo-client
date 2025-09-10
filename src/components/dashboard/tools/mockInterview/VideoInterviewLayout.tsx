@@ -17,8 +17,6 @@ import {
 import AnimatedOrb from "./sessions/AnimatedOrb";
 import LiveTranscript from "./sessions/LiveTranscript";
 import { useLocalParticipant } from "@livekit/components-react";
-import { RemoteParticipant } from "livekit-client";
-import { useToast } from "@/components/ui/use-toast";
 import type { InterviewTranscriptionMessage } from "./MockInterviewVoiceAssistant";
 
 interface VideoInterviewLayoutProps {
@@ -37,8 +35,6 @@ interface VideoInterviewLayoutProps {
   onEndInterview: () => void;
   onNavigateBack: () => void;
   children?: React.ReactNode;
-  krispStatus?: { enabled: boolean; pending: boolean }; // Krisp noise cancellation status
-  onToggleKrisp?: () => void; // Krisp toggle handler
 }
 
 const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
@@ -50,9 +46,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
   endingCountdown,
   onEndInterview,
   onNavigateBack,
-  children,
-  krispStatus,
-  onToggleKrisp
+  children
 }) => {
   const localParticipant = useLocalParticipant();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -93,29 +87,10 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
     };
   }, [resetControlsTimeout]);
 
-  // Video toggle with smooth transition and agent check
-  const { toast } = useToast();
-
+  // Video toggle with smooth transition
   const toggleVideo = useCallback(async () => {
     try {
       if (localParticipant?.localParticipant) {
-        // Check if there are any remote participants (agent)
-        const room = (localParticipant.localParticipant as any).room;
-        const hasAgent = room ? Array.from(room.remoteParticipants.values() as RemoteParticipant[])
-          .some(p => p.identity?.includes('agent') || p.identity?.includes('assistant')) : false;
-
-        if (!hasAgent) {
-          // Don't allow enabling camera until agent joins
-          if (!isCameraOn) {
-            toast({
-              title: "Please Wait",
-              description: "Camera will be enabled once the AI interviewer joins.",
-              duration: 3000,
-            });
-            return;
-          }
-        }
-
         // First update the UI state immediately for responsive feel
         setIsCameraOn(!isCameraOn);
         // Then handle the actual video toggle
@@ -469,7 +444,6 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                   >
                     <MessageSquare size={20} />
                   </Button>
-
 
                   {/* End Interview */}
                   <Button

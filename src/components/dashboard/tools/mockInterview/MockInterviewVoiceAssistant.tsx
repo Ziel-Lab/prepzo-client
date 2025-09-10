@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Camera, Mic, MicOff } from "lucide-react";
 import AnimatedOrb from "@/components/dashboard/tools/mockInterview/sessions/AnimatedOrb";
 import LiveTranscript from "@/components/dashboard/tools/mockInterview/sessions/LiveTranscript";
-import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import VideoInterviewLayout from "./VideoInterviewLayout";
+import type { MockInterviewConnectionDetails } from "@/app/api/mock-interview-token/route";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -46,7 +46,6 @@ interface MockInterviewVoiceAssistantProps {
   connectionDetails: MockInterviewConnectionDetails | null;
   onEndInterview: () => void;
   endingCountdown?: number | null; // Optional countdown from parent RPC handler
-  krispStatus?: { enabled: boolean; pending: boolean }; // Krisp noise cancellation status
 }
 
 export interface InterviewTranscriptionMessage {
@@ -81,8 +80,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   sessionConfig,
   connectionDetails,
   onEndInterview,
-  endingCountdown: parentEndingCountdown,
-  krispStatus
+  endingCountdown: parentEndingCountdown
 }) => {
   const { state, agentTranscriptions, audioTrack } = useSafeVoiceAssistant();
   const remoteParticipants = useRemoteParticipants();
@@ -91,37 +89,11 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   const { toast } = useToast();
   const router = useRouter();
   
-  // Enhanced participant connection handling with loading state
+  // Listen for participant changes to show notifications
   useEffect(() => {
     if (room) {
-      const [isLoading, setIsLoading] = useState(true);
-      const [hasAgent, setHasAgent] = useState(false);
-      
-      // Check if agent is already connected
-      const checkExistingAgent = () => {
-        const agentExists = Array.from(room.remoteParticipants.values()).some(
-          p => p.identity?.includes('agent') || p.identity?.includes('assistant')
-        );
-        setHasAgent(agentExists);
-        if (agentExists) {
-          setIsLoading(false);
-        }
-      };
-
-      // Initial check
-      checkExistingAgent();
-
       const handleParticipantConnected = (participant: RemoteParticipant) => {
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
-          setHasAgent(true);
-          setIsLoading(false);
-          
-          // Enable local tracks
-          if (localParticipant?.localParticipant) {
-            localParticipant.localParticipant.setMicrophoneEnabled(true);
-            localParticipant.localParticipant.setCameraEnabled(true);
-          }
-          
           toast({
             title: "AI Interviewer Connected",
             description: "The interview will begin shortly.",
@@ -132,30 +104,13 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 
       const handleParticipantDisconnected = (participant: RemoteParticipant) => {
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
-          setHasAgent(false);
-          
           toast({
             title: "AI Interviewer Disconnected",
-            description: "The AI interviewer has left the session. Attempting to reconnect...",
+            description: "The AI interviewer has left the session.",
             duration: 5000,
           });
-
-          // Disable local tracks when agent disconnects
-          if (localParticipant?.localParticipant) {
-            localParticipant.localParticipant.setMicrophoneEnabled(false);
-            localParticipant.localParticipant.setCameraEnabled(false);
-          }
         }
       };
-
-      // Show loading state
-      if (isLoading) {
-        toast({
-          title: "Connecting to AI Interviewer",
-          description: "Please wait while we connect you to your interviewer...",
-          duration: 3000,
-        });
-      }
 
       room.on('participantConnected', handleParticipantConnected);
       room.on('participantDisconnected', handleParticipantDisconnected);
@@ -165,7 +120,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         room.off('participantDisconnected', handleParticipantDisconnected);
       };
     }
-  }, [room, toast, localParticipant]);
+  }, [room, toast]);
   const [isTranscriptVisible, setIsTranscriptVisible] = useState(false);
   const [messages, setMessages] = useState<InterviewTranscriptionMessage[]>([]);
   const [sessionStartTime] = useState(new Date());
@@ -181,10 +136,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
   // Use parent's endingCountdown if available, otherwise use local
   const endingCountdown = parentEndingCountdown !== undefined ? parentEndingCountdown : localEndingCountdown;
   
-  // Krisp noise cancellation state
-  const [showKrispControls, setShowKrispControls] = useState(false);
-  const isKrispEnabled = krispStatus?.enabled || false;
-  const isKrispPending = krispStatus?.pending || false;
+
   
   // Refs for audio feedback prevention
   const lastAgentTranscriptionRef = useRef<string>("");
@@ -511,16 +463,6 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
     // Camera functionality
   }, []);
 
-  const toggleKrispFilter = useCallback(() => {
-    if (typeof window !== 'undefined' && (window as any).toggleKrispFilter) {
-      (window as any).toggleKrispFilter();
-    }
-  }, []);
-
-  const toggleKrispControls = useCallback(() => {
-    setShowKrispControls(!showKrispControls);
-  }, [showKrispControls]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -543,8 +485,6 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       endingCountdown={endingCountdown}
       onEndInterview={() => navigateToSessionsPage(500)}
       onNavigateBack={() => navigateToSessionsPage(500)}
-      krispStatus={krispStatus}
-      onToggleKrisp={toggleKrispFilter}
     >
       {/* Audio Components for Agent Playback */}
       {remoteParticipants.length > 0 && (
@@ -575,8 +515,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
 const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({ 
   sessionConfig,
   onEndInterview,
-  endingCountdown: parentEndingCountdown,
-  krispStatus
+  endingCountdown: parentEndingCountdown
 }) => {
   const { toast } = useToast();
   const router = useRouter();
@@ -689,8 +628,6 @@ const DisconnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = (
       endingCountdown={endingCountdown}
       onEndInterview={() => router.push('/dashboard/tools/mock-Interview')}
       onNavigateBack={() => router.push('/dashboard/tools/mock-Interview')}
-      krispStatus={krispStatus}
-      onToggleKrisp={() => {}}
     />
   );
 };
@@ -704,4 +641,4 @@ const MockInterviewVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = 
   );
 };
 
-export default MockInterviewVoiceAssistant; 
+export default MockInterviewVoiceAssistant;
