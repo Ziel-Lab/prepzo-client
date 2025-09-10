@@ -42,9 +42,6 @@ interface InterviewSession {
   feedback?: string;
   attempts: MockInterviewAttempt[];
   latestAttempt?: MockInterviewAttempt;
-  attempts_count: number;
-  is_attempts_exhausted: boolean;
-  processed_attempts_count: number;
 }
 
 
@@ -102,12 +99,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     }
   };
 
-  const getStatusDisplayText = (status: string) => {
+  const getStatusDisplayText = (status: string, attemptCount: number) => {
     switch (status) {
       case 'completed':
-        return `All Attempts Used (${session.attempts_count}/3)`;
+        return `All Attempts Used (${attemptCount}/3)`;
       case 'ready':
-        return session.attempts_count === 0 ? 'Ready to Begin' : 'Ready to Continue';
+        return attemptCount === 0 ? 'Ready to Begin' : 'Ready to Continue';
       case 'preparing':
         return 'Setting up...';
       default:
@@ -158,7 +155,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   };
 
   const hasReachedAttemptLimit = () => {
-    return session.is_attempts_exhausted || session.attempts_count >= 3;
+    return getTotalAttemptsCount() >= 3; // Check total attempts, not just processed
   };
 
   const getTypeColor = (type: string) => {
@@ -193,7 +190,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     switch (status.toLowerCase()) {
       case 'processed':
         return { label: 'Feedback Ready', color: 'bg-green-100 text-green-700 border-green-200' };
-      case 'COMPLETED':
+      case 'completed':
         return { label: 'Analyzing...', color: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'active':
         return { label: 'Interview in Progress', color: 'bg-orange-100 text-orange-700 border-orange-200' };
@@ -281,15 +278,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                // Specifically watch for COMPLETED to PROCESSED transition
-                if (oldData.status === 'COMPLETED' && newData.status === 'PROCESSED') {
-                  console.log('🎯 Status transition detected:', {
-                    attemptId: newData.id,
-                    from: 'COMPLETED',
-                    to: 'PROCESSED',
-                    timestamp: new Date().toISOString()
-                  });
-                }
                 
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
@@ -405,7 +393,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     };
   }, [attempts, session.id, lastStatusCheck, supabase.auth, getHeaders]);
 
-  // 🚀 OPTIMIZED: Smart attempt fetching with caching
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
     
@@ -415,14 +402,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       return;
     }
     
-    // If we already have attempts in state, don't fetch again
-    if (attempts.length > 0) {
-      return;
-    }
-    
     setLoadingAttempts(true);
-    console.log(`🚀 Loading attempts for session ${session.id} on-demand...`);
-    
     try {
       // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
@@ -444,28 +424,15 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       });
 
       if (!response.ok) {
-        console.error(`Failed to fetch attempts for session ${session.id}`);
+        console.error('Failed to fetch attempts');
         return;
       }
 
       const result = await response.json();
       const fetchedAttempts = result.attempts || [];
       setAttempts(fetchedAttempts);
-      
-      console.log(`✅ Loaded ${fetchedAttempts.length} attempts for session ${session.id}`);
-      
-      // Trigger parent component update with loaded attempts for stats calculation
-      if (window.dispatchEvent && fetchedAttempts.length > 0) {
-        window.dispatchEvent(new CustomEvent('attemptsLoaded', { 
-          detail: { 
-            sessionId: session.id, 
-            attempts: fetchedAttempts
-          } 
-        }));
-      }
-      
     } catch (error) {
-      console.error(`Error fetching attempts for session ${session.id}:`, error);
+      console.error('Error fetching attempts:', error);
     } finally {
       setLoadingAttempts(false);
     }
@@ -567,7 +534,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{session.title}</h3>
               <Badge className={`text-xs ${getStatusColor(session.status)}`}>
-                {getStatusDisplayText(session.status)}
+                {getStatusDisplayText(session.status, getTotalAttemptsCount())}
               </Badge>
               <Badge variant="outline" className={`text-xs ${getTypeColor(session.type)}`}>
                 {formatType(session.type)}
@@ -638,24 +605,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
 
 
 
-            {/* Primary Action Button or Status States */}
-            {session.is_attempts_exhausted ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-full shadow-sm">
-                <Award size={14} className="text-orange-600" />
-                <span className="text-sm font-bold text-orange-700">
-                  All Attempts Exhausted ({session.attempts_count}/3)
-                </span>
-              </div>
-            ) : session.status === 'preparing' ? (
-              <Button
-                size="sm"
-                disabled
-                className="bg-gradient-to-r from-orange-400 to-amber-400 text-white cursor-not-allowed shadow-sm font-medium"
-              >
-                <Clock size={14} className="mr-1 animate-pulse" />
-                AI Agent Preparing...
-              </Button>
-            ) : session.status === 'ready' && (
+            {/* Primary Action Button - Only show if haven't reached 3 attempts */}
+            {session.status === 'ready' && !hasReachedAttemptLimit() && (
               <Button
                 size="sm"
                 onClick={handleStartInterview}
@@ -670,8 +621,30 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 "
               >
                 <Play size={14} className="mr-1 shrink-0" />
-                Start Interview
+                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
+                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
               </Button>
+            )}
+
+            {session.status === 'preparing' && (
+              <Button
+                size="sm"
+                disabled
+                className="bg-gradient-to-r from-orange-400 to-amber-400 text-white cursor-not-allowed shadow-sm font-medium"
+              >
+                <Clock size={14} className="mr-1 animate-pulse" />
+                AI Agent Preparing...
+              </Button>
+            )}
+
+            {/* Show completion message when 3 attempts reached */}
+            {session.status === 'completed' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-full shadow-sm">
+                <Award size={14} className="text-orange-600" />
+                <span className="text-sm font-bold text-orange-700">
+                  All Attempts Exhausted ({getTotalAttemptsCount()}/3)
+                </span>
+              </div>
             )}
           </div>
         </div>
