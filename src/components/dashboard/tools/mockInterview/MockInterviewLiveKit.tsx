@@ -477,11 +477,17 @@ const RpcHandler: React.FC<{
     };
   }, [room, toast, navigateToSessionsPage]);
 
-  // Initialize Krisp noise cancellation
+  // Initialize Krisp noise cancellation after agent joins
   useEffect(() => {
     if (!room || !localParticipant?.localParticipant || krispProcessor) return;
 
+    let isAgentConnected = false;
+    let initTimeout: NodeJS.Timeout;
+    let cleanupRequired = false;
+
     const initializeKrisp = async () => {
+      if (!isAgentConnected) return;
+      
       try {
         // Dynamic import to load Krisp only when needed
         const { KrispNoiseFilter, isKrispNoiseFilterSupported } = await import('@livekit/krisp-noise-filter');
@@ -512,6 +518,10 @@ const RpcHandler: React.FC<{
               
               // Try to enable noise cancellation
               try {
+                if (!trackPublication.track.isEnabled) {
+                  await trackPublication.track.enable();
+                }
+                
                 await trackPublication.track.setProcessor(processor);
                 await processor.setEnabled(true);
                 
@@ -526,6 +536,7 @@ const RpcHandler: React.FC<{
                 });
                 
                 console.log('Krisp noise filter enabled successfully');
+                cleanupRequired = true;
               } catch (processorError) {
                 // If processor fails, continue without noise cancellation
                 console.warn('Krisp processor setup failed:', processorError);
@@ -560,19 +571,46 @@ const RpcHandler: React.FC<{
             }
           }
         };
+
+        // Wait for agent to connect before initializing Krisp
+        const handleParticipantConnected = (participant: any) => {
+          if (participant.identity && 
+              (participant.identity.includes('agent') || 
+               participant.identity.includes('assistant') || 
+               participant.identity.includes('mock_interview_agent'))) {
+            isAgentConnected = true;
+            
+            // Check if microphone track is already published
+            const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
+              .find(pub => pub.source === Track.Source.Microphone);
+            
+            if (micTrackPub) {
+              handleLocalTrackPublished(micTrackPub);
+            }
+          }
+        };
+        
+        // Check if agent is already connected
+        const hasAgent = Array.from(room.remoteParticipants.values()).some(
+          p => p.identity?.includes('agent') || p.identity?.includes('assistant')
+        );
+        
+        if (hasAgent) {
+          isAgentConnected = true;
+          const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
+            .find(pub => pub.source === Track.Source.Microphone);
+          
+          if (micTrackPub) {
+            await handleLocalTrackPublished(micTrackPub);
+          }
+        }
         
         room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
-        
-        // Check if microphone track is already published
-        const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
-          .find(pub => pub.source === Track.Source.Microphone);
-        
-        if (micTrackPub) {
-          await handleLocalTrackPublished(micTrackPub);
-        }
+        room.on('participantConnected', handleParticipantConnected);
         
         return () => {
           room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+          room.off('participantConnected', handleParticipantConnected);
         };
         
       } catch (error) {
@@ -581,10 +619,26 @@ const RpcHandler: React.FC<{
       }
     };
     
-    // Small delay to ensure room is fully connected
-    const timeout = setTimeout(initializeKrisp, 1000);
+    // Start initialization with delay
+    initTimeout = setTimeout(initializeKrisp, 2000);
     
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(initTimeout);
+      
+      // Cleanup Krisp if it was initialized
+      if (cleanupRequired) {
+        try {
+          const micTrackPub = Array.from(room.localParticipant.audioTrackPublications.values())
+            .find(pub => pub.source === Track.Source.Microphone);
+          
+          if (micTrackPub?.track) {
+            micTrackPub.track.stopProcessor();
+          }
+        } catch (error) {
+          console.error('Error cleaning up Krisp processor:', error);
+        }
+      }
+    };
   }, [room, localParticipant, toast, onKrispStatusChange]);
 
   // Toggle Krisp noise filter
