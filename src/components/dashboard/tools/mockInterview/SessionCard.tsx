@@ -393,6 +393,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     };
   }, [attempts, session.id, lastStatusCheck, supabase.auth, getHeaders]);
 
+  // 🚀 OPTIMIZED: Smart attempt fetching with caching
   const fetchAttempts = async () => {
     if (loadingAttempts) return;
     
@@ -402,7 +403,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       return;
     }
     
+    // If we already have attempts in state, don't fetch again
+    if (attempts.length > 0) {
+      return;
+    }
+    
     setLoadingAttempts(true);
+    console.log(`🚀 Loading attempts for session ${session.id} on-demand...`);
+    
     try {
       // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
@@ -424,15 +432,28 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch attempts');
+        console.error(`Failed to fetch attempts for session ${session.id}`);
         return;
       }
 
       const result = await response.json();
       const fetchedAttempts = result.attempts || [];
       setAttempts(fetchedAttempts);
+      
+      console.log(`✅ Loaded ${fetchedAttempts.length} attempts for session ${session.id}`);
+      
+      // Trigger parent component update with loaded attempts for stats calculation
+      if (window.dispatchEvent && fetchedAttempts.length > 0) {
+        window.dispatchEvent(new CustomEvent('attemptsLoaded', { 
+          detail: { 
+            sessionId: session.id, 
+            attempts: fetchedAttempts
+          } 
+        }));
+      }
+      
     } catch (error) {
-      console.error('Error fetching attempts:', error);
+      console.error(`Error fetching attempts for session ${session.id}:`, error);
     } finally {
       setLoadingAttempts(false);
     }
