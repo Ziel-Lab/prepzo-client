@@ -31,6 +31,11 @@ import {
   Bell
 } from 'lucide-react';
 
+interface QAItem {
+  question: string;
+  response: string;
+}
+
 interface StructuredFeedback {
   "Strengths of the interview": string;
   "Weaknesses of the interview": string;
@@ -38,7 +43,7 @@ interface StructuredFeedback {
   "Threats of the interview": string;
   "Score": string;
   "How can questions be answered better": string;
-  "additional_questions_and_answers": string;
+  "additional_questions_and_answers": string | QAItem[];
 }
 
 interface AttemptData {
@@ -364,13 +369,49 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     return null;
   };
 
-  // Optimized parsing for the standard feedback format
-  const parseAdditionalQA = (qaText: string) => {
-    console.log('🔍 parseAdditionalQA: Starting optimized parsing...');
+  // Optimized parsing for both JSON and text formats
+  const parseAdditionalQA = (qaData: any) => {
+    console.log('🔍 parseAdditionalQA: Starting parsing...', typeof qaData);
+    
+    // Handle new JSON array format
+    if (Array.isArray(qaData)) {
+      console.log('📦 Processing JSON array format');
+      return qaData.map(item => ({
+        question: item.question || '',
+        response: item.response || ''
+      })).filter(item => item.question && item.response);
+    }
+    
+    // If it's not a string, we can't parse it
+    if (typeof qaData !== 'string') {
+      console.log('❌ Invalid data type for parsing:', typeof qaData);
+      return [];
+    }
+    
+    const qaText = qaData.trim();
+    if (!qaText) {
+      console.log('❌ Empty text data');
+      return [];
+    }
+    
+    // Try parsing as JSON string
+    try {
+      const jsonData = JSON.parse(qaText);
+      if (Array.isArray(jsonData)) {
+        console.log('📦 Successfully parsed JSON string array');
+        return jsonData.map(item => ({
+          question: item.question || '',
+          response: item.response || ''
+        })).filter(item => item.question && item.response);
+      }
+    } catch (e) {
+      console.log('🔄 Not valid JSON, falling back to text parsing');
+    }
+    
     const results = [];
     
     // Split on various question patterns to get individual Q&A blocks
-    const sections = qaText.split(/\n\n(?=\*\*Question|\n\nQuestion:)/);
+    const sections = qaText.split(/\n\n(?=\*\*Question|\n\nQuestion:|Question \d+:)/);
     
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i].trim();
@@ -415,7 +456,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       }
     }
     
-    console.log(`🎯 Optimized parse complete. Found ${results.length} Q&A pairs`);
+    console.log(`🎯 Parse complete. Found ${results.length} Q&A pairs`);
     return results;
   };
 
@@ -986,10 +1027,12 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                 <div className="space-y-5">
                   {(() => {
                     const qaData = structuredFeedback["additional_questions_and_answers"];
-                    const parsedQA = parseWithFallback(qaData);
+                    
+                    // If it's already an array of QAItems, use it directly
+                    const parsedQA = Array.isArray(qaData) ? qaData : parseWithFallback(qaData as string);
                     
                     // If both main and fallback parsing failed, show clean raw format
-                    if (parsedQA.length === 0 && qaData) {
+                    if (parsedQA.length === 0 && typeof qaData === 'string' && qaData) {
                       console.log('🚨 Both parsing methods failed, showing raw format');
                       
                       // Clean up the raw data before displaying
@@ -1032,7 +1075,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                                     {index + 1}
                                   </div>
                                   <span className="font-semibold text-emerald-900 text-left leading-relaxed text-base">
-                                    {qa.question.replace(/^\*\*|\*\*$/g, '').trim()}
+                                    {typeof qa.question === 'string' ? qa.question.replace(/^\*\*|\*\*$/g, '').trim() : qa.question}
                                   </span>
                                 </div>
                                 {expandedSections[`qa-${index}`] ? 
@@ -1051,7 +1094,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                                 </div>
                                 <div className="text-slate-800 leading-relaxed bg-white/80 p-6 rounded-xl border border-slate-200/50 shadow-sm backdrop-blur-sm">
                                   <div className="prose prose-sm max-w-none text-base">
-                                    {qa.response.replace(/^\*\*|\*\*$/g, '').replace(/\*{3,}/g, '').trim()}
+                                    {typeof qa.response === 'string' ? qa.response.replace(/^\*\*|\*\*$/g, '').replace(/\*{3,}/g, '').trim() : qa.response}
                                   </div>
                                 </div>
                               </div>
