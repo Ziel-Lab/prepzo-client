@@ -9,14 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, AlertCircle, CheckCircle2, Copy, UploadCloud, FileText as FileIcon, Sparkles, Smile, Flame, History, Lightbulb, Clock } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from "@/utils/supabase/client";
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 
 interface FeedbackDetails {
@@ -69,6 +69,7 @@ interface DocumentApiResponse {
 
 interface HistoryApiResponse {
   id: string | number;
+  job_id?: string | number;
   current_resume?: string;
   company_website?: string;
   job_description?: string;
@@ -97,6 +98,7 @@ interface PollingApiResponse {
 
 interface AnalysisHistoryItem {
   id: string | number;
+  job_id?: string | number;
   resume_url?: string; 
   resume_title?: string;
   company_website?: string;
@@ -133,6 +135,7 @@ const mapApiStatusToUiStatus = (apiStatus: string | undefined): 'completed' | 'f
 
 const AnalyzerToolContent = () => {
   const { toast } = useToast();
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
   const [jobDescription, setJobDescription] = useState("");
@@ -158,7 +161,6 @@ const AnalyzerToolContent = () => {
   const [showImprovedResume, setShowImprovedResume] = useState(false);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | number | null>(null);
   const [limitReached, setLimitReached] = useState(false);
-  const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<AnalysisHistoryItem | null>(null);
   const searchParams = useSearchParams();
 
   const supabase = createClient();
@@ -343,6 +345,7 @@ const AnalyzerToolContent = () => {
 
           return {
             id: item.id as string | number,
+            job_id: item.job_id as string | number | undefined,
             resume_url: resumeUrlFromAPI as string | undefined,
             resume_title: derivedResumeTitle,
             company_website: item.company_website as string | undefined,
@@ -1204,137 +1207,13 @@ const AnalyzerToolContent = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
-                          </DialogTrigger>
-                          {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
-                          <DialogContent className="sm:max-w-4xl">
-                            <DialogHeader>
-                              <DialogTitle>
-                                {selectedHistoryItemForDialog.is_roast ? (
-                                  <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast Details ({selectedHistoryItemForDialog.created_at})</span>
-                                ) : (
-                                  <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-blue-600"/>Analysis Details ({selectedHistoryItemForDialog.created_at})</span>
-                                )}
-                              </DialogTitle>
-                              <DialogDescription>
-                                  {!selectedHistoryItemForDialog.is_roast && (
-                                    <>
-                                      Job: {selectedHistoryItemForDialog.job_description_title?.replace('...','')}<br/>
-                                      Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
-                                    </>
-                                  )}
-                                  Resume: <a href={selectedHistoryItemForDialog.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.resume_url}</a>
-                                  {selectedHistoryItemForDialog.additional_comment && selectedHistoryItemForDialog.additional_comment !== "Resume Roast" && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.additional_comment}</em></>}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                              {selectedHistoryItemForDialog.is_roast ? (
-                                // Roast Content
-                                <div>
-                                  <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                      <span className="flex items-center"><Flame className="mr-2 h-5 w-5 text-red-600"/>Resume Roast</span>
-                                      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(selectedHistoryItemForDialog.roast_feedback_text || '')}><Copy size={12} className="mr-1"/>Copy</Button>
-                                  </h4>
-                                  <div className="prose prose-sm max-w-none p-4 bg-gradient-to-br from-amber-100 via-orange-100 to-red-200 rounded-md border min-h-[400px] max-h-[700px] overflow-y-auto">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {selectedHistoryItemForDialog.roast_feedback_text || "No roast content available"}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-                              ) : selectedHistoryItemForDialog.feedback || selectedHistoryItemForDialog.new_resume ? (
-                                // Analysis Content
-                                <>
-                                  {selectedHistoryItemForDialog.feedback && (
-                                    <div>
-                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                          <span>Original Analysis (Score: {selectedHistoryItemForDialog.score || 'N/A'}/10)</span>
-                                          <Button variant="outline" size="sm" onClick={() => {
-                                            try {
-                                              const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
-                                              navigator.clipboard.writeText(feedbackDetails.feedback || '');
-                                            } catch {
-                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.feedback || '');
-                                            }
-                                          }}><Copy size={12} className="mr-1"/>Copy</Button>
-                                      </h4>
-                                                                          <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[300px] max-h-[500px] overflow-y-auto">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {(() => {
-                                        try {
-                                          const feedbackDetails: FeedbackDetails = JSON.parse(selectedHistoryItemForDialog.feedback || '');
-                                          return feedbackDetails.feedback || selectedHistoryItemForDialog.feedback || '';
-                                        } catch {
-                                          return selectedHistoryItemForDialog.feedback || '';
-                                        }
-                                      })()}
-                                    </ReactMarkdown>
-                                  </div>
-                                    </div>
-                                  )}
-                                  {selectedHistoryItemForDialog.new_resume && (
-                                    <div>
-                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                          <span className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-green-600"/>Improved Resume (Score: {selectedHistoryItemForDialog.new_score || 'N/A'}/10)</span>
-                                          
-                                      </h4>
-                                      
-                                      {/* Changes Summary */}
-                                      <div className="mb-3">
-                                        <h5 className="font-medium text-sm mb-1 flex items-center"><Lightbulb className="mr-1 h-4 w-4 text-yellow-500"/>Summary of Changes:</h5>
-                                        <div className="prose prose-sm max-w-none p-3 bg-yellow-50 border border-yellow-200 rounded-md min-h-[120px] max-h-[250px] overflow-y-auto">
-                                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                            {(() => {
-                                              try {
-                                                const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                                return newResumeDetails.changes || 'No changes summary available';
-                                              } catch {
-                                                return 'No changes summary available';
-                                              }
-                                            })()}
-                                          </ReactMarkdown>
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Improved Resume Text */}
-                                      <div className="prose prose-sm max-w-none p-4 bg-green-50 rounded-md border border-green-200 min-h-[400px] max-h-[600px] overflow-y-auto">
-                                        <div className="flex justify-end items-center">
-                                      <Button variant="outline" size="sm" onClick={() => {
-                                            try {
-                                              const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                              navigator.clipboard.writeText(newResumeDetails.new_resume || '');
-                                            } catch {
-                                              navigator.clipboard.writeText(selectedHistoryItemForDialog.new_resume || '');
-                                            }
-                                          }}><Copy size={12} className="mr-1"/>Copy Resume</Button>
-                                        </div>
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                          {(() => {
-                                            try {
-                                              const newResumeDetails: NewResumeDetails = JSON.parse(selectedHistoryItemForDialog.new_resume || '');
-                                              return newResumeDetails.new_resume || selectedHistoryItemForDialog.new_resume || '';
-                                            } catch {
-                                              return selectedHistoryItemForDialog.new_resume || '';
-                                            }
-                                          })()}
-                                        </ReactMarkdown>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <p className="text-sm text-gray-500 text-center py-4">Your analysis is still in progress. Please check back later.</p>
-                              )}
-                            </div>
-                             <DialogFooter>
-                                  <DialogClose asChild>
-                                      <Button type="button" variant="secondary">Close</Button>
-                                  </DialogClose>
-                              </DialogFooter>
-                          </DialogContent>
-                          )}
-                        </Dialog>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => router.push(`/dashboard/tools/resume-analyzer/analysis/${item.job_id || item.id}`)}
+                        >
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
