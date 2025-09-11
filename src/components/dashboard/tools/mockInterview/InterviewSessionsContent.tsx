@@ -134,6 +134,7 @@ const InterviewSessionsContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userLimits, setUserLimits] = useState<any>(null);
   const [limitsLoading, setLimitsLoading] = useState(true);
+  const [showAnalyzingNotification, setShowAnalyzingNotification] = useState(false);
   
   // Cursor-based pagination state for session display
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -1351,8 +1352,45 @@ const InterviewSessionsContent: React.FC = () => {
     );
   }
 
+  // Check if any attempt is analyzing
+  useEffect(() => {
+    const hasAnalyzing = sessions.some(session => 
+      session.attempts?.some(attempt => attempt.status === 'COMPLETED')
+    );
+    setShowAnalyzingNotification(hasAnalyzing);
+  }, [sessions]);
+
+  // Auto-hide notification after 15 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showAnalyzingNotification) {
+      timer = setTimeout(() => {
+        setShowAnalyzingNotification(false);
+      }, 15000); // 15 seconds
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showAnalyzingNotification]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-3 sm:p-6">
+      {/* Global Analyzing Notification */}
+      {showAnalyzingNotification && (
+        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
+          <div className="bg-white px-6 py-4 rounded-xl shadow-xl border border-blue-100 flex items-center gap-4 max-w-md">
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Clock size={20} className="text-blue-600 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="font-bold text-blue-900 mb-1">Interview Analysis in Progress</h4>
+              <p className="text-sm text-blue-700">
+                Your interview is being analyzed. Please check back in 3 minutes for the results.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* Header */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-4 sm:p-6 lg:p-8">
