@@ -52,6 +52,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   const router = useRouter();
   const supabase = createClient();
   const [showAttempts, setShowAttempts] = useState(false);
+  const [showAnalyzingNotification, setShowAnalyzingNotification] = useState(false);
 
   // Helper function to conditionally add ngrok headers
   const getHeaders = (authToken: string, backendUrl?: string) => {
@@ -541,8 +542,40 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     router.push(`/dashboard/tools/mock-Interview/feedback/${attemptId}`);
   };
 
+  // Check if any attempt is analyzing after attempts are loaded
+  useEffect(() => {
+    const hasAnalyzing = attempts.some(attempt => attempt.status === 'completed');
+    setShowAnalyzingNotification(hasAnalyzing);
+  }, [attempts]);
+
+  // Auto-hide notification after 10 seconds of showing
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showAnalyzingNotification) {
+      timer = setTimeout(() => {
+        setShowAnalyzingNotification(false);
+      }, 10000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showAnalyzingNotification]);
+
   return (
-    <Card className="hover:shadow-xl transition-all duration-300 border border-gray-200/50 hover:border-green-300/50 animate-fade-in bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg">
+    <Card className="hover:shadow-xl transition-all duration-300 border border-gray-200/50 hover:border-green-300/50 animate-fade-in bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg relative">
+      {/* Analyzing Notification */}
+      {showAnalyzingNotification && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-white px-4 py-2 rounded-lg shadow-xl border border-blue-100 flex items-center gap-3">
+            <div className="p-1.5 bg-blue-100 rounded-full">
+              <Clock size={14} className="text-blue-600 animate-pulse" />
+            </div>
+            <p className="text-sm text-blue-700 font-medium">
+              Interview is being analyzed. Please check back in 3 minutes.
+            </p>
+          </div>
+        </div>
+      )}
       <CardContent className="p-6 bg-gradient-to-br from-white to-gray-50/30 rounded-lg">
         {/* Main Session Info */}
         <div className="flex items-start justify-between mb-4">
