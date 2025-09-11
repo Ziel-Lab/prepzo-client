@@ -495,6 +495,7 @@ const AnalyzerToolContent = () => {
     // Add initial pending item to history
     const pendingHistoryItem: AnalysisHistoryItem = {
       id: jobId,
+      job_id: jobId, // Set job_id same as jobId for initial pending item
       resume_url: resumeUrl,
       resume_title: resumeTitle,
       company_website: companyWebsite,
@@ -569,6 +570,7 @@ const AnalyzerToolContent = () => {
 
             const newHistoryItem: AnalysisHistoryItem = {
               id: analysisIdFound,
+              job_id: jobId, // Keep the original jobId for consistency
               resume_url: resumeUrl,
               resume_title: resumeTitle,
               company_website: (row.company_website as string) || companyWebsite,
@@ -649,6 +651,7 @@ const AnalyzerToolContent = () => {
     // Add initial pending item to history
     const pendingRoastItem: AnalysisHistoryItem = {
       id: jobId,
+      job_id: jobId, // Set job_id same as jobId for initial pending roast item
       resume_url: resumeUrl,
       resume_title: resumeTitle,
       created_at: new Date().toLocaleDateString(),
@@ -719,6 +722,7 @@ const AnalyzerToolContent = () => {
 
             const completedRoastItem: AnalysisHistoryItem = {
               id: row.id || jobId,
+              job_id: jobId, // Keep the original jobId for consistency
               resume_url: resumeUrl,
               resume_title: resumeTitle,
               created_at: new Date().toLocaleDateString(),
