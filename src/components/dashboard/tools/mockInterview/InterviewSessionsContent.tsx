@@ -134,7 +134,7 @@ const InterviewSessionsContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userLimits, setUserLimits] = useState<any>(null);
   const [limitsLoading, setLimitsLoading] = useState(true);
-  const [showAnalyzingNotification, setShowAnalyzingNotification] = useState(false);
+  const [notifications, setNotifications] = useState<{[key: string]: boolean}>({});
   
   // Cursor-based pagination state for session display
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -801,6 +801,19 @@ const InterviewSessionsContent: React.FC = () => {
               // Handle UPDATE events (status changes, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
                 console.log('Session updated via real-time, updating display');
+
+                // Check for attempt status changes
+                if (newData.attempts && Array.isArray(newData.attempts)) {
+                  newData.attempts.forEach((attempt: any) => {
+                    if (attempt.status === 'COMPLETED' && !notifications[attempt.id]) {
+                      // Show notification for newly completed attempt
+                      setNotifications(prev => ({
+                        ...prev,
+                        [attempt.id]: true
+                      }));
+                    }
+                  });
+                }
                 
                 // Check if this is a status_prep change (agent is ready)
                 if (oldData.status_prep !== newData.status_prep) {
@@ -1352,45 +1365,33 @@ const InterviewSessionsContent: React.FC = () => {
     );
   }
 
-  // Check if any attempt is analyzing
-  useEffect(() => {
-    const hasAnalyzing = sessions.some(session => 
-      session.attempts?.some(attempt => attempt.status === 'completed')
-    );
-    setShowAnalyzingNotification(hasAnalyzing);
-  }, [sessions]);
-
-  // Auto-hide notification after 15 seconds
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showAnalyzingNotification) {
-      timer = setTimeout(() => {
-        setShowAnalyzingNotification(false);
-      }, 15000); // 15 seconds
-    }
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [showAnalyzingNotification]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50/30 to-emerald-50/20 p-3 sm:p-6">
-      {/* Global Analyzing Notification */}
-      {showAnalyzingNotification && (
-        <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-right duration-300">
-          <div className="bg-white px-6 py-4 rounded-xl shadow-xl border border-blue-100 flex items-center gap-4 max-w-md">
-            <div className="p-2 bg-blue-100 rounded-full">
-              <Clock size={20} className="text-blue-600 animate-pulse" />
-            </div>
-            <div>
-              <h4 className="font-bold text-blue-900 mb-1">Interview Analysis in Progress</h4>
-              <p className="text-sm text-blue-700">
-                Your interview is being analyzed. Please check back in 3 minutes for the results.
-              </p>
+      {/* Analysis Notifications */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-4">
+        {Object.entries(notifications).map(([attemptId, isVisible]) => isVisible && (
+          <div key={attemptId} className="animate-in fade-in slide-in-from-right duration-300">
+            <div className="bg-white px-6 py-4 rounded-xl shadow-xl border border-blue-100 flex items-center gap-4 max-w-md relative">
+              <button 
+                onClick={() => setNotifications(prev => ({ ...prev, [attemptId]: false }))}
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+              <div className="p-2 bg-blue-100 rounded-full">
+                <Clock size={20} className="text-blue-600 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="font-bold text-blue-900 mb-1">Interview Analysis in Progress</h4>
+                <p className="text-sm text-blue-700">
+                  Your recent interview is being analyzed. Please refresh the page in 3 minutes to see your results.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* Header */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 shadow-xl p-4 sm:p-6 lg:p-8">
