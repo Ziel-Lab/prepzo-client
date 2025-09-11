@@ -754,9 +754,29 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                             </Button>
                           )}
                           {attempt.status === 'completed' && (
-                            <div className="flex items-center gap-2 text-xs text-blue-600 px-2 py-1 bg-blue-50 rounded-lg">
-                              <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>
-                              <span>Processing...</span>
+                            <div className="relative group">
+                              <div className="flex items-center gap-2 text-xs text-blue-600 px-3 py-1.5 bg-blue-50 rounded-lg cursor-help">
+                                <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>
+                                <span>Analyzing...</span>
+                              </div>
+                              
+                              {/* Notification Popup */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <div className="bg-white p-3 rounded-lg shadow-xl border border-blue-100 text-sm">
+                                  <div className="flex items-start gap-2 text-blue-700">
+                                    <div className="p-1.5 bg-blue-100 rounded-full shrink-0 mt-0.5">
+                                      <Clock size={12} className="animate-pulse" />
+                                    </div>
+                                    <p className="leading-tight">
+                                      Your interview is being analyzed. This may take a few minutes. Please refresh the page after 3 minutes to check the status.
+                                    </p>
+                                  </div>
+                                </div>
+                                {/* Arrow */}
+                                <div className="absolute left-1/2 -translate-x-1/2 -bottom-1.5">
+                                  <div className="border-8 border-transparent border-t-white drop-shadow-lg"></div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
