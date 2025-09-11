@@ -298,9 +298,13 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
     
     const score = structuredFeedback.score;
     if (typeof score === 'number') {
+      // Ensure score is between 0 and 10
+      const normalizedScore = Math.max(0, Math.min(10, score));
+      // Format to at most 1 decimal place
+      const formattedScore = Number.isInteger(normalizedScore) ? normalizedScore : normalizedScore.toFixed(1);
       return {
-        display: `${score}/10`,
-        numeric: score,
+        display: `${formattedScore}/10`,
+        numeric: normalizedScore,
         maxScore: 10
       };
     }
@@ -728,7 +732,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                       <div>
                         <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Score</p>
                         <p className={`text-lg font-bold ${getScoreColor(scoreData)}`}>
-                          {scoreData.numeric}
+                          {scoreData.numeric}/10
                         </p>
                       </div>
                     </div>

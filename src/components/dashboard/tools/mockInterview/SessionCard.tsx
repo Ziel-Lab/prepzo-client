@@ -231,14 +231,24 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     }
   };
 
-  // Minimal helper: parse numeric rating from an attempt and always return 0-10 numeric and X/10 display.
+  // Parse numeric rating from an attempt and always return 0-10 numeric and X/10 display.
   const parseAttemptScore = (attempt: MockInterviewAttempt) => {
-    // Try feedback.Score first (may contain explanatory text)
+    // Try new feedback format first (score is already 0-10)
+    if (attempt?.feedback?.score !== undefined && attempt?.feedback?.score !== null) {
+      const score = attempt.feedback.score;
+      if (typeof score === 'number') {
+        const clamped = Math.max(0, Math.min(10, score));
+        const display = Number.isInteger(clamped) ? `${clamped}/10` : `${clamped.toFixed(1)}/10`;
+        return { scoreNumeric: clamped, scoreDisplay: display };
+      }
+    }
+
+    // Try legacy format Score
     if (attempt?.feedback?.Score) {
       const match = String(attempt.feedback.Score).match(/(\d+(?:\.\d+)?)/);
       if (match) {
         let num = parseFloat(match[1]);
-        // If looks like percentage (>10) convert to 0-10 scale (rounded to 1dp)
+        // If looks like percentage (>10) convert to 0-10 scale
         if (num > 10) {
           num = Math.round((num / 100) * 10 * 10) / 10;
         }
