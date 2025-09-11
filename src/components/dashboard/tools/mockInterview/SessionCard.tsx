@@ -43,8 +43,6 @@ interface InterviewSession {
   latestAttempt?: MockInterviewAttempt;
 }
 
-
-
 interface SessionCardProps {
   session: InterviewSession;
   onCleanupFailed?: () => void;
@@ -78,7 +76,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   const [lastStatusCheck, setLastStatusCheck] = useState<number>(Date.now());
   const [realtimeConnected, setRealtimeConnected] = useState<boolean>(false);
   const [isStarting, setIsStarting] = useState(false);
-
 
   // Sync attempts when session data changes
   React.useEffect(() => {
@@ -122,16 +119,14 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       const processedAttempts = currentAttempts.filter(attempt => 
         attempt.status === 'PROCESSED' && (attempt.feedback?.Score || attempt.evaluation_score)
       );
-      
 
-      
       if (processedAttempts.length === 0) return undefined;
       
       // Calculate the average score as rating out of 10
       const scores = processedAttempts.map(attempt => {
         if (attempt.feedback?.Score) {
-          // Parse "7.5/10" format from feedback JSON
-          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
+          // Parse numeric token from feedback.Score (e.g., "7.5/10")
+          const scoreMatch = String(attempt.feedback.Score).match(/^(\d+\.?\d*)/);
           return scoreMatch ? parseFloat(scoreMatch[1]) : 0;
         }
         // Convert evaluation_score to rating out of 10
@@ -179,10 +174,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     }
   };
 
+  // Small, safe change: accept either 0-10 or 0-100 input. If score <= 10, treat as 0-10 and scale for thresholds.
   const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 80) return 'text-emerald-600';
-    if (score >= 70) return 'text-yellow-600';
+    const scaled = (typeof score === 'number' && score <= 10) ? score * 10 : score;
+    if (scaled >= 90) return 'text-green-600';
+    if (scaled >= 80) return 'text-emerald-600';
+    if (scaled >= 70) return 'text-yellow-600';
     return 'text-red-600';
   };
 
@@ -224,8 +221,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       .join(' ');
   };
 
-
-
   const extractDomain = (url: string) => {
     try {
       const domain = new URL(url).hostname;
@@ -233,6 +228,40 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     } catch {
       return url;
     }
+  };
+
+  // Minimal helper: parse numeric rating from an attempt and always return 0-10 numeric and X/10 display.
+  const parseAttemptScore = (attempt: MockInterviewAttempt) => {
+    // Try feedback.Score first (may contain explanatory text)
+    if (attempt?.feedback?.Score) {
+      const match = String(attempt.feedback.Score).match(/(\d+(?:\.\d+)?)/);
+      if (match) {
+        let num = parseFloat(match[1]);
+        // If looks like percentage (>10) convert to 0-10 scale (rounded to 1dp)
+        if (num > 10) {
+          num = Math.round((num / 100) * 10 * 10) / 10;
+        }
+        const clamped = Math.max(0, Math.min(10, num));
+        const display = Number.isInteger(clamped) ? `${clamped}/10` : `${clamped.toFixed(1)}/10`;
+        return { scoreNumeric: clamped, scoreDisplay: display };
+      }
+    }
+
+    // Fallback to evaluation_score
+    if (attempt?.evaluation_score != null) {
+      const raw = Number(attempt.evaluation_score);
+      if (!Number.isNaN(raw)) {
+        let num = raw;
+        if (num > 10) {
+          num = Math.round((num / 100) * 10 * 10) / 10;
+        }
+        const clamped = Math.max(0, Math.min(10, num));
+        const display = Number.isInteger(clamped) ? `${clamped}/10` : `${clamped.toFixed(1)}/10`;
+        return { scoreNumeric: clamped, scoreDisplay: display };
+      }
+    }
+
+    return null;
   };
 
   // Real-time subscription for attempt updates
@@ -243,11 +272,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
       try {
         const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
         if (authError || !authSession?.user?.id) {
-
           return;
         }
-
-
 
         // Subscribe to changes in mock_interview_attempts table for this session
         channel = supabase
@@ -264,7 +290,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               const newData = payload.new as MockInterviewAttempt;
               const oldData = payload.old as MockInterviewAttempt;
               
-              
               // Handle INSERT events (new attempts created)
               if (payload.eventType === 'INSERT' && newData) {
                 setAttempts(prevAttempts => {
@@ -279,7 +304,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               
               // Handle UPDATE events (status changes, feedback ready, etc.)
               else if (payload.eventType === 'UPDATE' && newData && oldData) {
-                
                 setAttempts(prevAttempts => {
                   return prevAttempts.map(attempt => {
                     if (attempt.id === newData.id) {
@@ -293,15 +317,13 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 // Handle status transitions and notifications
                 const statusChanged = oldData.status !== newData.status;
                 if (statusChanged) {
-                  
-                  
                   // Show appropriate notifications based on status change
                   if (newData.status === 'PROCESSED' && oldData.status !== 'PROCESSED') {
-                    
+                    // optional: notify user
                   } else if (newData.status === 'completed' && oldData.status === 'active') {
-               
+                    // optional: notify user
                   } else if (newData.status === 'active' && oldData.status === 'pending') {
-      
+                    // optional: notify user
                   }
                   
                   // Force re-render of parent component to update stats for any status change
@@ -349,7 +371,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     );
     
     if (!hasActiveAttempts) return;
-    
     
     const pollInterval = setInterval(async () => {
       try {
@@ -455,8 +476,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
     if (isStarting) return;
     setIsStarting(true);
     try {
-
-      
       // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
       if (authError || !sessionData?.session?.access_token) {
@@ -470,15 +489,11 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
         return;
       }
 
-
-
       // Call join endpoint to create attempt and get room credentials
       const response = await fetch(`${backendUrl}/mockInterview/join/${session.id}`, {
         method: 'GET',
         headers: getHeaders(sessionData.session.access_token, backendUrl)
       });
-
-
 
       if (!response.ok) {
         const responseText = await response.text();
@@ -515,9 +530,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
         participantName: joinData.session.display_name || 'Participant'
       });
 
-
       router.push(`/dashboard/tools/mock-Interview/sessions?${sessionParams.toString()}`);
-
     } catch (error) {
       console.error(' Error starting interview:', error);
       alert('Failed to start interview. Please check your connection and try again.');
@@ -527,8 +540,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   const handleViewFeedback = (attemptId: string) => {
     router.push(`/dashboard/tools/mock-Interview/feedback/${attemptId}`);
   };
-
-
 
   return (
     <Card className="hover:shadow-xl transition-all duration-300 border border-gray-200/50 hover:border-green-300/50 animate-fade-in bg-white/80 backdrop-blur-sm hover:-translate-y-1 shadow-lg">
@@ -576,6 +587,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               <div className="flex items-center gap-2 ml-4">
                 <Award size={16} className={getScoreColor(numericScore)} />
                 <span className={`text-lg font-bold ${getScoreColor(numericScore)}`}>
+                  {calculatedScore}
                 </span>
               </div>
             );
@@ -606,8 +618,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               {showAttempts ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               <span className="ml-1">Attempts</span>
             </Button>
-
-
 
             {/* Primary Action Button - Only show if haven't reached 3 attempts */}
             {session.status === 'ready' && !hasReachedAttemptLimit() && (
@@ -641,7 +651,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                 )}
               </Button>
             )}
-
 
             {session.status === 'preparing' && (
               <Button
@@ -707,37 +716,19 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                       {/* Score and Actions */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                      {(() => {
-                        let scoreDisplay = null;
-                        let scoreNumeric = 0;
-                        
-                        if (attempt.feedback?.Score) {
-                          // Show original "X/10" format
-                          scoreDisplay = attempt.feedback.Score;
-                          const scoreMatch = attempt.feedback.Score.match(/^(\d+\.?\d*)/);
-                          scoreNumeric = scoreMatch ? parseFloat(scoreMatch[1]) : 0;
-                        } else if (attempt.evaluation_score) {
-                          // Convert to rating format, never percentage
-                          if (attempt.evaluation_score <= 10) {
-                            scoreDisplay = `${attempt.evaluation_score}/10`;
-                            scoreNumeric = attempt.evaluation_score;
-                          } else {
-                            // Convert percentage to rating out of 10
-                            const rating = Math.round((attempt.evaluation_score / 100) * 10);
-                            scoreDisplay = `${rating}/10`;
-                            scoreNumeric = rating;
-                          }
-                        }
-                        
-                          return scoreDisplay && (
-                            <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200">
-                              <Award size={14} className={getScoreColor(scoreNumeric)} />
-                              <span className={`text-sm font-bold ${getScoreColor(scoreNumeric)}`}>
-                                {scoreDisplay}
-                              </span>
-                            </div>
-                          );
-                        })()}
+                          {/* START: only numeric score shown (no raw strings) */}
+                          {(() => {
+                            const parsed = parseAttemptScore(attempt);
+                            if (!parsed) return null;
+                            const colorClass = getScoreColor(parsed.scoreNumeric);
+                            return (
+                              <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200">
+                                <Award size={14} className={colorClass} />
+                                <span className={`text-sm font-bold ${colorClass}`}>{parsed.scoreDisplay}</span>
+                              </div>
+                            );
+                          })()}
+                          {/* END: only numeric score shown */}
                         </div>
                         <div className="flex items-center gap-2">
                           {attempt.status === 'PROCESSED' && (
@@ -782,4 +773,4 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   );
 };
 
-export default SessionCard; 
+export default SessionCard;
