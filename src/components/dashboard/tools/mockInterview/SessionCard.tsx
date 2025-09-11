@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Play, Award, Building2, Briefcase, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar, Clock, Play, Award, Building2, Briefcase, ChevronDown, ChevronUp, Eye, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
@@ -78,6 +77,8 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
   const [lastStatusCheck, setLastStatusCheck] = useState<number>(Date.now());
   const [realtimeConnected, setRealtimeConnected] = useState<boolean>(false);
+  const [isStarting, setIsStarting] = useState(false);
+
 
   // Sync attempts when session data changes
   React.useEffect(() => {
@@ -451,17 +452,21 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
   };
 
   const handleStartInterview = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
     try {
 
       
       // Get user session for authentication
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
       if (authError || !sessionData?.session?.access_token) {
+        setIsStarting(false);
         return;
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
+        setIsStarting(false);
         return;
       }
 
@@ -610,7 +615,9 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               <Button
                 size="sm"
                 onClick={handleStartInterview}
-                className="
+                disabled={isStarting}
+                aria-busy={isStarting}
+                className={`
                   w-full sm:w-auto
                   flex items-center justify-center
                   bg-gradient-to-r from-emerald-600 to-green-600
@@ -618,13 +625,24 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                   text-white shadow-lg font-medium
                   px-3 sm:px-4 py-2
                   text-sm sm:text-base
-                "
+                  ${isStarting ? 'opacity-60 pointer-events-none' : ''}
+                `}
               >
-                <Play size={14} className="mr-1 shrink-0" />
-                {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
-                <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
+                {isStarting ? (
+                  <>
+                    <Loader2 size={14} className="mr-1 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} className="mr-1 shrink-0" />
+                    {getTotalAttemptsCount() === 0 ? 'Start Interview' : 'Continue'}
+                    <span className="ml-1">({getTotalAttemptsCount() + 1}/3)</span>
+                  </>
+                )}
               </Button>
             )}
+
 
             {session.status === 'preparing' && (
               <Button
