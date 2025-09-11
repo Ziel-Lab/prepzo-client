@@ -576,7 +576,6 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
               <div className="flex items-center gap-2 ml-4">
                 <Award size={16} className={getScoreColor(numericScore)} />
                 <span className={`text-lg font-bold ${getScoreColor(numericScore)}`}>
-                  {calculatedScore}
                 </span>
               </div>
             );

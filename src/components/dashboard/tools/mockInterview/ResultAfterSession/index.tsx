@@ -32,13 +32,13 @@ import {
 } from 'lucide-react';
 
 interface StructuredFeedback {
-  strengths_of_the_interview: string;
-  weaknesses_of_the_interview: string;
-  opportunities_of_the_interview: string;
-  threats_of_the_interview: string;
-  score: number; // integer 1-10 (0 if unknown)
-  how_can_questions_be_answered_better: string;
-  additional_questions_and_answers: Array<{ question: string; response: string }>;
+  "Strengths of the interview": string;
+  "Weaknesses of the interview": string;
+  "Opportunities of the interview": string;
+  "Threats of the interview": string;
+  "Score": string;
+  "How can questions be answered better": string;
+  "additional_questions_and_answers": string;
 }
 
 interface AttemptData {
@@ -62,55 +62,6 @@ interface AttemptData {
 interface ResultAfterSessionProps {
   attemptData: AttemptData;
 }
-
-type QAItem = { question: string; response: string };
-
-const safeNormalizeFeedback = (raw: any): StructuredFeedback => {
-  // If LLM/n8n returned a JSON string, try parse it
-  let payload = raw;
-  if (typeof raw === 'string' && raw.trim()) {
-    try {
-      payload = JSON.parse(raw);
-    } catch (e) {
-      // keep original string payload (but we'll fallback to empty fields)
-      payload = {};
-      console.warn('safeNormalizeFeedback: failed to JSON.parse raw feedback string');
-    }
-  }
-
-  if (!payload || typeof payload !== 'object') payload = {};
-
-  // prefer snake_case keys (the n8n schema), fallback to Title Case legacy if present
-  const get = (snake: string, title?: string) => {
-    if (payload[snake] !== undefined && payload[snake] !== null) return payload[snake];
-    if (title && payload[title] !== undefined && payload[title] !== null) return payload[title];
-    return '';
-  };
-
-  const rawQA = payload['additional_questions_and_answers'] ?? payload['additionalQuestionsAndAnswers'] ?? payload['Additional Questions and Answers'] ?? [];
-
-  const qArr: Array<{ question: string; response: string }> = Array.isArray(rawQA)
-    ? rawQA.map((q: any) => ({ question: String(q?.question ?? '').trim(), response: String(q?.response ?? '').trim() }))
-              .filter((q: any) => q.question && q.response)
-    : [];
-
-  // ensure score is integer 0..10
-  let scoreRaw = payload['score'] ?? payload['Score'] ?? 0;
-  let scoreNum = typeof scoreRaw === 'number' ? Math.round(scoreRaw) : parseInt(String(scoreRaw || '').replace(/[^\d]/g, ''), 10);
-  if (!Number.isFinite(scoreNum) || Number.isNaN(scoreNum)) scoreNum = 0;
-  scoreNum = Math.max(0, Math.min(10, scoreNum));
-
-  return {
-    strengths_of_the_interview: String(get('strengths_of_the_interview', 'Strengths of the interview') || '').trim(),
-    weaknesses_of_the_interview: String(get('weaknesses_of_the_interview', 'Weaknesses of the interview') || '').trim(),
-    opportunities_of_the_interview: String(get('opportunities_of_the_interview', 'Opportunities of the interview') || '').trim(),
-    threats_of_the_interview: String(get('threats_of_the_interview', 'Threats of the interview') || '').trim(),
-    score: scoreNum,
-    how_can_questions_be_answered_better: String(get('how_can_questions_be_answered_better', 'How can questions be answered better') || '').trim(),
-    additional_questions_and_answers: qArr
-  };
-};
-
 
 const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   attemptData
@@ -319,109 +270,103 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
   // Parse structured feedback - feedback will always come in the expected format
   const parseStructuredFeedback = (): StructuredFeedback | null => {
     // Only show feedback if attempt status is PROCESSED
-    if (currentAttemptData.status !== 'PROCESSED') return null;
-  
-    // feedback might already be an object or a JSON string; normalize it
-    const cleaned = safeNormalizeFeedback(feedback);
-  
-    // Return cleaned StructuredFeedback (matches the new schema)
-    return cleaned;
-  };
-  
-
-  // Standardized score parsing and display - NEVER show percentages, always ratings
-  type ScoreResult = {
-    display: string;   // "2/10"
-    numeric: number;   // value on 0-10 scale
-    maxScore: number;  // 10
-  };
-  
-  const parseAndDisplayScore = (): ScoreResult | null => {
-    // Only show score if attempt status is PROCESSED
-    if (currentAttemptData?.status !== 'PROCESSED') return null;
-  
-    // Get structured feedback via your helper (returns StructuredFeedback | null)
-    const structured = parseStructuredFeedback();
-    const structuredScore = structured?.score;
-    const evaluationScore = currentAttemptData?.evaluation_score ?? null;
-  
-    const toOneDecimal = (n: number) => Math.round(n * 10) / 10;
-  
-    // Normalize numeric value to 0-10. If max provided, interpret value/max -> scale to 10.
-    const normalizeTo10 = (value: number, max: number | null = null): ScoreResult => {
-      let numeric: number;
-  
-      if (max !== null && Number.isFinite(max) && max !== 0) {
-        numeric = (value / max) * 10;
-      } else if (value <= 10) {
-        numeric = value;
-      } else if (value <= 100) {
-        // treat as percentage -> scale to 0-10
-        numeric = (value / 100) * 10;
-      } else {
-        // very large numbers -> cap at 10
-        numeric = 10;
-      }
-  
-      numeric = Math.max(0, Math.min(10, toOneDecimal(numeric)));
-      return {
-        display: `${numeric}/10`,
-        numeric,
-        maxScore: 10
-      };
-    };
-  
-    // Safely parse unknown into number | null
-    const safeParseNumber = (v: unknown): number | null => {
-      if (v === null || v === undefined) return null;
-      if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-      const s = String(v).replace(/,/g, '').trim();
-      const p = parseFloat(s);
-      return Number.isNaN(p) ? null : p;
-    };
-  
-    // 1) Try structuredScore (if present)
-    if (structuredScore !== undefined && structuredScore !== null) {
-      const s = String(structuredScore);
-  
-      // a) fraction "X/Y" anywhere (handles "2/10 (explain...)")
-      let m = s.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
-      if (m) {
-        const val = safeParseNumber(m[1]);
-        const max = safeParseNumber(m[2]);
-        if (val !== null) return normalizeTo10(val, max ?? null);
-      }
-  
-      // b) percentage "80%" anywhere
-      m = s.match(/(\d+(?:\.\d+)?)\s*%/);
-      if (m) {
-        const val = safeParseNumber(m[1]);
-        if (val !== null) return normalizeTo10(val, 100);
-      }
-  
-      // c) first standalone number fallback
-      m = s.match(/(\d+(?:\.\d+)?)/);
-      if (m) {
-        const val = safeParseNumber(m[1]);
-        if (val !== null) return normalizeTo10(val, null);
-      }
-  
-      // nothing parseable
+    if (currentAttemptData.status !== 'PROCESSED') {
       return null;
     }
-  
-    // 2) fallback to evaluation_score if available
-    if (evaluationScore !== undefined && evaluationScore !== null) {
-      const val = safeParseNumber(evaluationScore);
-      if (val === null) return null;
-      return normalizeTo10(val, null);
+    
+    if (typeof feedback === 'object' && feedback !== null) {
+      return feedback as StructuredFeedback;
     }
-  
+    return null;
+  };
+
+  // Standardized score parsing and display - NEVER show percentages, always ratings
+  const parseAndDisplayScore = () => {
+    // Only show score if attempt status is PROCESSED
+    if (currentAttemptData.status !== 'PROCESSED') {
+      return null;
+    }
+    
+    const structuredScore = structuredFeedback?.Score;
+    const evaluationScore = currentAttemptData.evaluation_score;
+
+    // If we have structured feedback score, use it
+    if (structuredScore) {
+      // Check if it's in "X/10" format
+      const fractionMatch = structuredScore.match(/^(\d+\.?\d*)\/(\d+)$/);
+      if (fractionMatch) {
+        return {
+          display: structuredScore, // Show original "8/10" format
+          numeric: parseFloat(fractionMatch[1]), // For color calculation
+          maxScore: parseFloat(fractionMatch[2])
+        };
+      }
+      
+      // Check if it's just a number
+      const numberMatch = structuredScore.match(/^(\d+\.?\d*)$/);
+      if (numberMatch) {
+        const num = parseFloat(numberMatch[1]);
+        // Always convert to rating format, never percentage
+        if (num <= 10) {
+          return {
+            display: `${structuredScore}/10`,
+            numeric: num,
+            maxScore: 10
+          };
+        } else {
+          // If it's a large number (like 80), convert to rating out of 10
+          const rating = Math.round((num / 100) * 10);
+          return {
+            display: `${rating}/10`,
+            numeric: rating,
+            maxScore: 10
+          };
+        }
+      }
+      
+      // Fallback: show as-is
+      return {
+        display: structuredScore,
+        numeric: parseFloat(structuredScore) || 0,
+        maxScore: 10
+      };
+    }
+    
+    // If we only have evaluation score
+    if (evaluationScore !== undefined && evaluationScore !== null) {
+      // If it's a small number, assume it's already out of 10
+      if (evaluationScore <= 10) {
+        return {
+          display: `${evaluationScore}/10`,
+          numeric: evaluationScore,
+          maxScore: 10
+        };
+      }
+      // If it's a percentage-like number (0-100), convert to rating out of 10
+      else if (evaluationScore <= 100) {
+        const rating = Math.round((evaluationScore / 100) * 10);
+        return {
+          display: `${rating}/10`,
+          numeric: rating,
+          maxScore: 10
+        };
+      }
+      // Fallback for very large numbers
+      else {
+        return {
+          display: `${Math.round(evaluationScore)}/10`,
+          numeric: Math.round(evaluationScore),
+          maxScore: 10
+        };
+      }
+    }
+    
     return null;
   };
 
   // Optimized parsing for the standard feedback format
   const parseAdditionalQA = (qaText: string) => {
+    console.log('🔍 parseAdditionalQA: Starting optimized parsing...');
     const results = [];
     
     // Split on various question patterns to get individual Q&A blocks
@@ -476,6 +421,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
 
   // Robust fallback parsing - creates dropdowns even when main parsing fails
   const parseWithFallback = (qaText: string) => {
+    console.log('🔄 Starting parseWithFallback...');
     
     // Try main parsing first
     let parsed = parseAdditionalQA(qaText);
@@ -486,6 +432,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
       return parsed;
     }
     
+    console.log('🔄 Main parsing failed, trying fallback...');
     
     // Fallback: Split by patterns and create basic Q&A structure
     const sections = qaText.split(/(?=###\s*(?:Additional\s*)?Question|\*\*(?:Additional\s*)?Question)/i);
@@ -655,8 +602,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
 
   const structuredFeedback = parseStructuredFeedback();
   const scoreData = parseAndDisplayScore();
-  const parsedScore = structuredFeedback?.score ?? score;
-
+  const parsedScore = structuredFeedback?.Score ? parseInt(structuredFeedback.Score) : score;
 
   // Helper functions
   const formatDate = (dateString: string) => {
@@ -802,7 +748,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                       <div>
                         <p className="text-xs font-medium text-yellow-700 uppercase tracking-wide">Score</p>
                         <p className={`text-lg font-bold ${getScoreColor(scoreData)}`}>
-                          {scoreData.display}
+                          {scoreData.numeric}
                         </p>
                       </div>
                     </div>
@@ -824,6 +770,62 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
           </CardContent>
         </Card>
 
+        {/* Processing Status Message */}
+        {currentAttemptData.status !== 'PROCESSED' && (
+          <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50/80 to-amber-50/80 shadow-xl backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-gradient-to-r from-orange-400 to-amber-500 rounded-full shadow-lg">
+                  <Clock size={48} className="text-white animate-pulse" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-orange-900 to-amber-800 bg-clip-text text-transparent mb-3">
+                Feedback Processing
+              </h3>
+              <p className="text-orange-800 mb-6 text-lg leading-relaxed max-w-md mx-auto">
+                Your interview feedback is being processed. This usually takes a few minutes.
+              </p>
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Badge className="bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200 font-medium px-4 py-2">
+                  Status: {currentAttemptData.status}
+                </Badge>
+                {subscriptionRef.current && (
+                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-200 font-medium px-4 py-2">
+                    <Bell size={12} className="mr-2" />
+                    Live Monitoring
+                  </Badge>
+                )}
+              </div>
+              
+              {subscriptionRef.current ? (
+                <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/50 rounded-xl p-6 mb-6 backdrop-blur-sm shadow-sm">
+                  <div className="flex items-center justify-center gap-3 text-blue-800 mb-3">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Bell size={16} className="text-white animate-pulse" />
+                    </div>
+                    <span className="font-bold text-lg">Real-time monitoring active</span>
+                  </div>
+                  <p className="text-blue-700 leading-relaxed">
+                    You'll be notified automatically when your feedback is ready. No need to refresh manually!
+                  </p>
+                </div>
+              ) : (
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-100 font-medium shadow-sm px-6 py-3"
+                >
+                  <RotateCcw size={16} className="mr-2" />
+                  Refresh Page
+                </Button>
+              )}
+              
+              <p className="text-sm text-orange-600/80 mt-4 font-medium">
+                Feedback usually takes 2-3 minutes to process after completing the interview.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Structured Feedback */}
         {structuredFeedback && (
@@ -883,7 +885,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                     </div>
                     <div className="bg-gradient-to-br from-green-50/90 to-emerald-50/90 border border-green-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
                       <div className="text-green-900 leading-relaxed space-y-4 text-base">
-                        {formatMarkdownText(structuredFeedback?.strengths_of_the_interview ?? '')}
+                        {formatMarkdownText(structuredFeedback["Strengths of the interview"])}
                       </div>
                     </div>
                   </TabsContent>
@@ -899,7 +901,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                     </div>
                     <div className="bg-gradient-to-br from-red-50/90 to-rose-50/90 border border-red-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
                       <div className="text-red-900 leading-relaxed space-y-4 text-base">
-                        {formatMarkdownText(structuredFeedback?.weaknesses_of_the_interview ?? '')}
+                        {formatMarkdownText(structuredFeedback["Weaknesses of the interview"])}
                       </div>
                     </div>
                   </TabsContent>
@@ -915,7 +917,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                     </div>
                     <div className="bg-gradient-to-br from-blue-50/90 to-indigo-50/90 border border-blue-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
                       <div className="text-blue-900 leading-relaxed space-y-4 text-base">
-                        {formatMarkdownText(structuredFeedback?.opportunities_of_the_interview ?? '')}
+                        {formatMarkdownText(structuredFeedback["Opportunities of the interview"])}
                       </div>
                     </div>
                   </TabsContent>
@@ -931,7 +933,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
                     </div>
                     <div className="bg-gradient-to-br from-orange-50/90 to-amber-50/90 border border-orange-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
                       <div className="text-orange-900 leading-relaxed space-y-4 text-base">
-                        {formatMarkdownText(structuredFeedback?.threats_of_the_interview ?? '')}
+                        {formatMarkdownText(structuredFeedback["Threats of the interview"])}
                       </div>
                     </div>
                   </TabsContent>
@@ -957,7 +959,7 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
               <CardContent className="p-6 lg:p-8">
                 <div className="bg-gradient-to-br from-purple-50/90 to-violet-50/90 border border-purple-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
                   <div className="text-purple-900 leading-relaxed space-y-4 text-base">
-                    {formatMarkdownText(structuredFeedback?.how_can_questions_be_answered_better ?? '')}
+                    {formatMarkdownText(structuredFeedback["How can questions be answered better"])}
                   </div>
                 </div>
               </CardContent>
@@ -983,36 +985,39 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
               <CardContent className="p-6 lg:p-8">
                 <div className="space-y-5">
                   {(() => {
-                    // Normalize QA input coming from n8n (preferred: an array)
-                    const rawQA = structuredFeedback?.additional_questions_and_answers ?? [];
-                    let parsedQA: QAItem[] = [];
-
-                    // If backend provided structured array, use it directly
-                    if (Array.isArray(rawQA)) {
-                      parsedQA = rawQA
-                        .map((r: any) => ({ question: String(r?.question || '').trim(), response: String(r?.response || '').trim() }))
-                        .filter((q: QAItem) => q.question && q.response);
-                    } else if (typeof rawQA === 'string' && (rawQA as string) .trim()) {
-                      // As a safety net: if rawQA is a markdown/string (legacy), try to parse it
-                      try {
-                        const maybeJson = JSON.parse(rawQA);
-                        if (Array.isArray(maybeJson)) {
-                          parsedQA = maybeJson.map((r: any) => ({ question: String(r?.question||'').trim(), response: String(r?.response||'').trim() })).filter((q:QAItem)=>q.question && q.response);
-                        } else {
-                          parsedQA = parseWithFallback(rawQA);
-                        }
-                      } catch (e) {
-                        parsedQA = parseWithFallback(rawQA);
-                      }
-                    } else {
-                      parsedQA = [];
+                    const qaData = structuredFeedback["additional_questions_and_answers"];
+                    const parsedQA = parseWithFallback(qaData);
+                    
+                    // If both main and fallback parsing failed, show clean raw format
+                    if (parsedQA.length === 0 && qaData) {
+                      console.log('🚨 Both parsing methods failed, showing raw format');
+                      
+                      // Clean up the raw data before displaying
+                      const cleanedQAData = qaData
+                        .replace(/\*\*Question\s*\d*:?\s*\*\*/gi, '') // Remove **Question X:**
+                        .replace(/\*\*Appropriate Response:\s*\*\*/gi, 'Answer:') // Replace response marker
+                        .replace(/\*{3,}/g, '') // Remove 3+ consecutive asterisks
+                        .replace(/^\*\*|\*\*$/gm, '') // Remove isolated ** at line start/end
+                        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up excessive line breaks
+                        .trim();
+                      
+                      return (
+                        <div className="bg-gradient-to-br from-emerald-50/90 to-teal-50/90 border border-emerald-200/50 rounded-xl p-8 shadow-lg backdrop-blur-sm">
+                          <h4 className="font-bold text-emerald-900 mb-6 flex items-center gap-3 text-lg">
+                            <div className="p-2 bg-emerald-600 rounded-lg">
+                              <BookOpen size={16} className="text-white" />
+                            </div>
+                            Practice Questions & Model Answers
+                          </h4>
+                          <div className="text-emerald-800 leading-relaxed whitespace-pre-line space-y-4 text-base">
+                            {formatMarkdownText(cleanedQAData)}
+                          </div>
+                        </div>
+                      );
                     }
-
-                    // optional: filter out noisy/short responses
-                    parsedQA = parsedQA.filter(q => (q.response || '').length >= 20);
-
                     
                     // Return parsed Q&A as collapsible components
+                    console.log(`🎉 Displaying ${parsedQA.length} Q&A dropdowns`);
                     return (
                       <div className="space-y-5">
                         {parsedQA.map((qa, index) => (
@@ -1062,6 +1067,39 @@ const ResultAfterSession: React.FC<ResultAfterSessionProps> = ({
         </div>
       )}
 
+      {/* Note: Legacy feedback format removed - feedback always comes in structured format */}
+
+        {/* Transcript */}
+        {currentAttemptData.transcript && currentAttemptData.status === 'PROCESSED' && (
+          <Card className="border-slate-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-slate-50/80 to-gray-50/80 border-b border-slate-200/50 rounded-t-xl">
+              <CardTitle className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-r from-slate-600 to-gray-600 rounded-xl shadow-lg">
+                  <MessageSquare className="text-white" size={22} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-gray-800 bg-clip-text text-transparent">
+                    Interview Transcript
+                  </h2>
+                  <p className="text-sm text-slate-700/80 font-medium mt-1">Complete conversation record</p>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 lg:p-8">
+              <div className="bg-gradient-to-br from-slate-50/90 to-gray-50/90 border border-slate-200/50 rounded-xl p-8 max-h-96 overflow-y-auto shadow-lg backdrop-blur-sm">
+                {typeof currentAttemptData.transcript === 'string' ? (
+                  <div className="text-slate-900 whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                    {currentAttemptData.transcript}
+                  </div>
+                ) : (
+                  <pre className="text-sm text-slate-900 font-mono leading-relaxed">
+                    {JSON.stringify(currentAttemptData.transcript, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <Card className="border-slate-200/50 shadow-xl bg-white/80 backdrop-blur-sm">
