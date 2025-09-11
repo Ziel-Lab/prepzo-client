@@ -56,7 +56,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description: blog.excerpt,
       images: blog.image_url,
       type: 'article',
+      siteName: "Prepzo",  
       publishedTime: blog.publish_date,
+      modifiedTime: blog.updated_at || blog.publish_date, 
       authors: blog.author_name,
       section: blog.category,
       locale: "en_US",
@@ -165,6 +167,8 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     "image": blog.image_url,
     "url": `https://www.prepzo.ai/blog/${blog.slug}`,
     "datePublished": blog.publish_date,
+    "dateModified": blog.publish_date,
+    "isAccessibleForFree": true,  
     "author": {
       "@type": "Person",
       "name": blog.author_name
@@ -172,6 +176,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     "publisher": {
       "@type": "Organization",
       "name": "Prepzo",
+      "url": "https://www.prepzo.ai",    
       "logo": {
         "@type": "ImageObject",
         "url": "https://www.prepzo.ai/og.jpeg"

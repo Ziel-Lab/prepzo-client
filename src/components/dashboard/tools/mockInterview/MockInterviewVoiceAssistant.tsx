@@ -641,4 +641,4 @@ const MockInterviewVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = 
   );
 };
 
-export default MockInterviewVoiceAssistant; 
+export default MockInterviewVoiceAssistant;

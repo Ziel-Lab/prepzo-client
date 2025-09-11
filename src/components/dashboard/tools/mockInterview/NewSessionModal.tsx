@@ -708,9 +708,15 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
-          // OPTIMIZED: Only care about status_prep changes from PENDING to DONE
-          if (oldData?.status_prep !== newData?.status_prep && newData?.status_prep === 'DONE') {
-            console.log('🎉 Session preparation complete! Agent is ready');
+          console.log('🔔 Session status update received:', {
+            sessionId,
+            oldStatusPrep: oldData?.status_prep,
+            newStatusPrep: newData?.status_prep,
+            oldStatus: oldData?.status,
+            newStatus: newData?.status
+          });
+          
+          if (newData.status_prep === 'DONE') {
             setSessionStatus('ready');
             
             // Close modal after showing success
