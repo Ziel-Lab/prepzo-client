@@ -763,7 +763,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, onCleanupFailed }) =
                               🧹 Clean Up
                             </Button>
                           )}
-                          {attempt.status === 'COMPLETED' && (
+                          {attempt.status === 'completed' && (
                             <div className="relative group">
                               <div className="flex items-center gap-2 text-xs text-blue-600 px-3 py-1.5 bg-blue-50 rounded-lg cursor-help">
                                 <div className="animate-spin rounded-full h-3 w-3 border border-blue-500 border-t-transparent"></div>

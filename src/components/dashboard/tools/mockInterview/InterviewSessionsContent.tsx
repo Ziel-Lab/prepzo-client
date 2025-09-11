@@ -1355,7 +1355,7 @@ const InterviewSessionsContent: React.FC = () => {
   // Check if any attempt is analyzing
   useEffect(() => {
     const hasAnalyzing = sessions.some(session => 
-      session.attempts?.some(attempt => attempt.status === 'COMPLETED')
+      session.attempts?.some(attempt => attempt.status === 'completed')
     );
     setShowAnalyzingNotification(hasAnalyzing);
   }, [sessions]);
