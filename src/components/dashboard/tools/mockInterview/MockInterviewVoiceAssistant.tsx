@@ -98,7 +98,8 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
             title: "Prepzo Connected",
             description: "The interview will begin shortly.",
             duration: 3000,
-            position: 'left'
+            position: 'left',
+            style: { left: '15%', right: undefined }
           });
         }
       };
