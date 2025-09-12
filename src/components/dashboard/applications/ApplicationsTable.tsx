@@ -792,9 +792,9 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                   {/* <Badge variant="secondary" className={getStatusColor(application.status || "Applied")}>
                     {application.status || "Applied"}
                   </Badge> */}
-                  <span className={getMatchScoreColor(application.match_score || 85)}>
+                  {/* <span className={getMatchScoreColor(application.match_score || 85)}>
                     {application.match_score || 85}% match
-                  </span>
+                  </span> */}
                 </div>
                 )}
               </div>
@@ -866,7 +866,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
              {/* Employment Statuses */}
              {!isBlurred && application.employment_statuses && application.employment_statuses.length > 0 && (
               <div className="text-xs text-gray-500">
-                <span className="font-medium">Employment:</span> {application.employment_statuses.join(", ")}
+                <span className="font-medium">Employment:</span> {application.employment_statuses.map(status => status.replace(/_/g, ' ')).join(", ")}
               </div>
             )}
 
@@ -1621,24 +1621,23 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
             ) : (
               // Desktop Table Layout with updated hiding logic
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-                      <TableHead className="w-[400px] sticky left-0 bg-gray-50 z-10 border-r">Job Details</TableHead>
-                      <TableHead className="w-[180px]">Company</TableHead>
-                      <TableHead className="w-[120px]">Country</TableHead>
-                      <TableHead className="w-[150px]">Location</TableHead>
-                      <TableHead className="w-[140px]">Hiring Team</TableHead>
-                      <TableHead className="w-[130px]">Posted</TableHead>
-                      <TableHead className="w-[140px]">Salary</TableHead>
-                      <TableHead className="w-[120px]">Match</TableHead>
-                      <TableHead className="w-[140px]">Actions</TableHead>
-                      <TableHead className="w-[140px]">Employment</TableHead>
-                      <TableHead className="w-[120px]">Easy Apply</TableHead>
-                      <TableHead className="w-[140px]">Revenue</TableHead>
-                      <TableHead className="w-[120px]">Founded</TableHead>
-                      <TableHead className="w-[140px]">Employees</TableHead>
-                      <TableHead className="w-[140px]">Industry</TableHead>
+                      <TableHead className="w-[420px] sticky left-0 bg-gray-50 z-10 border-r px-4">Job Details</TableHead>
+                      <TableHead className="w-[200px] px-4">Company</TableHead>
+                      <TableHead className="w-[140px] px-4">Country</TableHead>
+                      <TableHead className="w-[180px] px-4">Location</TableHead>
+                      <TableHead className="w-[160px] px-4">Actions</TableHead>
+                      <TableHead className="w-[150px] px-4">Posted</TableHead>
+                      <TableHead className="w-[160px] px-4">Salary</TableHead>
+                      <TableHead className="w-[160px] px-4">Hiring Team</TableHead>
+                      <TableHead className="w-[160px] px-4">Employment</TableHead>
+                      <TableHead className="w-[140px] px-4">Easy Apply</TableHead>
+                      <TableHead className="w-[160px] px-4">Revenue</TableHead>
+                      <TableHead className="w-[140px] px-4">Founded</TableHead>
+                      <TableHead className="w-[160px] px-4">Employees</TableHead>
+                      <TableHead className="w-[380px] px-4">Industry</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1648,28 +1647,28 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                       
                       return (
                         <TableRow key={application.id} className="hover:bg-gray-50">
-                          <TableCell className="sticky left-0 bg-white hover:bg-gray-50 z-10 border-r">
-                            <div className="flex flex-col">
+                          <TableCell className="sticky left-0 bg-white hover:bg-gray-50 z-10 border-r px-4 py-3">
+                            <div className="flex flex-col space-y-2">
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => openJobDetails(application)}
-                                  className="font-semibold text-lg text-blue-600 hover:underline text-left"
+                                  className="font-semibold text-base text-blue-600 hover:underline text-left line-clamp-2"
                                 >
                                   {application.job_title}
                                   <Link2 className="h-4 w-4 inline ml-1" />
                                 </button>
                                 {isBlurred ? (
-                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200 flex-shrink-0">
                                     Hidden
                                   </Badge>
                                 ) : application.already_revealed && (
-                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 flex-shrink-0">
                                     Previously Revealed
                                   </Badge>
                                 )}
                               </div>
                               {!isBlurred && (
-                                <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-3">
                                   <div className="flex items-center gap-1 text-sm text-gray-500">
                                     <Building className="h-3 w-3" />
                                     {getSeniorityLevel(application.seniority)}
@@ -1687,31 +1686,31 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-3">
                             {isBlurred ? (
                               <span className="text-sm text-gray-500">Hidden</span>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 {application.company_object?.logo ? (
                                   <img
                                     src={application.company_object.logo}
                                     alt={application.company}
-                                    className="w-8 h-8 rounded-full object-cover"
+                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600 flex-shrink-0">
                                     {application.company?.charAt(0) ?? "?"}
                                   </div>
                                 )}
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-sm">
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium text-sm truncate">
                                     {application.company}
                                   </span>
                                   {(() => {
                                     const hasTeam = application.hiring_team && application.hiring_team.length > 0;
                                     if (hasTeam) {
                                       return (
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-gray-500 truncate">
                                           {application.hiring_team![0].first_name}
                                         </span>
                                       );
@@ -1722,68 +1721,35 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                               </div>
                             )}
                           </TableCell>
-                          <TableCell>
-                            
-                              <span className="text-sm flex items-center gap-1">
-                                {getFlagEmoji(application.country_code)}
-                                {getCountryName(application.country_code)}
-                              </span>
-                            
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm flex items-center gap-1">
+                              {getFlagEmoji(application.country_code)}
+                              <span className="truncate">{getCountryName(application.country_code)}</span>
+                            </span>
                           </TableCell>
-                          <TableCell>
-                            
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-1 text-sm">
-                                  
-                                  {application.location}
-                                </div>
-                                <div className="flex items-center gap-1 mt-1">
-                                  {application.remote && (
-                                    <Badge variant="default" className="text-xs">Remote</Badge>
-                                  )}
-                                  {application.hybrid && (
-                                    <Badge variant="outline" className="text-xs">Hybrid</Badge>
-                                  )}
-                                </div>
-                              </div>
-                            
-                          </TableCell>
-                          <TableCell>
-                            {application.hiring_team?.map((teamMember) => (
-                              <div key={teamMember.first_name} className="flex items-center gap-1 text-sm">
-                                <span>{teamMember.first_name}</span>
-                              </div>
-                            ))}
-                          </TableCell>
-                          <TableCell>
-                            {isBlurred ? "—" : (
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col space-y-1">
                               <div className="flex items-center gap-1 text-sm">
-                                {formatDate(application.date_posted)}
+                                <span className="truncate">{application.location}</span>
                               </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {isBlurred ? "—" : (
-                              <div className="flex items-center gap-1 text-sm">
-                                {application.salary_string || "Not disclosed"}
+                              <div className="flex items-center gap-1">
+                                {application.remote && (
+                                  <Badge variant="default" className="text-xs">Remote</Badge>
+                                )}
+                                {application.hybrid && (
+                                  <Badge variant="outline" className="text-xs">Hybrid</Badge>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            {isBlurred ? "—" : (
-                              <span className={getMatchScoreColor(application.match_score || 85)}>
-                                {application.match_score || 85}%
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full">
+                          <TableCell className="px-4 py-3">
+                            <div className="flex items-center gap-2">
                               {application.has_blurred_data && !application.already_revealed && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => toggleReveal(application.id)}
-                                  className="h-8 px-2"
+                                  className="h-8 px-2 text-xs"
                                 >
                                   {isRevealed ? (
                                     <>
@@ -1799,7 +1765,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                                 </Button>
                               )}
                               {application.already_revealed && (
-                                <Badge variant="outline" className="h-8 px-3 text-xs bg-green-50 text-green-700 border-green-200">
+                                <Badge variant="outline" className="h-8 px-2 text-xs bg-green-50 text-green-700 border-green-200">
                                   <Eye className="h-3 w-3 mr-1" />
                                   Revealed
                                 </Badge>
@@ -1815,41 +1781,62 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Details
                                   </DropdownMenuItem>
-                                  {/* <DropdownMenuItem>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit Status
-                                  </DropdownMenuItem>
-                                  {isRevealed && (
-                                    <DropdownMenuItem>
-                                      <ExternalLink className="h-4 w-4 mr-2" />
-                                      Open Job
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem className="text-red-600">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem> */}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            {application.employment_statuses?.join(", ")}
+                          <TableCell className="px-4 py-3">
+                            {isBlurred ? "—" : (
+                              <div className="text-sm">
+                                {formatDate(application.date_posted)}
+                              </div>
+                            )}
                           </TableCell>
-                          <TableCell>
-                            {application.easy_apply ? "Yes" : "No"}
+                          <TableCell className="px-4 py-3">
+                            {isBlurred ? "—" : (
+                              <div className="text-sm truncate">
+                                {application.salary_string || "Not disclosed"}
+                              </div>
+                            )}
                           </TableCell>
-                          <TableCell>
-                            {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
+                          <TableCell className="px-4 py-3">
+                            <div className="space-y-1">
+                              {application.hiring_team?.map((teamMember) => (
+                                <div key={teamMember.first_name} className="text-sm truncate">
+                                  <span>{teamMember.first_name}</span>
+                                </div>
+                              ))}
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            {application.company_object?.founded_year || "-"}
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm truncate">
+                              {application.employment_statuses?.map(status => status.replace(/_/g, ' ')).join(", ") || "Not specified"}
+                            </span>
                           </TableCell>
-                          <TableCell>
-                            {application.company_object?.employee_count_range || "Not disclosed"}
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm">
+                              {application.easy_apply ? "Yes" : "No"}
+                            </span>
                           </TableCell>
-                          <TableCell>
-                            {application.company_object?.industry || "Not disclosed"}
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm truncate">
+                              {application.company_object?.annual_revenue_usd_readable || "Not disclosed"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm">
+                              {application.company_object?.founded_year || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm truncate">
+                              {application.company_object?.employee_count_range || "Not disclosed"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <span className="text-sm truncate">
+                              {application.company_object?.industry || "Not disclosed"}
+                            </span>
                           </TableCell>
                         </TableRow>
                       );
