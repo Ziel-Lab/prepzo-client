@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -237,7 +238,7 @@ const CoverLetterDetailsPage = ({ params }: { params: { id: string } }) => {
                   <span className="font-semibold text-gray-700 text-sm sm:text-base">Resume Used</span>
                 </div>
                 {coverLetterItem.current_resume ? (
-                  <a 
+                  <Link 
                     href={coverLetterItem.current_resume} 
                     target="_blank" 
                     rel="noopener noreferrer" 
@@ -245,7 +246,7 @@ const CoverLetterDetailsPage = ({ params }: { params: { id: string } }) => {
                   >
                     {coverLetterItem.resume_title}
                     <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-gray-500 text-xs sm:text-sm">{coverLetterItem.resume_title || 'N/A'}</span>
                 )}
@@ -257,7 +258,7 @@ const CoverLetterDetailsPage = ({ params }: { params: { id: string } }) => {
                   <span className="font-semibold text-gray-700 text-sm sm:text-base">Company</span>
                 </div>
                 {coverLetterItem.company_website ? (
-                  <a 
+                  <Link 
                     href={coverLetterItem.company_website} 
                     target="_blank" 
                     rel="noopener noreferrer" 
@@ -265,7 +266,7 @@ const CoverLetterDetailsPage = ({ params }: { params: { id: string } }) => {
                   >
                     {coverLetterItem.company_website.replace(/^https?:\/\//, '')}
                     <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-gray-500 text-xs sm:text-sm">N/A</span>
                 )}
@@ -300,7 +301,7 @@ const CoverLetterDetailsPage = ({ params }: { params: { id: string } }) => {
         </div>
 
         {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {/* Cover Letter */}
           <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-purple-500 to-blue-500 text-white p-4 sm:p-6">
