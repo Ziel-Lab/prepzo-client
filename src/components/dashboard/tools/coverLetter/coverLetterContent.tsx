@@ -44,9 +44,8 @@ import {
   TableRow,
   TableHead,
 } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { LimitReached } from "@/components/dashboard/settings/subscription/limitReached";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 
 const loadingMessages = [
@@ -90,6 +89,7 @@ interface RawUserDocument {
 // For raw history item from /get-cover-letters
 interface RawCoverLetterHistoryItem {
     id: string | number;
+    job_id?: string | number;
     job_description?: string;
     company_website?: string;
     current_resume?: string;
@@ -102,6 +102,7 @@ interface RawCoverLetterHistoryItem {
 // Interface for history items
 interface CoverLetterHistoryItem {
   id: string | number;
+  job_id?: string | number;
   job_description?: string; // Store a snippet or title
   company_website?: string;
   current_resume?: string; // URL of the resume used
@@ -157,6 +158,7 @@ const parseFeedback = (feedback: string | CoverLetterResult | null): CoverLetter
 
 const CoverLetterContent = () => {
   const { toast } = useToast();
+  const router = useRouter();
   // Add pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
@@ -184,7 +186,6 @@ const CoverLetterContent = () => {
   const [history, setHistory] = useState<CoverLetterHistoryItem[]>([]);
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
-  const [selectedHistoryItemForDialog, setSelectedHistoryItemForDialog] = useState<CoverLetterHistoryItem | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
@@ -304,6 +305,7 @@ const CoverLetterContent = () => {
             const resumeTitle = item.current_resume ? decodeURIComponent(item.current_resume.substring(item.current_resume.lastIndexOf('/') + 1).split('?')[0]) : 'N/A';
             return {
               id: item.id,
+              job_id: item.job_id,
               job_description: item.job_description ? (item.job_description.substring(0, 70) + '...') : "N/A",
               company_website: item.company_website,
               current_resume: item.current_resume,
@@ -529,6 +531,7 @@ const CoverLetterContent = () => {
     // Add initial pending item to history, ensuring no duplicates
     const pendingHistoryItem: CoverLetterHistoryItem = {
       id: jobId,
+      job_id: jobId,
       job_description: jobDescription ? (jobDescription.substring(0, 70) + '...') : "N/A",
       company_website: companyWebsite,
       current_resume: resumeUrl,
@@ -603,6 +606,7 @@ const CoverLetterContent = () => {
 
             const formatted: CoverLetterHistoryItem = {
                 id: row.id,
+                job_id: row.job_id,
                 job_description: row.job_description ? (row.job_description.substring(0, 70) + '...') : "N/A",
                 company_website: row.company_website,
                 current_resume: row.current_resume,
@@ -782,56 +786,13 @@ const CoverLetterContent = () => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItemForDialog(item)}>View</Button>
-                          </DialogTrigger>
-                          {selectedHistoryItemForDialog && selectedHistoryItemForDialog.id === item.id && (
-                          <DialogContent className="sm:max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Cover Letter Details ({new Date(selectedHistoryItemForDialog.created_at).toLocaleDateString()})</DialogTitle>
-                              <DialogDescription>
-                                  Job: {selectedHistoryItemForDialog.job_description?.replace('... ','')}<br/>
-                                  Company: {selectedHistoryItemForDialog.company_website || 'N/A'}<br/>
-                                  Resume: <a href={selectedHistoryItemForDialog.current_resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{selectedHistoryItemForDialog.resume_title || selectedHistoryItemForDialog.current_resume}</a>
-                                  {selectedHistoryItemForDialog.user_additional_comments && <><br/>Your Comments: <em>{selectedHistoryItemForDialog.user_additional_comments}</em></>}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                              {selectedHistoryItemForDialog.generated_outputs ? (
-                                <>
-                                  <div>
-                                      <h4 className="font-semibold text-md mb-1 flex justify-between items-center">
-                                          Generated Cover Letter
-                                          <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(selectedHistoryItemForDialog.generated_outputs?.cover_letter || '')}><Copy size={12} className="mr-1"/>Copy</Button>
-                                      </h4>
-                                      <div className="prose prose-sm max-w-none p-4 bg-gray-50 rounded-md border min-h-[400px] max-h-[600px] overflow-y-auto">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                          {selectedHistoryItemForDialog.generated_outputs?.cover_letter || ""}
-                                        </ReactMarkdown>
-                                      </div>
-                                  </div>
-                                  {selectedHistoryItemForDialog.generated_outputs?.additional_comments && (
-                                      <div>
-                                          <h4 className="font-semibold text-md mb-1 flex items-center"><Lightbulb size={16} className="mr-2 text-yellow-500"/> AI Suggestions</h4>
-                                          <div className="prose prose-sm max-w-none p-4 bg-yellow-50 border border-yellow-200 rounded-md min-h-[200px] max-h-[400px] overflow-y-auto">
-                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedHistoryItemForDialog.generated_outputs.additional_comments}</ReactMarkdown>
-                                          </div>
-                                      </div>
-                                  )}
-                                </>
-                              ) : (
-                                <p className="text-sm text-gray-500 text-center py-4">No generated content details available for this history item.</p>
-                              )}
-                            </div>
-                             <DialogFooter>
-                                  <DialogClose asChild>
-                                      <Button type="button" variant="secondary">Close</Button>
-                                  </DialogClose>
-                              </DialogFooter>
-                          </DialogContent>
-                          )}
-                        </Dialog>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => router.push(`/dashboard/tools/cover-letter/details/${item.job_id || item.id}`)}
+                        >
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
