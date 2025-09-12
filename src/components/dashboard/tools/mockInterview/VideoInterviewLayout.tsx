@@ -307,7 +307,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="absolute -top-10 left-1/2 transform -translate-x-[65%] z-10"
+                          className="absolute -top-10 transform -translate-x-[65%] z-10"
                         >
                           <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
                             Prepzo Speaking

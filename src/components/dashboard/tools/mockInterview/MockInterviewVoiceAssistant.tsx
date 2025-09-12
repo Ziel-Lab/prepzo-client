@@ -108,7 +108,7 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
           toast({
             title: "AI Interviewer Disconnected",
-            description: "The AI interviewer has left the session.",
+            description: "The Prepzo has left the session.",
             duration: 5000,
           });
         }
