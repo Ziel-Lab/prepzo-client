@@ -974,7 +974,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
     return (
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
         <div className="flex items-center justify-between ">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <div className="p-2 rounded-lg bg-prepzo-50">
               <History className="h-5 w-5 text-prepzo" />
             </div>
@@ -986,7 +986,7 @@ const ApplicationsTable = ({ filters = {} as Filters, aiFilters, onSaveFilters }
             variant="outline"
             size="sm"
             onClick={() => setShowHistory(!showHistory)}
-            className="border-prepzo-200 text-prepzo hover:bg-prepzo-50 hover:border-prepzo"
+            className="border-prepzo-200 text-prepzo hover:bg-prepzo-50 hover:border-prepzo mb-2"
           >
             {showHistory ? "Hide" : "Show"} History
           </Button>
