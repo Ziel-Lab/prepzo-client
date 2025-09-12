@@ -164,57 +164,56 @@ const ApplicationsFilters = ({
           </div>
 
           {/* Search container */}
-          <div className="w-full max-w-4xl mx-auto px-3">
-            <div className="relative group">
-              
-              {/* Input field */}
-              <Textarea
-                placeholder="Software Engineers in New York with 5+ years of experience"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                className="w-full min-h-[64px] resize-none pl-5 pr-32 pt-5 text-lg bg-white border-2 border-gray-200 rounded-2xl shadow-sm hover:shadow-md focus:shadow-lg focus:border-prepzo focus:ring-4 focus:ring-prepzo/10 transition-all duration-300 placeholder:text-gray-400 leading-relaxed"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleAISearch();
-                  }
-                }}
-              />
-              
-              {/* AI Search button - Desktop only */}
-              <Button
-                onClick={handleAISearch}
-                disabled={!aiPrompt.trim() || isAISearching}
-                className="hidden sm:flex absolute right-3 top-1/4 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed items-center gap-2"
-              >
-                {isAISearching ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    <span className="hidden sm:inline">Searching...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" />
-                    <span>AI Search</span>
-                  </>
-                )}
-              </Button>
+          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
+            <div className="relative">
+               {/* Input field */}
+               <Textarea
+                 placeholder="Software Engineers in New York with 5+ years of experience"
+                 value={aiPrompt}
+                 onChange={(e) => setAiPrompt(e.target.value)}
+                 className="w-full !min-h-[60px] resize-none px-4 pt-4 lg:pb-0 pb-4 text-base sm:text-lg bg-white border-2 border-gray-200 rounded-2xl shadow-sm hover:shadow-md focus:shadow-lg focus:border-prepzo focus:ring-4 focus:ring-prepzo/10 transition-all duration-300 placeholder:text-gray-400 leading-relaxed sm:pr-[140px] flex items-center"
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter' && !e.shiftKey) {
+                     e.preventDefault();
+                     handleAISearch();
+                   }
+                 }}
+               />
+               
+               {/* AI Search button - Desktop only */}
+               <Button
+                 onClick={handleAISearch}
+                 disabled={!aiPrompt.trim() || isAISearching}
+                 className="hidden sm:flex absolute right-3 top-1/4 md:mr-3 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg hover:scale-105 disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed items-center gap-2"
+               >
+                 {isAISearching ? (
+                   <>
+                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                     <span>Searching...</span>
+                   </>
+                 ) : (
+                   <>
+                     <Sparkles className="h-4 w-4" />
+                     <span>AI Search</span>
+                   </>
+                 )}
+               </Button>
             </div>
             
             {/* Mobile button - Full width below input */}
             <Button
               onClick={handleAISearch}
               disabled={!aiPrompt.trim() || isAISearching}
-              className="sm:hidden w-full mt-4 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-6 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              className="sm:hidden w-full mt-3 bg-gradient-to-r from-prepzo to-prepzo-dark hover:from-prepzo-dark hover:to-prepzo text-white font-semibold px-4 py-3 text-base rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] disabled:transform-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5"
             >
               {isAISearching ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                   Searching...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-5 w-5" />
+                  <Sparkles className="h-4 w-4" />
                   AI Search
                 </>
               )}
