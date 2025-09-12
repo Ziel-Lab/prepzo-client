@@ -113,8 +113,8 @@ const RpcHandler: React.FC<{
   // Handler functions for different end reasons
   const handleAgentDisconnected = useCallback(async (payload: any) => {
     toast({
-      title: "AI Interviewer Disconnected",
-      description: "The AI interviewer has left the session. Your responses have been saved.",
+      title: "Prepzo Disconnected",
+      description: "The Prepzo has left the session. Your responses have been saved.",
       duration: 6000,
     });
     
@@ -292,8 +292,8 @@ const RpcHandler: React.FC<{
         
         // Show toast and redirect (fallback when no RPC is received)
         toast({
-          title: "AI Interviewer Disconnected",
-          description: "The AI interviewer has left the session. Redirecting you back...",
+          title: "Prepzo Disconnected",
+          description: "The Prepzo has left the session. Redirecting you back...",
           duration: 5000,
         });
 
@@ -329,7 +329,7 @@ const RpcHandler: React.FC<{
       if (timeSinceActivity > 30000 && room.remoteParticipants.size === 0) {
         toast({
           title: "Interview Session Timeout",
-          description: "No interviewer activity detected. Returning to sessions page.",
+          description: "No Prepzo activity detected. Returning to sessions page.",
           duration: 4000,
         });
 

@@ -258,7 +258,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                           animate={{ opacity: 1, y: 0 }}
                           className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-medium backdrop-blur-sm"
                         >
-                          AI Interviewer Speaking
+                          Prepzo Speaking
                         </motion.div>
                       )}
                       
@@ -305,10 +305,10 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10"
+                          className="absolute -top-10 left-1/2 transform -translate-x-[65%] z-10"
                         >
                           <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap shadow-lg">
-                            AI Speaking
+                            Prepzo Speaking
                           </div>
                         </motion.div>
                       )}
@@ -431,7 +431,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                     </motion.div>
                   </Button>
 
-                  {/* Transcript Toggle */}
+                  {/* Transcript Toggle
                   <Button
                     variant="outline"
                     size="lg"
@@ -443,7 +443,7 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                     }`}
                   >
                     <MessageSquare size={20} />
-                  </Button>
+                  </Button> */}
 
                   {/* End Interview */}
                   <Button
