@@ -246,22 +246,25 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center transform-gpu">
                     {/* Centered Orb when camera is off */}
-                    <div className="mb-8">
+                    <div className="mb-8 relative inline-block">
                       <AnimatedOrb isSpeaking={isSpeaking} size="large" />
-                    </div>
-                    
-                    {/* Status Indicators */}
-                    <div className="space-y-3">
+
                       {isSpeaking && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-medium backdrop-blur-sm"
+                          className="absolute -top-10 z-50"
+                          style={{ left: 'calc(50% - 15%)', transform: 'translateX(-50%)' }}
                         >
-                          Prepzo Speaking
+                          <div className="bg-green-500 text-white text-sm px-3 py-1 rounded-full whitespace-nowrap shadow-lg pointer-events-auto">
+                            Prepzo Speaking
+                          </div>
                         </motion.div>
                       )}
-                      
+                    </div>
+
+                    {/* Status Indicators */}
+                    <div className="space-y-3">
                       <AnimatePresence>
                         {!isCameraOn && (
                           <motion.div 
@@ -279,7 +282,6 @@ const VideoInterviewLayout: React.FC<VideoInterviewLayoutProps> = ({
                   </div>
                 </div>
               </motion.div>
-
               {/* Orb Overlay - Fixed position when camera is on */}
               <AnimatePresence>
                 {isCameraOn && (
