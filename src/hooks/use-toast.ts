@@ -8,12 +8,19 @@ import type {
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
+type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'left' | 'right' | 'custom';
+
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  // <-- new optional placement props:
+  position?: ToastPosition
+  style?: React.CSSProperties
+  className?: string
 }
+
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",

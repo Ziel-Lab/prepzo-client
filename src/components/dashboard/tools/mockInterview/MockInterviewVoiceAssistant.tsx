@@ -95,9 +95,10 @@ const ConnectedVoiceAssistant: React.FC<MockInterviewVoiceAssistantProps> = ({
       const handleParticipantConnected = (participant: RemoteParticipant) => {
         if (participant.identity?.includes('agent') || participant.identity?.includes('assistant')) {
           toast({
-            title: "AI Interviewer Connected",
+            title: "Prepzo Connected",
             description: "The interview will begin shortly.",
             duration: 3000,
+            position: 'left'
           });
         }
       };

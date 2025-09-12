@@ -1075,7 +1075,7 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
             <Label htmlFor="jobDescription">Job Description *</Label>
             <Textarea
               id="jobDescription"
-              placeholder="Paste the job description you're preparing for..."
+              placeholder="Paste the job description you're preparing for... MUST BE MORE THAN 100 WORDS"
               value={formData.jobDescription}
               onChange={(e) => handleInputChange('jobDescription', e.target.value)}
               rows={6}
