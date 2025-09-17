@@ -88,7 +88,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       ],
       isCurrent: isPremium,
       action: () => handleUpgrade("premium"),
-      actionLabel: isPremium ? "Current Plan" : "Get Free Trial of Premium",
+      actionLabel: isPremium ? "Current Plan" : "Get Premium",
       actionDisabled: isPremium || isProcessingAction,
     },
   ];
