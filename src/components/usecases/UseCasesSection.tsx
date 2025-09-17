@@ -55,10 +55,10 @@ const UseCasesSection = () => {
                     When looking for a new job, Prepzo helps you:
                   </p>
                   <ul className="space-y-2 md:space-y-3 text-sm md:text-base">
-                    <li className="flex items-start">
+                    {/* <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
                       <span>Navigate 16+ global job portals of job openings with intelligent search filters</span>
-                    </li>
+                    </li> */}
                     <li className="flex items-start">
                       <div className="mr-2 md:mr-3 mt-1 w-4 h-4 md:w-5 md:h-5 bg-prepzo rounded-full flex items-center justify-center text-white text-xs">✓</div>
                       <span>Generate ATS friendly resumes & cover letters within minutes.</span>

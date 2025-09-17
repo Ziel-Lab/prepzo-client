@@ -36,24 +36,24 @@ const PricingBar: React.FC<PricingBarProps> = ({
   const isFree = currentPlanId === 1;
 
   const plans = [
-    {
-      id: 'free',
-      name: 'Free',
-      price: '€0',
-      period: '/month',
-      description: 'Perfect for getting started',
-      icon: Zap,
-      color: 'from-gray-500 to-gray-600',
-      features: [
-        '2 Resume Analyses',
-        '2 Cover Letters', 
-        'Unlimited Document Uploads'
-      ],
-      isCurrent: isFree,
-      isBlocked: isPro || isPremium,
-      action: handleFreeSignup || (() => {}),
-      actionLabel: isFree ? 'Current Plan' : 'Get Started Free'
-    },
+    // {
+    //   id: 'free',
+    //   name: 'Free',
+    //   price: '€0',
+    //   period: '/month',
+    //   description: 'Perfect for getting started',
+    //   icon: Zap,
+    //   color: 'from-gray-500 to-gray-600',
+    //   features: [
+    //     '2 Resume Analyses',
+    //     '2 Cover Letters', 
+    //     'Unlimited Document Uploads'
+    //   ],
+    //   isCurrent: isFree,
+    //   isBlocked: isPro || isPremium,
+    //   action: handleFreeSignup || (() => {}),
+    //   actionLabel: isFree ? 'Current Plan' : 'Get Started Free'
+    // },
     {
       id: 'pro',
       name: 'Pro',
@@ -66,7 +66,7 @@ const PricingBar: React.FC<PricingBarProps> = ({
         '10 Resume Analyses',
         '10 Cover Letters',
         '2 LinkedIn Optimizations',
-        '200 Job Reveals',
+        // '200 Job Reveals',
         'Unlimited Document Uploads'
       ],
       isCurrent: isPro,
@@ -86,7 +86,7 @@ const PricingBar: React.FC<PricingBarProps> = ({
         'Unlimited Resumes',
         'Unlimited Cover Letters',
         'Unlimited LinkedIn Optimizations',
-        '500 Job Reveals',
+        // '500 Job Reveals',
         'Unlimited Document Uploads'
       ],
       isCurrent: isPremium,
@@ -138,7 +138,7 @@ const PricingBar: React.FC<PricingBarProps> = ({
 
         <CardContent className="pt-0">
           {/* Compact Plan Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {plans.map((plan) => {
               const Icon = plan.icon;
               const isSelected = selectedPlan === plan.id;

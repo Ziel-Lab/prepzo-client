@@ -86,12 +86,12 @@ const Navbar = () => {
       title: "Mock Interview",
       description: "Practice for your next interview with our AI agent"
     },
-    {
-      href: "/features/job-search-engine",
-      icon: Search,
-      title: "Job Search Engine",
-      description: "Search millions of jobs across global platforms"
-    }
+    // {
+    //   href: "/features/job-search-engine",
+    //   icon: Search,
+    //   title: "Job Search Engine",
+    //   description: "Search millions of jobs across global platforms"
+    // }
   ];
 
   return (

@@ -4,7 +4,6 @@ export const metadata: Metadata = {
   title: "Global Job Search Engine | 118M Jobs Across 195 Countries",
   description: "Discover 118 million jobs in seconds. Our AI engine unifies 16 platforms across 195 countries with 25+ filters for location, salary, experience and remote roles.",
   keywords: [
-    "job search engine",
     "global job search",
     "job finder",
     "job search platform",

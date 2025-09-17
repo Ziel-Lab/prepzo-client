@@ -42,21 +42,21 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   const isPremium = currentPlanId === 3;
 
   const plans: Plan[] = [
-    {
-      name: "Free",
-      price: "€0",
-      priceSuffix: "/ month",
-      description: "Perfect for getting started.",
-      features: [
-        "2 Resume Analyses",
-        "2 Cover Letters",
-        "Unlimited Document Uploads",
-      ],
-      isCurrent: currentPlanId === 1,
-      action: handleFreeSignup || (() => {}),
-              actionLabel: currentPlanId === 1 ? "Current Plan" : "Get Started Free",
-        actionDisabled: (currentPlanId === 1 && !handleFreeSignup) || isProcessingAction || isPro || isPremium,
-    },
+    // {
+    //   name: "Free",
+    //   price: "€0",
+    //   priceSuffix: "/ month",
+    //   description: "Perfect for getting started.",
+    //   features: [
+    //     "2 Resume Analyses",
+    //     "2 Cover Letters",
+    //     "Unlimited Document Uploads",
+    //   ],
+    //   isCurrent: currentPlanId === 1,
+    //   action: handleFreeSignup || (() => {}),
+    //           actionLabel: currentPlanId === 1 ? "Current Plan" : "Get Started Free",
+    //     actionDisabled: (currentPlanId === 1 && !handleFreeSignup) || isProcessingAction || isPro || isPremium,
+    // },
     {
       name: "Pro",
       price: "€7.99",
@@ -66,7 +66,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         "10 Resume Analyses",
         "10 Cover Letters",
         "2 LinkedIn Optimizations",
-        "200 Job Reveals",
+        // "200 Job Reveals",
         "Unlimited Document Uploads",
       ],
       isCurrent: isPro,
@@ -83,12 +83,12 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         "Unlimited Resumes",
         "Unlimited Cover Letters",
         "Unlimited LinkedIn Optimizations",
-        "500 Job Reveals",
+        // "500 Job Reveals",
         "Unlimited Document Uploads",
       ],
       isCurrent: isPremium,
       action: () => handleUpgrade("premium"),
-      actionLabel: isPremium ? "Current Plan" : "Get Premium",
+      actionLabel: isPremium ? "Current Plan" : "Get Free Trial of Premium",
       actionDisabled: isPremium || isProcessingAction,
     },
   ];
@@ -104,7 +104,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         {plans.map((plan) => (
           <Card
             key={plan.name}
