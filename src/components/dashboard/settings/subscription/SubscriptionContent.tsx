@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,7 +39,7 @@ import PricingBar from "./PricingBar";
 
 // --- Interfaces based on your backend schema ---
 
-interface SubscriptionPlan {
+interface SubscriptionPlanBase {
   id: string | number;
   name: string;
   price: number;
@@ -47,26 +48,41 @@ interface SubscriptionPlan {
   linkedin_optimize_limit_per_month: number;
   job_application_limit_per_month: number;
   job_search_results_limit_per_month?: number;
-  mock_interview_session?: number;
 }
 
-interface FeatureUsage {
+interface SubscriptionPlanExtended extends SubscriptionPlanBase {
+  mock_interview_session: number;
+  stripe_price_id: string;
+}
+
+type SubscriptionPlan = SubscriptionPlanBase & Partial<SubscriptionPlanExtended>;
+
+interface FeatureUsageBase {
   resume_period_count: number;
   cover_letter_period_count: number;
   linkedin_optimize_period_count: number;
   job_search_results_period_count: number;
-  mock_interview_session_lifetime_count: number;
 }
 
+interface FeatureUsageExtended extends FeatureUsageBase {
+  mock_interview_session_lifetime_count: number;
+  mock_interview_session_period_count: number;
+}
+
+type FeatureUsage = FeatureUsageBase & Partial<FeatureUsageExtended>;
+
+type SubscriptionStatusType = 
+  | "trialing"
+  | "past_due"
+  | "active"
+  | "processing"
+  | "canceling"
+  | "canceled"
+  | "free"  // Keep for backward compatibility during transition
+  | "free_trial";  // Keep for backward compatibility during transition
+
 interface SubscriptionStatus {
-  status:
-    | "free"
-    | "free_trial"
-    | "past_due"
-    | "active"
-    | "processing"
-    | "canceling"
-    | "canceled";
+  status: SubscriptionStatusType;
   current_period_start: string;
   current_period_end: string;    // now your single source of truth
   subscription_plans: SubscriptionPlan;
@@ -109,29 +125,45 @@ const SubscriptionContent = () => {
       console.log("Looking for payment link for plan:", plan);
       // --- END DEBUGGING STEP ---
 
-      // Direct Stripe payment links (bypassing environment variable issues)
-      const paymentLink =
-        plan === "pro"
-          ? "https://buy.stripe.com/test_aFa7sLb768b0c1e4d6frW00"  // Pro plan
-          : "https://buy.stripe.com/test_eVq7sL4II76WaXaeRKfrW01"; // Premium plan
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        throw new Error("Backend URL is not configured.");
+      }
+
+      const response = await fetch(`${backendUrl}/subscription/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          planId: plan === "pro" ? 2 : 3
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || "Failed to create checkout session");
+      }
+
+      const { id: sessionId } = await response.json();
       
-
-      if (!paymentLink) {
-        throw new Error(
-          `The payment link for the ${
-            plan === "pro" ? "Pro" : "Premium"
-          } plan is not configured. Please contact support.`
-        );
+      // Redirect to Stripe Checkout
+      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+      if (!stripe) {
+        throw new Error("Failed to load Stripe");
       }
-      const url = new URL(paymentLink);
-      url.searchParams.set("client_reference_id", session.user.id);
-      if (session.user.email) {
-        url.searchParams.set("prefilled_email", session.user.email);
-      }
+      
+      const { error } = await stripe.redirectToCheckout({
+        sessionId
+      });
 
-      window.location.href = url.toString();
-    } catch (err: any) {
-      setActionError(err.message);
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      const error = err as Error;
+      setActionError(error.message);
       setIsProcessingAction(false);
     }
   };
@@ -162,8 +194,9 @@ const SubscriptionContent = () => {
        }
  
        await refetch();
-    } catch (err: any) {
-       setActionError(err.message);
+    } catch (err) {
+      const error = err as Error;
+       setActionError(error.message);
     } finally {
         setIsProcessingAction(false);
     }
@@ -195,8 +228,9 @@ const SubscriptionContent = () => {
       }
 
       await refetch(); // Refetch subscription status to update the UI
-    } catch (err: any) {
-      setActionError(err.message);
+    } catch (err) {
+      const error = err as Error;
+      setActionError(error.message);
     } finally {
       setIsProcessingAction(false);
     }
@@ -230,8 +264,9 @@ const SubscriptionContent = () => {
       }
 
       window.location.href = data.url;
-    } catch (err: any) {
-      setActionError(err.message);
+    } catch (err) {
+      const error = err as Error;
+      setActionError(error.message);
       setIsProcessingAction(false);
     }
   };
@@ -263,15 +298,12 @@ const SubscriptionContent = () => {
   const formattedEnd = periodEnd.toLocaleDateString();
 
   // --- Status flags ---
-  const isFreeUser =
-    subscription.status === "free" ||
-    subscription.status === "free_trial" ||
-    !subscription.status; // Treat null/undefined status as free
+  const isTrialing = subscription.status === ("trialing" as SubscriptionStatusType) || subscription.status === ("free_trial" as SubscriptionStatusType);
   const isProUser =
-    subscription.status === "active" &&
+    (subscription.status === "active" || isTrialing) &&
     subscription.subscription_plans.name.toLowerCase().includes("pro");
   const isPremiumUser =
-    subscription.status === "active" &&
+    (subscription.status === "active" || isTrialing) &&
     subscription.subscription_plans.name.toLowerCase().includes("premium");
   const isPaidUser = isProUser || isPremiumUser;
   const isCanceling = subscription.status === "canceling";
@@ -296,8 +328,8 @@ const SubscriptionContent = () => {
     },
     {
       name: "Mock Interview Sessions",
-      used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
-      limit: (subscription.subscription_plans as any).mock_interview_session ?? 0,
+      used: (subscription.usage as FeatureUsageExtended).mock_interview_session_lifetime_count ?? 0,
+      limit: (subscription.subscription_plans as SubscriptionPlanExtended).mock_interview_session ?? 0,
     },
     {
       name: "Job Reveals",
@@ -322,8 +354,21 @@ const SubscriptionContent = () => {
           <CheckCircle className="h-4 w-4 text-green-700" />
           <AlertTitle>Upgrade Successful!</AlertTitle>
           <AlertDescription>
-            Your plan has been upgraded to Pro. You will be redirected in 5
+            Your plan has been upgraded and your 3-day free trial has started. You will be redirected in 5
             seconds.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isTrialing && (
+        <Alert
+          variant="default"
+          className="mb-4 bg-blue-50 border-blue-200"
+        >
+          <Star className="h-4 w-4 text-blue-700" />
+          <AlertTitle>Free Trial Active</AlertTitle>
+          <AlertDescription>
+            You're currently in your 3-day free trial period. Your first payment will be processed on {formattedEnd}.
           </AlertDescription>
         </Alert>
       )}
@@ -350,7 +395,7 @@ const SubscriptionContent = () => {
           <AlertCircle className="h-4 w-4 text-yellow-700" />
           <AlertTitle>Cancellation Scheduled</AlertTitle>
           <AlertDescription>
-            You'll keep Pro until {formattedEnd}, then you'll revert to Free.
+            Your subscription will be canceled on {formattedEnd}.
           </AlertDescription>
         </Alert>
       )}

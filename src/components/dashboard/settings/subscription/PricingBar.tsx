@@ -37,37 +37,20 @@ const PricingBar: React.FC<PricingBarProps> = ({
 
   const plans = [
     {
-      id: 'free',
-      name: 'Free',
-      price: '€0',
-      period: '/month',
-      description: 'Perfect for getting started',
-      icon: Zap,
-      color: 'from-gray-500 to-gray-600',
-      features: [
-        '2 Resume Analyses',
-        '2 Cover Letters', 
-        'Unlimited Document Uploads'
-      ],
-      isCurrent: isFree,
-      isBlocked: isPro || isPremium,
-      action: handleFreeSignup || (() => {}),
-      actionLabel: isFree ? 'Current Plan' : 'Get Started Free'
-    },
-    {
       id: 'pro',
       name: 'Pro',
       price: '€7.99',
       period: '/month',
-      description: 'For serious job seekers',
+      description: 'For serious job seekers - 3 days free trial',
       icon: Star,
       color: 'from-blue-500 to-blue-600',
       features: [
-        '10 Resume Analyses',
-        '10 Cover Letters',
-        '2 LinkedIn Optimizations',
-        '200 Job Reveals',
-        'Unlimited Document Uploads'
+        '10 Resume Analyses per month',
+        '10 Cover Letters per month',
+        '2 LinkedIn Optimizations per month',
+        '200 Job Reveals per month',
+        'Unlimited Document Uploads',
+        '3-day free trial with full access'
       ],
       isCurrent: isPro,
       isBlocked: isPremium,
@@ -79,15 +62,16 @@ const PricingBar: React.FC<PricingBarProps> = ({
       name: 'Premium',
       price: '€19.99',
       period: '/month',
-      description: 'For the ultimate power user',
+      description: 'For the ultimate power user - 3 days free trial',
       icon: Crown,
       color: 'from-purple-500 to-purple-600',
       features: [
         'Unlimited Resumes',
         'Unlimited Cover Letters',
         'Unlimited LinkedIn Optimizations',
-        '500 Job Reveals',
-        'Unlimited Document Uploads'
+        '500 Job Reveals per month',
+        'Unlimited Document Uploads',
+        '3-day free trial with full access'
       ],
       isCurrent: isPremium,
       isBlocked: false,
