@@ -41,12 +41,12 @@ const tools = [
     link: '/dashboard/tools/mock-Interview',
     icon: <MessageSquare className="h-8 w-8 text-emerald-500" />,
   },
-  {
-    title: 'Applications',
-    description: 'Track and manage your job applications with detailed analytics.',
-    link: '/dashboard/applications',
-    icon: <Briefcase className="h-8 w-8 text-green-500" />,
-  },
+  // {
+  //   title: 'Applications',
+  //   description: 'Track and manage your job applications with detailed analytics.',
+  //   link: '/dashboard/applications',
+  //   icon: <Briefcase className="h-8 w-8 text-green-500" />,
+  // },
 ];
 
 const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuote }) => {
@@ -74,11 +74,11 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
       limit: (subscription.subscription_plans as any)?.mock_interview_session ?? 0,
     },
-    {
-      name: "Job Reveals",
-      used: subscription.usage.job_search_results_period_count ?? 0,
-      limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
-    },
+    // {
+    //   name: "Job Reveals",
+    //   used: subscription.usage.job_search_results_period_count ?? 0,
+    //   limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
+    // },
   ] : [];
 
   // Filter metrics for Premium users (plan_id = 3) - only show Job Reveals and Mock Interview Sessions since they have unlimited access to others

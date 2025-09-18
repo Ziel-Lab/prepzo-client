@@ -49,12 +49,12 @@ const Universities = () => {
       description: "Practice, feedback, and confidence to handle real-life interviews and offers.",
       impact: "87% interview success rate"
     },
-    {
-      icon: Globe,
-      title: "Global Job Search Engine",
-      description: "Scans 17+ job boards, syncing with a student's context to surface best-fit roles.",
-      impact: "50% faster job placement"
-    },
+    // {
+    //   icon: Globe,
+    //   title: "Global Job Search Engine",
+    //   description: "Scans 17+ job boards, syncing with a student's context to surface best-fit roles.",
+    //   impact: "50% faster job placement"
+    // },
     {
       icon: Brain,
       title: "Continuous Professional Growth",
@@ -246,9 +246,9 @@ const Universities = () => {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-6 sm:gap-8">
             {/* Internship Search Card */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg border border-border/50 hover:border-prepzo/30 transition-all duration-300">
+            {/* <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg border border-border/50 hover:border-prepzo/30 transition-all duration-300">
               <div className="bg-prepzo-50/20 w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                 <Search className="w-7 h-7 text-prepzo" />
               </div>
@@ -256,7 +256,7 @@ const Universities = () => {
               <p className="text-muted-foreground text-base leading-relaxed">
                 Targeted resumes, smart job matching, and outreach templates.
               </p>
-            </div>
+            </div> */}
 
             {/* Final-Year Transition Card */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg border border-border/50 hover:border-prepzo/30 transition-all duration-300">
