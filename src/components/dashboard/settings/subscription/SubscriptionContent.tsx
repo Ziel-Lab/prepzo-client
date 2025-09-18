@@ -112,8 +112,8 @@ const SubscriptionContent = () => {
       // Direct Stripe payment links (bypassing environment variable issues)
       const paymentLink =
         plan === "pro"
-          ? "https://buy.stripe.com/dRm7sKazu1bK6sK7WW00000"  // Pro plan
-          : "https://buy.stripe.com/4gM9ASgXSaMk3gy0uu00001"; // Premium plan
+          ? "https://buy.stripe.com/test_aFa7sLb768b0c1e4d6frW00"  // Pro plan
+          : "https://buy.stripe.com/test_eVq7sL4II76WaXaeRKfrW01"; // Premium plan
       
 
       if (!paymentLink) {
