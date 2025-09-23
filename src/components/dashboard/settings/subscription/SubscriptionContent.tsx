@@ -148,7 +148,7 @@ const SubscriptionContent = () => {
 
       const { id: sessionId } = await response.json();
       
-      // Redirect  Stripe Checkout
+      // Redirect to Stripe Checkout
       const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
       if (!stripe) {
         throw new Error("Failed to load Stripe");
