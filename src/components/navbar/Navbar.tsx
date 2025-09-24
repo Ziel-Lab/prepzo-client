@@ -74,12 +74,12 @@ const Navbar = () => {
       title: "Cover Letter Generator",
       description: "Create personalized, job-specific cover letters"
     },
-    {
-      href: "/features/linkedin-analyser",
-      icon: User,
-      title: "LinkedIn Optimizer", 
-      description: "Optimize your LinkedIn profile for maximum impact"
-    },
+    // {
+    //   href: "/features/linkedin-analyser",
+    //   icon: User,
+    //   title: "LinkedIn Optimizer", 
+    //   description: "Optimize your LinkedIn profile for maximum impact"
+    // },
     {
       href: "/features/mock-interview",
       icon:  Bot,
