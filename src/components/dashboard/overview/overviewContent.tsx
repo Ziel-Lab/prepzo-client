@@ -29,12 +29,12 @@ const tools = [
     link: '/dashboard/tools/cover-letter',
     icon: <Wand2 className="h-8 w-8 text-purple-500" />,
   },
-  {
-    title: 'LinkedIn Optimizer',
-    description: 'Enhance your LinkedIn profile to attract recruiters and opportunities.',
-    link: '/dashboard/tools/linkedin-optimizer',
-    icon: <Linkedin className="h-8 w-8 text-sky-600" />,
-  },
+  // {
+  //   title: 'LinkedIn Optimizer',
+  //   description: 'Enhance your LinkedIn profile to attract recruiters and opportunities.',
+  //   link: '/dashboard/tools/linkedin-optimizer',
+  //   icon: <Linkedin className="h-8 w-8 text-sky-600" />,
+  // },
   {
     title: 'Mock Interview',
     description: 'Practice interviews with AI and get detailed feedback to improve.',
@@ -64,11 +64,11 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       used: subscription.usage.cover_letter_period_count,
       limit: subscription.subscription_plans?.cover_letter_limit_per_month ?? 'N/A',
     },
-    {
-      name: "LinkedIn Optimizations",
-      used: subscription.usage.linkedin_optimize_period_count,
-      limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
-    },
+    // {
+    //   name: "LinkedIn Optimizations",
+    //   used: subscription.usage.linkedin_optimize_period_count,
+    //   limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
+    // },
     {
       name: "Mock Interview Sessions",
       used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
