@@ -6,13 +6,13 @@ import Link from "next/link";
 
 // Career tools configuration - completely restructured to force update
 const careerTools = [
-  {
-    toolId: "linkedin-optimizer",
-    name: "LinkedIn Profile Optimizer",
-    info: "Enhance your LinkedIn profile with AI-powered suggestions",
-    isActive: true,
-    route: "/dashboard/tools/linkedin-optimizer",
-  },
+  // {
+  //   toolId: "linkedin-optimizer",
+  //   name: "LinkedIn Profile Optimizer",
+  //   info: "Enhance your LinkedIn profile with AI-powered suggestions",
+  //   isActive: true,
+  //   route: "/dashboard/tools/linkedin-optimizer",
+  // },
   {
     toolId: "resume-generator",
     name: "Resume Generator",
