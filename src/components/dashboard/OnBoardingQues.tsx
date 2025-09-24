@@ -107,148 +107,101 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
           .eq("user_id", user.id)
           .single();
 
-        // Only open if we successfully fetch the profile AND 'answered' is explicitly false.
-        if (!error && data && data.answered === false) {
-            setIsOpen(true);
-        } else {
-          setIsOpen(false);
+        if (error) {
+          console.error("Error fetching profile:", error);
+          const { error: createError } = await supabase
+            .from("profiles")
+            .insert({
+              user_id: user.id,
+              display_name: user.user_metadata?.full_name || user.email,
+              answered: false,
+            });
+
+          if (!createError) setIsOpen(true);
+          return;
         }
 
-        // if there's a plan_id saved, store it (used by SubscriptionPricing)
-        if (!error && data && data.plan_id !== undefined) {
-          setCurrentPlanId(data.plan_id);
-        }
+        if (data && data.answered === false) setIsOpen(true);
+        else setIsOpen(false);
+
+        if (data?.plan_id !== undefined) setCurrentPlanId(data.plan_id);
       }
     };
+
     checkOnboardingStatus();
   }, [user, supabase]);
 
-  const progress = useMemo(
-    () => ((currentStep + 1) / questions.length) * 100,
-    [currentStep]
-  );
+  const progress = useMemo(() => ((currentStep + 1) / questions.length) * 100, [currentStep]);
 
   const handleNext = () => {
-    if (currentStep < questions.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (currentStep < questions.length - 1) setCurrentStep((s) => s + 1);
   };
-
   const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 0) setCurrentStep((s) => s - 1);
   };
+  const handleChange = (key: string, value: string) => setAnswers((prev) => ({ ...prev, [key]: value }));
 
-  const handleChange = (key: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // Save profile answers; after successful save, open SubscriptionPricing instead of simply closing
   const handleSubmit = async () => {
     if (!user) return;
     setIsLoading(true);
 
-    const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, plan_id')
-        .eq('user_id', user.id)
-        .single();
+    const { data: profileData } = await supabase.from("profiles").select("id, plan_id").eq("user_id", user.id).single();
 
     let result;
     if (profileData) {
-        // Update existing profile
-        result = await supabase
-            .from('profiles')
-            .update({ ...answers, answered: true, display_name: user.user_metadata.full_name || user.email })
-            .eq('user_id', user.id);
+      result = await supabase
+        .from("profiles")
+        .update({ ...answers, answered: true, display_name: user.user_metadata?.full_name || user.email })
+        .eq("user_id", user.id);
     } else {
-        // Insert new profile
-        result = await supabase.from("profiles").insert([
-            {
-                ...answers,
-                user_id: user.id,
-                display_name: user.user_metadata.full_name || user.email,
-                answered: true,
-            },
-        ]);
+      result = await supabase.from("profiles").insert([
+        {
+          ...answers,
+          user_id: user.id,
+          display_name: user.user_metadata?.full_name || user.email,
+          answered: true,
+        },
+      ]);
     }
-    
-    const { error } = result;
 
-    if (error) {
-      console.error("Error saving onboarding data:", error);
-      // TODO: show user-facing error toast/alert
-    } else {
-      // After successful save, open the Pricing chooser so the user can pick a plan
-      // Keep the dialog open but replace content with SubscriptionPricing
-      // Also refresh server components so the rest of the app sees the updated answered flag
+    const { error } = result as any;
+    if (error) console.error("Error saving onboarding data:", error);
+    else {
       setShowPricing(true);
-
-      // refresh to update server components (optional; will re-run server code)
       router.refresh();
-
-      // If profileData had plan_id, keep it
-      if (profileData?.plan_id !== undefined) {
-        setCurrentPlanId(profileData.plan_id);
-      }
+      if ((profileData as any)?.plan_id !== undefined) setCurrentPlanId((profileData as any).plan_id);
     }
+
     setIsLoading(false);
   };
 
-  // Example handleUpgrade - calls a Supabase Edge function or RPC to create a checkout session
-  // Replace `create_checkout_session` with your own endpoint/RPC. The function should return { url }.
   const handleUpgrade = async (plan: "pro" | "premium") => {
     if (!user) return;
     setIsProcessingAction(true);
     try {
-      // If you have a Supabase Edge function:
-      // const { data, error } = await supabase.functions.invoke('create_checkout_session', { body: { plan, user_id: user.id } });
-      // or an RPC: const { data, error } = await supabase.rpc('create_checkout_session', { plan_name: plan, user_id: user.id })
-      //
-      // Below is a placeholder implementation — adapt to your backend.
       const res = await fetch(`/api/checkout/create-session`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ plan, user_id: user.id }),
       });
-
-      if (!res.ok) {
-        throw new Error("Failed to create checkout session");
-      }
+      if (!res.ok) throw new Error("Failed to create checkout session");
       const payload = await res.json();
-      if (payload?.url) {
-        // redirect to Stripe Checkout or billing hosted page
-        window.location.href = payload.url;
-        return;
-      } else if (payload?.sessionId) {
-        // if you need to use Stripe client to redirect using sessionId, handle here
-        // e.g. stripe.redirectToCheckout({ sessionId: payload.sessionId })
-      } else {
-        // fallback: mark as processing or show success UI
-        console.warn("No checkout redirect url returned", payload);
-      }
+      if (payload?.url) window.location.href = payload.url;
+      else console.warn("No checkout redirect url returned", payload);
     } catch (err) {
       console.error("Upgrade error:", err);
-      // TODO: show toast/error to user
     } finally {
       setIsProcessingAction(false);
     }
   };
 
   const handleFreeSignup = async () => {
-    // Optional: handle free plan selection (if you want to allow selecting free plan here)
-    // Example: set user's plan_id to 1 in profiles
     if (!user) return;
     setIsProcessingAction(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ plan_id: 1 })
-        .eq("user_id", user.id);
+      const { error } = await supabase.from("profiles").update({ plan_id: 1 }).eq("user_id", user.id);
       if (error) throw error;
       setCurrentPlanId(1);
-      // close onboarding/pricing or show confirmation
       setIsOpen(false);
       router.refresh();
     } catch (err) {
@@ -263,88 +216,110 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
 
   return (
     <Dialog open={isOpen}>
-      <DialogContent className="sm:max-w-[700px] p-0" hideCloseButton>
+      <DialogContent className="w-full sm:max-w-[980px] p-0 mx-auto rounded-xl shadow-xl" hideCloseButton>
         {!showPricing ? (
           <>
-            <div className="p-6">
+            <div className="p-6 sm:p-8">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">
-                  Welcome to Prepzo!
-                </DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-2xl sm:text-3xl font-bold text-center">Welcome to Prepzo!</DialogTitle>
+                <DialogDescription className="text-center text-sm text-muted-foreground">
                   A few quick questions to personalize your experience.
                 </DialogDescription>
               </DialogHeader>
-              <div className="my-6">
-                <Progress value={progress} className="w-full" />
+
+              <div className="my-4">
+                <Progress value={progress} className="w-full h-2 rounded-full" />
               </div>
-              <div className="space-y-4 min-h-[200px]">
-                <Label className="text-lg font-semibold">
-                  {currentQuestion.question}
-                </Label>
-                {currentQuestion.type === "radio" && (
-                  <RadioGroup
-                    value={answers[currentQuestion.key] || ""}
-                    onValueChange={(value) =>
-                      handleChange(currentQuestion.key, value)
-                    }
-                    className="space-y-2"
-                  >
-                    {currentQuestion.options?.map((option) => (
-                      <div key={option} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option} id={option} />
-                        <Label htmlFor={option} className="font-normal">{option}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-                {currentQuestion.type === "text" && (
-                  <Input
-                    value={answers[currentQuestion.key] || ""}
-                    onChange={(e) =>
-                      handleChange(currentQuestion.key, e.target.value)
-                    }
-                    placeholder={currentQuestion.placeholder}
-                  />
-                )}
-                {currentQuestion.type === "textarea" && (
-                  <Textarea
-                    value={answers[currentQuestion.key] || ""}
-                    onChange={(e) =>
-                      handleChange(currentQuestion.key, e.target.value)
-                    }
-                    placeholder={currentQuestion.placeholder}
-                  />
-                )}
+
+              {/* unified content wrapper */}
+              <div className="min-h-[220px] flex flex-col items-center justify-center text-center px-6 sm:px-12">
+                <Label className="text-lg font-semibold mb-3">{currentQuestion.question}</Label>
+
+                <div className="w-full max-w-2xl mx-auto">
+                  {currentQuestion.type === "radio" && (
+                    <RadioGroup
+                      value={answers[currentQuestion.key] || ""}
+                      onValueChange={(value) => handleChange(currentQuestion.key, value)}
+                      className="flex flex-col space-y-4 w-full"
+                    >
+                      {currentQuestion.options?.map((option, idx) => (
+                        // two-column grid: fixed-width radio column + flexible label column
+                        <div
+                          key={option}
+                          className="grid grid-cols-[44px_1fr] items-center gap-x-4 w-full px-2"
+                        >
+                          <div className="flex items-center justify-center">
+                            {/* Radio control centered in its column */}
+                            <RadioGroupItem value={option} id={`${currentQuestion.key}-${idx}`} />
+                          </div>
+
+                          <div className="flex items-center">
+                            {/* label left-aligned within its column for consistent text flow */}
+                            <Label
+                              htmlFor={`${currentQuestion.key}-${idx}`}
+                              className="font-normal text-left leading-relaxed"
+                            >
+                              {option}
+                            </Label>
+                          </div>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+
+                  {currentQuestion.type === "text" && (
+                    <div className="mx-auto w-full max-w-md">
+                      <Input
+                        value={answers[currentQuestion.key] || ""}
+                        onChange={(e) => handleChange(currentQuestion.key, e.target.value)}
+                        placeholder={currentQuestion.placeholder}
+                      />
+                    </div>
+                  )}
+
+                  {currentQuestion.type === "textarea" && (
+                    <div className="mx-auto w-full max-w-lg">
+                      <Textarea
+                        value={answers[currentQuestion.key] || ""}
+                        onChange={(e) => handleChange(currentQuestion.key, e.target.value)}
+                        placeholder={currentQuestion.placeholder}
+                        rows={4}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="flex justify-between bg-gray-50 p-4 border-t">
-                <Button variant="outline" onClick={handleBack} disabled={currentStep === 0 || isLoading}>
-                    Back
-                </Button>
-                <div>
+
+            <div className="flex items-center justify-between bg-gray-50 p-4 border-t">
+              <Button variant="outline" onClick={handleBack} disabled={currentStep === 0 || isLoading}>
+                Back
+              </Button>
+
+              <div>
                 {isLastStep ? (
-                    <Button onClick={handleSubmit} disabled={!answers[currentQuestion.key] || isLoading}>
+                  <Button onClick={handleSubmit} disabled={!answers[currentQuestion.key] || isLoading}>
                     {isLoading ? "Saving..." : "Finish"}
-                    </Button>
+                  </Button>
                 ) : (
-                    <Button onClick={handleNext} disabled={!answers[currentQuestion.key] || isLoading}>
+                  <Button onClick={handleNext} disabled={!answers[currentQuestion.key] || isLoading}>
                     Next
-                    </Button>
+                  </Button>
                 )}
-                </div>
+              </div>
             </div>
           </>
         ) : (
-          // Replace dialog content with the SubscriptionPricing chooser
           <div className="p-6">
             <SubscriptionPricing
               currentPlanId={currentPlanId}
               isProcessingAction={isProcessingAction}
               handleUpgrade={handleUpgrade}
               handleFreeSignup={handleFreeSignup}
+              compact
             />
-            <div className="mt-6 text-right">
+
+            {/* <div className="mt-4 flex justify-end">
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -354,7 +329,7 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
               >
                 Close
               </Button>
-            </div>
+            </div> */}
           </div>
         )}
       </DialogContent>

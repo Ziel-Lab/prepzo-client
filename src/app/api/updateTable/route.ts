@@ -19,7 +19,7 @@ export async function POST() {
 
     try {
         // 3. Check if user records already exist (created by trigger or previous calls)
-        const [subscriptionCheck, usageCheck] = await Promise.all([
+        const [subscriptionCheck, usageCheck, profileCheck] = await Promise.all([
             supabaseAdmin
                 .from('user_subscriptions')
                 .select('id, plan_id, status')
@@ -29,49 +29,61 @@ export async function POST() {
                 .from('feature_usage')
                 .select('id, plan_id')
                 .eq('user_id', user.id)
+                .maybeSingle(),
+            supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('user_id', user.id)
                 .maybeSingle()
         ]);
-
-        // 4. If both records exist, return early (most common case for new users)
-        if (subscriptionCheck.data && usageCheck.data && !subscriptionCheck.error && !usageCheck.error) {
+    
+        // 4. If all records exist, return early
+        if (subscriptionCheck.data && usageCheck.data && profileCheck.data && 
+            !subscriptionCheck.error && !usageCheck.error && !profileCheck.error) {
             return NextResponse.json({ 
-                message: 'User subscription and usage already initialized.',
+                message: 'User records already initialized.',
                 subscription: subscriptionCheck.data,
                 usage: usageCheck.data,
+                profile: profileCheck.data,
                 source: 'existing_records'
             });
         }
-
-        // 5. Fallback: Create missing records (for users who signed up before trigger was added)
+    
+        // 5. Create missing records
         const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'N/A';
         const today = new Date();
         const freePlanId = 1; // Default Free Plan ID
-
+    
         const results = [];
-
+    
+        // Create profile if missing
+        if (!profileCheck.data) {
+            const { data: profileData, error: profileError } = await supabaseAdmin
+                .from('profiles')
+                .insert({
+                    user_id: user.id,
+                    display_name: displayName,
+                    answered: false  // This ensures onboarding will show
+                })
+                .select()
+                .single();
+    
+            if (profileError) {
+                console.error(`Failed to create profile for user ${user.id}:`, profileError);
+                throw new Error('Could not create user profile record.');
+            }
+            results.push({ profile: profileData });
+        }
+    
         // Create subscription record if missing
         if (!subscriptionCheck.data) {
             const subscriptionData = {
                 user_id: user.id,
                 plan_id: freePlanId,
-                status: 'free',
-                display_name: displayName,
-                started_at: today.toISOString(),
-                current_period_start: today.toISOString().split('T')[0], // Actual signup date - NOT first of month
-                // No current_period_end for new users - they're on free plan indefinitely
+                status: 'active',
+                start_date: today.toISOString().split('T')[0],
+                end_date: null
             };
-
-            const { data: subInsertData, error: subInsertError } = await supabaseAdmin
-                .from('user_subscriptions')
-                .insert(subscriptionData)
-                .select()
-                .single();
-
-            if (subInsertError) {
-                console.error(`Failed to insert subscription for user ${user.id}:`, subInsertError);
-                throw new Error('Could not create user subscription record.');
-            }
-            results.push({ subscription: subInsertData });
         }
 
         // Create usage record if missing
