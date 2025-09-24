@@ -79,7 +79,7 @@ const PricingBar: React.FC<PricingBarProps> = ({
       name: 'Premium',
       price: '€19.99',
       period: '/month',
-      description: 'For the ultimate power user - 3 days free trial',
+      description: 'For ultimate power user - 3 days free trial',
       icon: Crown,
       color: 'from-purple-500 to-purple-600',
       features: [
