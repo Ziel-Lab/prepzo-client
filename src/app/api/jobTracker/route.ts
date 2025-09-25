@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
       notes: (body.notes ?? '').toString(),
       next_action: (body.nextAction ?? '').toString() || null,
       next_action_date: body.nextActionDate || null,
+      resume_url: (body.resume_url ?? '').toString() || null,
+      cover_letter_url: (body.cover_letter_url ?? '').toString() || null,
+      company_url: (body.company_url ?? '').toString() || null,
     }
 
     if (!payload.company || !payload.position) {
@@ -121,6 +124,9 @@ export async function PATCH(req: NextRequest) {
     if (body.notes !== undefined) updates.notes = body.notes
     if (body.nextAction !== undefined) updates.next_action = body.nextAction || null
     if (body.nextActionDate !== undefined) updates.next_action_date = body.nextActionDate || null
+    if (body.resume_url !== undefined) updates.resume_url = body.resume_url || null
+    if (body.cover_letter_url !== undefined) updates.cover_letter_url = body.cover_letter_url || null
+    if (body.company_url !== undefined) updates.company_url = body.company_url || null
 
     const { data, error } = await supabase
       .from('job_applications')

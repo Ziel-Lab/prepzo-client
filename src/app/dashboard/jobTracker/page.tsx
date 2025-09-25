@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Filter, Plus, Building, Calendar, MapPin, DollarSign, ArrowUpDown, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Search, Filter, Plus, Building, Calendar, MapPin,  ArrowUpDown, MoreHorizontal, Edit, Trash2, ExternalLink, Link2 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import Link from "next/link";
 
 type JobStatus = "applied" | "shortlisted" | "interview_scheduled" | "interviewed" | "rejected" | "withdrawn" | "offer_letter" | "offer_accepted";
 
@@ -20,12 +21,14 @@ interface Job {
   company: string;
   position: string;
   location: string;
-  
+  company_url?: string;
   appliedDate: string;
   status: JobStatus;
   notes?: string;
   nextAction?: string;
   nextActionDate?: string;
+  resume_url?: string;
+  cover_letter_url?: string;
 }
 
 const mockJobs: Job[] = [];
@@ -58,12 +61,14 @@ const JobTracker = () => {
     company: "",
     position: "",
     location: "",
-    
+    company_url: "",
     appliedDate: new Date().toISOString().split('T')[0],
     status: "applied",
     notes: "",
     nextAction: "",
-    nextActionDate: ""
+    nextActionDate: "",
+    resume_url: "",
+    cover_letter_url: ""
   });
 
   const filteredAndSortedJobs = useMemo(() => jobs, [jobs]);
@@ -87,22 +92,28 @@ const JobTracker = () => {
         company: string;
         position: string;
         location?: string | null;
+        company_url?: string | null;
         applied_date: string;
         status: JobStatus;
         notes?: string | null;
         next_action?: string | null;
         next_action_date?: string | null;
+        resume_url?: string | null;
+        cover_letter_url?: string | null;
       }> = json.data || [];
       const mapped: Job[] = apiJobs.map(j => ({
         id: j.id,
         company: j.company,
         position: j.position,
         location: j.location || "",
+        company_url: j.company_url || "",
         appliedDate: j.applied_date,
         status: j.status,
         notes: j.notes || "",
         nextAction: j.next_action || "",
-        nextActionDate: j.next_action_date || ""
+        nextActionDate: j.next_action_date || "",
+        resume_url: j.resume_url || "",
+        cover_letter_url: j.cover_letter_url || ""
       }));
       setJobs(mapped);
     } catch (e) {
@@ -157,11 +168,14 @@ const JobTracker = () => {
         company: editJob.company,
         position: editJob.position,
         location: editJob.location,
+        company_url: editJob.company_url,
         appliedDate: editJob.appliedDate,
         status: editJob.status,
         notes: editJob.notes,
         nextAction: editJob.nextAction,
-        nextActionDate: editJob.nextActionDate
+        nextActionDate: editJob.nextActionDate,
+        resume_url: editJob.resume_url,
+        cover_letter_url: editJob.cover_letter_url
       })
     });
     setIsEditDialogOpen(false);
@@ -178,11 +192,14 @@ const JobTracker = () => {
           company: newJob.company,
           position: newJob.position,
           location: newJob.location,
+          company_url: newJob.company_url,
           appliedDate: newJob.appliedDate,
           status: newJob.status,
           notes: newJob.notes,
           nextAction: newJob.nextAction,
-          nextActionDate: newJob.nextActionDate
+          nextActionDate: newJob.nextActionDate,
+          resume_url: newJob.resume_url,
+          cover_letter_url: newJob.cover_letter_url
         })
       });
       if (!res.ok) {
@@ -194,11 +211,14 @@ const JobTracker = () => {
         company: "",
         position: "",
         location: "",
+        company_url: "",
         appliedDate: new Date().toISOString().split('T')[0],
         status: "applied",
         notes: "",
         nextAction: "",
-        nextActionDate: ""
+        nextActionDate: "",
+        resume_url: "",
+        cover_letter_url: ""
       });
       setIsAddDialogOpen(false);
       loadJobs();
@@ -282,6 +302,15 @@ const JobTracker = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="company_url">Company URL</Label>
+                    <Input
+                      id="company_url"
+                      placeholder="https://..."
+                      value={newJob.company_url || ""}
+                      onChange={(e) => setNewJob({ ...newJob, company_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="appliedDate">Applied Date</Label>
                     <Input
                       id="appliedDate"
@@ -330,7 +359,7 @@ const JobTracker = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes">Job Description</Label>
                   <Textarea
                     id="notes"
                     placeholder="Any additional notes about this application..."
@@ -338,6 +367,26 @@ const JobTracker = () => {
                     onChange={(e) => setNewJob({ ...newJob, notes: e.target.value })}
                     rows={3}
                   />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="resume_url">Resume URL</Label>
+                    <Input
+                      id="resume_url"
+                      placeholder="https://..."
+                      value={newJob.resume_url || ""}
+                      onChange={(e) => setNewJob({ ...newJob, resume_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cover_letter_url">Cover Letter URL</Label>
+                    <Input
+                      id="cover_letter_url"
+                      placeholder="https://..."
+                      value={newJob.cover_letter_url || ""}
+                      onChange={(e) => setNewJob({ ...newJob, cover_letter_url: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -441,22 +490,62 @@ const JobTracker = () => {
                 <Table className="min-w-full">
                   <TableHeader className="sticky top-0 z-10 bg-white">
                     <TableRow>
-                      <TableHead className="w-[22%]"><Button variant="ghost" onClick={() => handleSort("company")} className="h-auto p-0 font-semibold hover:bg-transparent">Company<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                      <TableHead className="w-[22%]"><Button variant="ghost" onClick={() => handleSort("position")} className="h-auto p-0 font-semibold hover:bg-transparent">Position<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                      <TableHead className="w-[20%]">Location</TableHead>
-                      <TableHead className="w-[16%]"><Button variant="ghost" onClick={() => handleSort("appliedDate")} className="h-auto p-0 font-semibold hover:bg-transparent">Applied Date<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
-                      <TableHead className="w-[14%]"><Button variant="ghost" onClick={() => handleSort("status")} className="h-auto p-0 font-semibold hover:bg-transparent">Status<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                      <TableHead className="w-[18%]"><Button variant="ghost" onClick={() => handleSort("company")} className="h-auto p-0 font-semibold hover:bg-transparent">Company<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                      <TableHead className="w-[18%]"><Button variant="ghost" onClick={() => handleSort("position")} className="h-auto p-0 font-semibold hover:bg-transparent">Position<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                      <TableHead className="w-[14%]">Location</TableHead>
+                      <TableHead className="w-[12%]"><Button variant="ghost" onClick={() => handleSort("appliedDate")} className="h-auto p-0 font-semibold hover:bg-transparent">Applied Date<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                      <TableHead className="w-[10%]"><Button variant="ghost" onClick={() => handleSort("status")} className="h-auto p-0 font-semibold hover:bg-transparent">Status<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+                      <TableHead className="w-[12%]">Resume</TableHead>
+                      <TableHead className="w-[12%]">Cover Letter</TableHead>
                       <TableHead className="w-[6%] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredAndSortedJobs.map((job) => (
                       <TableRow key={job.id}>
-                        <TableCell className="font-medium">{job.company}</TableCell>
+                        <TableCell className="font-medium">
+                          {job.company_url ? (
+                            <Link href={job.company_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              <span className="flex items-center gap-1"><Link2 className="h-4 w-4" /> {job.company}</span>
+                            </Link>
+                          ) : (
+                            <span>{job.company}</span>
+                          )}
+                        </TableCell>
                         <TableCell>{job.position}</TableCell>
                         <TableCell className="text-sm text-gray-600">{job.location}</TableCell>
                         <TableCell className="text-sm">{new Date(job.appliedDate).toLocaleDateString()}</TableCell>
                         <TableCell><Badge className={statusConfig[job.status].color}>{statusConfig[job.status].label}</Badge></TableCell>
+                        <TableCell>
+                          {job.resume_url ? (
+                            <Link href={job.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline"><span className="flex items-center gap-1"><ExternalLink className="h-4 w-4" /> View Resume </span></Link>
+                          ) : (
+                            <Link
+                              href={`/dashboard/tools/resume-generator?${new URLSearchParams({
+                                company: job.company,
+                                position: job.position,
+                                companyWebsite: job.company_url || '',
+                                jobDescription: job.notes || ''
+                              }).toString()}`}
+                            >
+                              <Button variant="outline" size="sm">Create Resume</Button>
+                            </Link>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {job.cover_letter_url ? (
+                            <Link href={job.cover_letter_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline"><span className="flex items-center gap-1"><ExternalLink className="h-4 w-4" /> View Letter</span></Link>
+                          ) : (
+                            <Link
+                              href={`/dashboard/tools/cover-letter?${new URLSearchParams({
+                                companyWebsite: job.company_url || '',
+                                jobDescription: job.notes || ''
+                              }).toString()}`}
+                            >
+                              <Button variant="outline" size="sm">Create Letter</Button>
+                            </Link>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -622,8 +711,28 @@ const JobTracker = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
+              <Label htmlFor="edit-notes">Job Description</Label>
               <Textarea id="edit-notes" rows={3} value={editJob.notes ?? ""} onChange={(e) => setEditJob({ ...editJob, notes: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-resume_url">Resume URL</Label>
+                <Input
+                  id="edit-resume_url"
+                  placeholder="https://..."
+                  value={editJob.resume_url ?? ""}
+                  onChange={(e) => setEditJob({ ...editJob, resume_url: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cover_letter_url">Cover Letter URL</Label>
+                <Input
+                  id="edit-cover_letter_url"
+                  placeholder="https://..."
+                  value={editJob.cover_letter_url ?? ""}
+                  onChange={(e) => setEditJob({ ...editJob, cover_letter_url: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
