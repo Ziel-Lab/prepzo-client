@@ -94,8 +94,7 @@ export async function POST() {
                     user_id: user.id,
                     display_name: displayName,
                     answered: false, // This ensures onboarding will show
-                    paid_user: false,
-                    plan_id: freePlanId
+                    paid_user: false
                 })
                 .select()
                 .single();
@@ -115,8 +114,6 @@ export async function POST() {
                     user_id: user.id,
                     plan_id: freePlanId,
                     status: 'active',
-                    start_date: today.toISOString().split('T')[0],
-                    end_date: null,
                     display_name: displayName
                 })
                 .select()

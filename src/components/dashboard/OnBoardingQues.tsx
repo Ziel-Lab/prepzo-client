@@ -101,16 +101,26 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (user) {
-        const { data, error } = await supabase
-        .from("profiles")
-        .select("answered, plan_id, paid_user")
-        .eq("user_id", user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)  
-        .single();
+        const [profileResponse, subscriptionResponse] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("answered, paid_user")
+            .eq("user_id", user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single(),
+          supabase
+            .from("user_subscriptions")
+            .select("plan_id")
+            .eq("user_id", user.id)
+            .single()
+        ]);
 
-        if (error) {
-          console.error("Error fetching profile:", error);
+        console.log('Profile Response:', profileResponse.data);
+        console.log('Subscription Response:', subscriptionResponse.data);
+
+        if (profileResponse.error) {
+          console.error("Error fetching profile:", profileResponse.error);
           const { error: createError } = await supabase
             .from("profiles")
             .insert({
@@ -121,14 +131,28 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
             })
             .select()
             .single();
-
-          if (!createError) setIsOpen(true);
+    
+          if (!createError) {
+            setIsOpen(true);
+            setShowPricing(false); // Ensure questions show first
+          }
           return;
         }
 
-        setIsOpen(!data?.paid_user && data?.answered === false);
-        setShowPricing(!data?.paid_user);
-        if (data?.plan_id !== undefined) setCurrentPlanId(data.plan_id);
+        // First check if questions need to be shown
+        if (!profileResponse.data?.answered) {
+          setIsOpen(true);
+          setShowPricing(false); // Make sure pricing doesn't show during questions
+        } else {
+          // Only show pricing if questions are answered and user is not paid
+          setIsOpen(!profileResponse.data?.paid_user);
+          setShowPricing(!profileResponse.data?.paid_user);
+        }
+
+        // Set plan ID if available
+        if (subscriptionResponse.data?.plan_id) {
+          setCurrentPlanId(subscriptionResponse.data.plan_id);
+        }
       }
     };
 
@@ -187,6 +211,8 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
       }
       if (result.error) throw result.error;
 
+      setShowPricing(true);
+
       // Check subscription status after updating profile
       const { data: subscriptionData } = await supabase
         .from('user_subscriptions')
@@ -195,11 +221,10 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
         .single();
     
       // Only show pricing if user is not paid
-      setShowPricing(!subscriptionData || subscriptionData.plan_id === 1);
-      if (subscriptionData?.plan_id) setCurrentPlanId(subscriptionData.plan_id);
-
+      if (subscriptionData?.plan_id) {
+        setCurrentPlanId(subscriptionData.plan_id);
+      }
       router.refresh();
-       
     } catch (error) {
       console.error("Error saving onboarding data:", error);
     } finally {
@@ -223,22 +248,6 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
       else console.warn("No checkout redirect url returned", payload);
     } catch (err) {
       console.error("Upgrade error:", err);
-    } finally {
-      setIsProcessingAction(false);
-    }
-  };
-
-  const handleFreeSignup = async () => {
-    if (!user) return;
-    setIsProcessingAction(true);
-    try {
-      const { error } = await supabase.from("profiles").update({ plan_id: 1 }).eq("user_id", user.id);
-      if (error) throw error;
-      setCurrentPlanId(1);
-      setIsOpen(false);
-      router.refresh();
-    } catch (err) {
-      console.error("Free signup error:", err);
     } finally {
       setIsProcessingAction(false);
     }
@@ -354,7 +363,6 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
               currentPlanId={currentPlanId}
               isProcessingAction={isProcessingAction}
               handleUpgrade={handleUpgrade}
-              handleFreeSignup={handleFreeSignup}
               compact
             />
 
