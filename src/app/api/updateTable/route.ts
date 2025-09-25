@@ -2,6 +2,26 @@ import { createClient as createServerSupabaseClient } from '@/utils/supabase/ser
 import { createClient as createAdminSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+async function handleSubscriptionChange(userId: string, planId: number) {
+    const supabaseAdmin = createAdminSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  
+    // Only update paid_user status based on plan_id, don't update plan_id
+    const { error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({ 
+        paid_user: planId !== 1  // true if plan_id is 2 or 3
+      })
+      .eq('user_id', userId);
+  
+    if (updateError) {
+      console.error(`Failed to update paid_user status for user ${userId}:`, updateError);
+      throw new Error('Could not update paid user status.');
+    }
+}
+
 export async function POST() {
     // 1. Get the current user using the server client from utils
     const supabase = await createServerSupabaseClient();
@@ -36,6 +56,16 @@ export async function POST() {
                 .eq('user_id', user.id)
                 .maybeSingle()
         ]);
+
+        const { data: subscriptionData } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('plan_id')
+            .eq('user_id', user.id)
+            .single();
+
+        if (subscriptionData) {
+        await handleSubscriptionChange(user.id, subscriptionData.plan_id);
+        }
     
         // 4. If all records exist, return early
         if (subscriptionCheck.data && usageCheck.data && profileCheck.data && 
@@ -63,7 +93,9 @@ export async function POST() {
                 .insert({
                     user_id: user.id,
                     display_name: displayName,
-                    answered: false  // This ensures onboarding will show
+                    answered: false, // This ensures onboarding will show
+                    paid_user: false,
+                    plan_id: freePlanId
                 })
                 .select()
                 .single();
@@ -77,13 +109,24 @@ export async function POST() {
     
         // Create subscription record if missing
         if (!subscriptionCheck.data) {
-            const subscriptionData = {
-                user_id: user.id,
-                plan_id: freePlanId,
-                status: 'active',
-                start_date: today.toISOString().split('T')[0],
-                end_date: null
-            };
+            const { data: subscriptionData, error: subscriptionError } = await supabaseAdmin
+                .from('user_subscriptions')
+                .insert({
+                    user_id: user.id,
+                    plan_id: freePlanId,
+                    status: 'active',
+                    start_date: today.toISOString().split('T')[0],
+                    end_date: null,
+                    display_name: displayName
+                })
+                .select()
+                .single();
+            
+            if (subscriptionError) {
+                console.error(`Failed to create subscription for user ${user.id}:`, subscriptionError);
+                throw new Error('Could not create subscription record.');
+            }
+            results.push({ subscription: subscriptionData });
         }
 
         // Create usage record if missing

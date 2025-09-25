@@ -102,10 +102,12 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
     const checkOnboardingStatus = async () => {
       if (user) {
         const { data, error } = await supabase
-          .from("profiles")
-          .select("answered, plan_id")
-          .eq("user_id", user.id)
-          .single();
+        .from("profiles")
+        .select("answered, plan_id, paid_user")
+        .eq("user_id", user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)  
+        .single();
 
         if (error) {
           console.error("Error fetching profile:", error);
@@ -115,15 +117,17 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
               user_id: user.id,
               display_name: user.user_metadata?.full_name || user.email,
               answered: false,
-            });
+              paid_user: false,
+            })
+            .select()
+            .single();
 
           if (!createError) setIsOpen(true);
           return;
         }
 
-        if (data && data.answered === false) setIsOpen(true);
-        else setIsOpen(false);
-
+        setIsOpen(!data?.paid_user && data?.answered === false);
+        setShowPricing(!data?.paid_user);
         if (data?.plan_id !== undefined) setCurrentPlanId(data.plan_id);
       }
     };
@@ -145,34 +149,63 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
     if (!user) return;
     setIsLoading(true);
 
-    const { data: profileData } = await supabase.from("profiles").select("id, plan_id").eq("user_id", user.id).single();
-
-    let result;
-    if (profileData) {
-      result = await supabase
+    try {
+      const { data: existingProfile } = await supabase
         .from("profiles")
-        .update({ ...answers, answered: true, display_name: user.user_metadata?.full_name || user.email })
-        .eq("user_id", user.id);
-    } else {
-      result = await supabase.from("profiles").insert([
-        {
-          ...answers,
-          user_id: user.id,
-          display_name: user.user_metadata?.full_name || user.email,
-          answered: true,
-        },
-      ]);
-    }
+        .select("id, paid_user")
+        .eq("user_id", user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-    const { error } = result as any;
-    if (error) console.error("Error saving onboarding data:", error);
-    else {
-      setShowPricing(true);
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        result = await supabase
+          .from("profiles")
+          .update({
+            ...answers,
+            answered: true,
+            display_name: user.user_metadata?.full_name || user.email,
+            paid_user: existingProfile.paid_user
+          })
+          .eq('id', existingProfile.id) // Use specific ID to update
+          .select();
+      } else {
+        result = await supabase
+          .from("profiles")
+          .insert([
+            {
+              ...answers,
+              user_id: user.id,
+              display_name: user.user_metadata?.full_name || user.email,
+              answered: true,
+              paid_user: false
+            },
+          ])
+        .select();
+      }
+      if (result.error) throw result.error;
+
+      // Check subscription status after updating profile
+      const { data: subscriptionData } = await supabase
+        .from('user_subscriptions')
+        .select('plan_id')
+        .eq('user_id', user.id)
+        .single();
+    
+      // Only show pricing if user is not paid
+      setShowPricing(!subscriptionData || subscriptionData.plan_id === 1);
+      if (subscriptionData?.plan_id) setCurrentPlanId(subscriptionData.plan_id);
+
       router.refresh();
-      if ((profileData as any)?.plan_id !== undefined) setCurrentPlanId((profileData as any).plan_id);
+       
+    } catch (error) {
+      console.error("Error saving onboarding data:", error);
+    } finally {
+      setIsLoading(false);
     }
 
-    setIsLoading(false);
   };
 
   const handleUpgrade = async (plan: "pro" | "premium") => {
@@ -219,8 +252,14 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
       <DialogContent className="w-full sm:max-w-[980px] p-0 mx-auto rounded-xl shadow-xl" hideCloseButton>
         {!showPricing ? (
           <>
-            <div className="p-6 sm:p-8">
-              <DialogHeader>
+            <div className="p-6 sm:p-8 relative">
+              <img
+                src="/static/images/logo.svg"
+                alt="Prepzo logo"
+                loading="lazy"
+                className="absolute top-4 left-4 h-8 w-auto sm:top-6 sm:left-6 z-20 pointer-events-none"
+              />
+              <DialogHeader className="mt-10">
                 <DialogTitle className="text-2xl sm:text-3xl font-bold text-center">Welcome to Prepzo!</DialogTitle>
                 <DialogDescription className="text-center text-sm text-muted-foreground">
                   A few quick questions to personalize your experience.
