@@ -302,7 +302,7 @@ const JobTracker = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="company_url">Company URL</Label>
+                    <Label htmlFor="company_url">Job Post URL</Label>
                     <Input
                       id="company_url"
                       placeholder="https://..."
@@ -497,6 +497,7 @@ const JobTracker = () => {
                       <TableHead className="w-[10%]"><Button variant="ghost" onClick={() => handleSort("status")} className="h-auto p-0 font-semibold hover:bg-transparent">Status<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                       <TableHead className="w-[12%]">Resume</TableHead>
                       <TableHead className="w-[12%]">Cover Letter</TableHead>
+                      <TableHead className="w-[12%]">Interview Prep</TableHead>
                       <TableHead className="w-[6%] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -545,6 +546,15 @@ const JobTracker = () => {
                               <Button variant="outline" size="sm">Create Letter</Button>
                             </Link>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/dashboard/tools/mock-Interview`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="outline" size="sm">Mock Interview</Button>
+                          </Link>
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -618,6 +628,52 @@ const JobTracker = () => {
                       <p className="text-sm text-gray-700 line-clamp-2">{job.notes}</p>
                     </div>
                   )}
+
+                  {/* Mobile: Resume / Cover Letter Actions */}
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {job.resume_url ? (
+                      <Link href={job.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <Button variant="outline" size="sm" className="flex items-center gap-1">
+                          <ExternalLink className="h-4 w-4" /> View Resume
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/dashboard/tools/resume-generator?${new URLSearchParams({
+                          company: job.company,
+                          position: job.position,
+                          companyWebsite: job.company_url || '',
+                          jobDescription: job.notes || ''
+                        }).toString()}`}
+                      >
+                        <Button variant="outline" size="sm">Create Resume</Button>
+                      </Link>
+                    )}
+
+                    {job.cover_letter_url ? (
+                      <Link href={job.cover_letter_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <Button variant="outline" size="sm" className="flex items-center gap-1">
+                          <ExternalLink className="h-4 w-4" /> View Letter
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/dashboard/tools/cover-letter?${new URLSearchParams({
+                          companyWebsite: job.company_url || '',
+                          jobDescription: job.notes || ''
+                        }).toString()}`}
+                      >
+                        <Button variant="outline" size="sm">Create Letter</Button>
+                      </Link>
+                    )}
+                    <Link
+                      href={`/dashboard/tools/mock-Interview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" size="sm">Mock Interview</Button>
+                    </Link>
+                  </div>
 
                   <div className="flex justify-end pt-2">
                     <DropdownMenu>
