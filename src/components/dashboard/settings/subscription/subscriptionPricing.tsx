@@ -71,7 +71,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       name: "Premium",
       price: "€19.99",
       priceSuffix: "/ month",
-      description: "For the ultimate power user - 3 days free trial",
+      description: "For the ultimate power user",
       features: [
         "Unlimited Resumes",
         "Unlimited Cover Letters",
