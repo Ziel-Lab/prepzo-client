@@ -1200,10 +1200,10 @@ const NewSessionModal: React.FC<NewSessionModalProps> = ({ isOpen, onClose, onSu
           {/* Debug Info - Development Only */}
           {process.env.NODE_ENV === 'development' && (
             <div className="absolute bottom-0 left-0 text-xs text-gray-400 bg-gray-50 p-1 rounded text-[10px]">
-              Dev: plan={userLimits?.plan_id}, 
-              button={userLimits?.plan_id === 1 ? 'upgrade' : 
-                     (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) && usageLimitReached ? 'limit-reached' :
-                     (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) ? 'create' : 'fallback'}
+              {/* Dev: plan={userLimits?.plan_id},  */}
+              {/* button={userLimits?.plan_id === 1 ? 'upgrade' :  */}
+                     {/* (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) && usageLimitReached ? 'limit-reached' : */}
+                     {/* (userLimits?.plan_id === 2 || userLimits?.plan_id === 3) ? 'create' : 'fallback'} */}
             </div>
           )}
         </div>

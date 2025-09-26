@@ -14,7 +14,7 @@ import { Search, Filter, Plus, Building, Calendar, MapPin,  ArrowUpDown, MoreHor
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import Link from "next/link";
 
-type JobStatus = "applied" | "shortlisted" | "interview_scheduled" | "interviewed" | "rejected" | "withdrawn" | "offer_letter" | "offer_accepted";
+type JobStatus = "intreseted" | "applied" | "shortlisted" | "interview_scheduled" | "interviewed" | "rejected" | "withdrawn" | "offer_letter" | "offer_accepted";
 
 interface Job {
   id: string;
@@ -22,8 +22,9 @@ interface Job {
   position: string;
   location: string;
   company_url?: string;
+  job_post_url?: string;
   appliedDate: string;
-  status: JobStatus;
+  status: JobStatus; 
   notes?: string;
   nextAction?: string;
   nextActionDate?: string;
@@ -34,6 +35,7 @@ interface Job {
 const mockJobs: Job[] = [];
 
 const statusConfig: Record<JobStatus, { label: string; color: string }> = {
+  intreseted: { label: "Intreseted", color: "bg-green-100 text-green-800" },
   applied: { label: "Applied", color: "bg-blue-100 text-blue-800" },
   shortlisted: { label: "Shortlisted", color: "bg-purple-100 text-purple-800" },
   interview_scheduled: { label: "Interview Scheduled", color: "bg-yellow-100 text-yellow-800" },
@@ -62,8 +64,9 @@ const JobTracker = () => {
     position: "",
     location: "",
     company_url: "",
+    job_post_url: "",
     appliedDate: new Date().toISOString().split('T')[0],
-    status: "applied",
+    status: "intreseted",
     notes: "",
     nextAction: "",
     nextActionDate: "",
@@ -93,6 +96,7 @@ const JobTracker = () => {
         position: string;
         location?: string | null;
         company_url?: string | null;
+        job_post_url?: string | null;
         applied_date: string;
         status: JobStatus;
         notes?: string | null;
@@ -107,6 +111,7 @@ const JobTracker = () => {
         position: j.position,
         location: j.location || "",
         company_url: j.company_url || "",
+        job_post_url: j.job_post_url || "",
         appliedDate: j.applied_date,
         status: j.status,
         notes: j.notes || "",
@@ -169,6 +174,7 @@ const JobTracker = () => {
         position: editJob.position,
         location: editJob.location,
         company_url: editJob.company_url,
+        job_post_url: editJob.job_post_url,
         appliedDate: editJob.appliedDate,
         status: editJob.status,
         notes: editJob.notes,
@@ -193,6 +199,7 @@ const JobTracker = () => {
           position: newJob.position,
           location: newJob.location,
           company_url: newJob.company_url,
+          job_post_url: newJob.job_post_url,
           appliedDate: newJob.appliedDate,
           status: newJob.status,
           notes: newJob.notes,
@@ -212,8 +219,9 @@ const JobTracker = () => {
         position: "",
         location: "",
         company_url: "",
+        job_post_url: "",
         appliedDate: new Date().toISOString().split('T')[0],
-        status: "applied",
+        status: "intreseted",
         notes: "",
         nextAction: "",
         nextActionDate: "",
@@ -308,6 +316,15 @@ const JobTracker = () => {
                       placeholder="https://..."
                       value={newJob.company_url || ""}
                       onChange={(e) => setNewJob({ ...newJob, company_url: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job_post_url">Job Post URL</Label>
+                    <Input
+                      id="job_post_url"
+                      placeholder="https://..."
+                      value={newJob.job_post_url || ""}
+                      onChange={(e) => setNewJob({ ...newJob, job_post_url: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -497,6 +514,7 @@ const JobTracker = () => {
                       <TableHead className="w-[10%]"><Button variant="ghost" onClick={() => handleSort("status")} className="h-auto p-0 font-semibold hover:bg-transparent">Status<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
                       <TableHead className="w-[12%]">Resume</TableHead>
                       <TableHead className="w-[12%]">Cover Letter</TableHead>
+                      <TableHead className="w-[12%]">Interview Prep</TableHead>
                       <TableHead className="w-[6%] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -504,15 +522,23 @@ const JobTracker = () => {
                     {filteredAndSortedJobs.map((job) => (
                       <TableRow key={job.id}>
                         <TableCell className="font-medium">
-                          {job.company_url ? (
-                            <Link href={job.company_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {job.job_post_url ? (
+                            <Link href={job.job_post_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                               <span className="flex items-center gap-1"><Link2 className="h-4 w-4" /> {job.company}</span>
                             </Link>
                           ) : (
                             <span>{job.company}</span>
                           )}
                         </TableCell>
-                        <TableCell>{job.position}</TableCell>
+                        <TableCell>
+                            {job.job_post_url ? (
+                              <Link href={job.job_post_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                <span className="flex items-center gap-1">{job.position}</span>
+                              </Link>
+                            ) : (
+                              <span>{job.position}</span>
+                            )}
+                        </TableCell>
                         <TableCell className="text-sm text-gray-600">{job.location}</TableCell>
                         <TableCell className="text-sm">{new Date(job.appliedDate).toLocaleDateString()}</TableCell>
                         <TableCell><Badge className={statusConfig[job.status].color}>{statusConfig[job.status].label}</Badge></TableCell>
@@ -545,6 +571,15 @@ const JobTracker = () => {
                               <Button variant="outline" size="sm">Create Letter</Button>
                             </Link>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/dashboard/tools/mock-Interview`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="outline" size="sm">Mock Interview</Button>
+                          </Link>
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -591,8 +626,23 @@ const JobTracker = () => {
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base sm:text-lg leading-tight">{job.company}</h3>
-                      <p className="text-gray-600 text-sm leading-tight mt-1">{job.position}</p>
+                      <h3 className="font-semibold text-base sm:text-lg leading-tight">
+                        {job.company_url ? (
+                          <Link href={job.company_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            <span className="flex items-center gap-1"><Link2 className="h-4 w-4" /> {job.company}</span>
+                          </Link>
+                        ) : (
+                          <span>{job.company}</span>
+                        )}
+                      </h3>
+                      {job.job_post_url ? (
+                        <Link href={job.job_post_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          <span className="flex items-center gap-1 text-sm"> {job.position}</span>
+                        </Link>
+                      ) : (
+                        <span className="text-sm">{job.position}</span>
+                      )}
+                      
                     </div>
                     <div className="flex-shrink-0">
                       <Badge className={`${statusConfig[job.status].color} text-xs whitespace-nowrap`}>
@@ -618,6 +668,52 @@ const JobTracker = () => {
                       <p className="text-sm text-gray-700 line-clamp-2">{job.notes}</p>
                     </div>
                   )}
+
+                  {/* Mobile: Resume / Cover Letter Actions */}
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {job.resume_url ? (
+                      <Link href={job.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <Button variant="outline" size="sm" className="flex items-center gap-1">
+                          <ExternalLink className="h-4 w-4" /> View Resume
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/dashboard/tools/resume-generator?${new URLSearchParams({
+                          company: job.company,
+                          position: job.position,
+                          companyWebsite: job.company_url || '',
+                          jobDescription: job.notes || ''
+                        }).toString()}`}
+                      >
+                        <Button variant="outline" size="sm">Create Resume</Button>
+                      </Link>
+                    )}
+
+                    {job.cover_letter_url ? (
+                      <Link href={job.cover_letter_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <Button variant="outline" size="sm" className="flex items-center gap-1">
+                          <ExternalLink className="h-4 w-4" /> View Letter
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/dashboard/tools/cover-letter?${new URLSearchParams({
+                          companyWebsite: job.company_url || '',
+                          jobDescription: job.notes || ''
+                        }).toString()}`}
+                      >
+                        <Button variant="outline" size="sm">Create Letter</Button>
+                      </Link>
+                    )}
+                    <Link
+                      href={`/dashboard/tools/mock-Interview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" size="sm">Mock Interview</Button>
+                    </Link>
+                  </div>
 
                   <div className="flex justify-end pt-2">
                     <DropdownMenu>
