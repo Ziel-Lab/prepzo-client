@@ -58,7 +58,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       features: [
         "10 Resume Analyses",
         "10 Cover Letters",
-        "2 LinkedIn Optimizations",
+        "3 Mock Interview Sessions",
         "Unlimited Document Uploads",
       ],
       isCurrent: isPro,
@@ -75,7 +75,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
       features: [
         "Unlimited Resumes",
         "Unlimited Cover Letters",
-        "Unlimited LinkedIn Optimizations",
+        "Unlimited Mock Interview Sessions",
         "Unlimited Document Uploads",
       ],
       isCurrent: isPremium,
