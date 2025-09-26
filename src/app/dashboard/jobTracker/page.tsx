@@ -23,7 +23,7 @@ interface Job {
   location: string;
   company_url?: string;
   appliedDate: string;
-  status: JobStatus;
+  status: JobStatus; 
   notes?: string;
   nextAction?: string;
   nextActionDate?: string;
