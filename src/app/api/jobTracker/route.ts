@@ -6,9 +6,9 @@ export const dynamic = 'force-dynamic'
 
 type SortField = 'company' | 'position' | 'applied_date' | 'status'
 type SortDirection = 'asc' | 'desc'
-type JobStatus = 'applied' | 'shortlisted' | 'interview_scheduled' | 'interviewed' | 'rejected' | 'withdrawn' | 'offer_letter' | 'offer_accepted'
+type JobStatus = 'intreseted' | 'applied' | 'shortlisted' | 'interview_scheduled' | 'interviewed' | 'rejected' | 'withdrawn' | 'offer_letter' | 'offer_accepted'
 
-const validJobStatuses: JobStatus[] = ['applied', 'shortlisted', 'interview_scheduled', 'interviewed', 'rejected', 'withdrawn', 'offer_letter', 'offer_accepted']
+const validJobStatuses: JobStatus[] = ['intreseted', 'applied', 'shortlisted', 'interview_scheduled', 'interviewed', 'rejected', 'withdrawn', 'offer_letter', 'offer_accepted']
 
 function isValidJobStatus(status: string): status is JobStatus {
   return validJobStatuses.includes(status as JobStatus)
@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       resume_url: (body.resume_url ?? '').toString() || null,
       cover_letter_url: (body.cover_letter_url ?? '').toString() || null,
       company_url: (body.company_url ?? '').toString() || null,
+      job_post_url: (body.job_post_url ?? '').toString() || null,
     }
 
     if (!payload.company || !payload.position) {
@@ -127,7 +128,7 @@ export async function PATCH(req: NextRequest) {
     if (body.resume_url !== undefined) updates.resume_url = body.resume_url || null
     if (body.cover_letter_url !== undefined) updates.cover_letter_url = body.cover_letter_url || null
     if (body.company_url !== undefined) updates.company_url = body.company_url || null
-
+    if (body.job_post_url !== undefined) updates.job_post_url = body.job_post_url || null
     const { data, error } = await supabase
       .from('job_applications')
       .update(updates)
