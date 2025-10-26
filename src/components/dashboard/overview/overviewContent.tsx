@@ -147,7 +147,7 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                 Monthly Usage
               </CardTitle>
               <CardDescription>
-                Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.name || '...'}</span>
+                Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.plan_name || '...'}</span>
                 {subscription?.subscription_plans?.id === 3 && (
                   <div className="text-xs text-green-600 mt-1">
                     ✨ Unlimited Resume, Cover Letter, LinkedIn & Mock Interview access

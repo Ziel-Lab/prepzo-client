@@ -112,7 +112,7 @@ const DashboardContent = () => {
         const subscription_status = subscription?.status ?
           subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1) : 'Active';
 
-        const subscription_plan = subscription?.subscription_plans?.name || 'Free';
+        const subscription_plan = subscription?.subscription_plans?.plan_name || 'Free';
 
         console.log('Tracking genuine new signup event for user:', user.id);
         

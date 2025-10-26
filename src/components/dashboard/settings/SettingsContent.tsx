@@ -231,7 +231,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ email, fullName, avat
                     <div>
                         <p className="text-gray-600">Your current plan is</p>
                         <p className="text-lg font-bold text-purple-600 capitalize">
-                            {subscription?.subscription_plans.name || '...'}
+                            {subscription?.subscription_plans.plan_name || '...'}
                         </p>
                     </div>
                     <Link href="/dashboard/settings/subscription" passHref>
