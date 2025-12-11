@@ -28,14 +28,14 @@ import Image from 'next/image'
 
 const staticSidebarItems = [
   { icon: Home, label: "Overview", href: "/dashboard" },
-  { icon: UserRound, label: "Profile", href: "/dashboard/profile" },
-  { icon: MessageSquare, label: "Conversations", href: "/dashboard/conversations" },
-  { icon: NotebookPen, label: "Job Tracker ✨", href: "/dashboard/jobTracker" },
-  { icon: TrendingUp, label: "Skills", href: "/dashboard/skills" },
-  { icon: BarChart, label: "Goals", href: "/dashboard/goals" },
-  { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
+  // { icon: UserRound, label: "Profile", href: "/dashboard/profile" },
+  // { icon: MessageSquare, label: "Conversations", href: "/dashboard/conversations" },
+  // { icon: NotebookPen, label: "Job Tracker ✨", href: "/dashboard/jobTracker" },
+  // { icon: TrendingUp, label: "Skills", href: "/dashboard/skills" },
+  // { icon: BarChart, label: "Goals", href: "/dashboard/goals" },
+  // { icon: AlertTriangle, label: "Challenges", href: "/dashboard/challenges" },
   { icon: FileText, label: "Documents", href: "/dashboard/documents" },
-  { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
+  // { icon: Wrench, label: "Career Tools", href: "/dashboard/tools" },
   { icon: CreditCard, label: "My Subscription", href: "/dashboard/settings/subscription" },
 ];
 

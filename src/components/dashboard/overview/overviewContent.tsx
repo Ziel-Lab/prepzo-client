@@ -1,12 +1,11 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { Loader2, AlertCircle, Wand2, FileText, Linkedin, BarChart2, ArrowRight, Briefcase, MessageSquare } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, AlertCircle, Wand2, FileText, BarChart2, ArrowRight, MessageSquare, CheckCircle, Sparkles, TrendingUp, Target, Zap } from 'lucide-react';
 
 interface OverviewContentProps {
   userName: string | null;
@@ -14,45 +13,57 @@ interface OverviewContentProps {
     quote: string;
     author: string;
   } | null;
+  subscription?: any;
+  isLoading?: boolean;
+  error?: any;
 }
 
-const tools = [
+const otherTools = [
   {
     title: 'Resume Generator',
-    description: 'Generate and optimize your resume with AI-powered suggestions.',
+    description: 'AI-powered resume optimization',
     link: '/dashboard/tools/resume-generator',
-    icon: <FileText className="h-8 w-8 text-blue-500" />,
+    icon: <FileText className="h-6 w-6 text-blue-500" />,
   },
   {
     title: 'Cover Letter Generator',
-    description: 'Create a tailored cover letter in seconds for any job application.',
+    description: 'Tailored cover letters in seconds',
     link: '/dashboard/tools/cover-letter',
-    icon: <Wand2 className="h-8 w-8 text-purple-500" />,
+    icon: <Wand2 className="h-6 w-6 text-purple-500" />,
   },
-  // {
-  //   title: 'LinkedIn Optimizer',
-  //   description: 'Enhance your LinkedIn profile to attract recruiters and opportunities.',
-  //   link: '/dashboard/tools/linkedin-optimizer',
-  //   icon: <Linkedin className="h-8 w-8 text-sky-600" />,
-  // },
-  {
-    title: 'Mock Interview',
-    description: 'Practice interviews with AI and get detailed feedback to improve.',
-    link: '/dashboard/tools/mock-Interview',
-    icon: <MessageSquare className="h-8 w-8 text-emerald-500" />,
-  },
-  // {
-  //   title: 'Applications',
-  //   description: 'Track and manage your job applications with detailed analytics.',
-  //   link: '/dashboard/applications',
-  //   icon: <Briefcase className="h-8 w-8 text-green-500" />,
-  // },
 ];
 
-const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuote }) => {
-  const { subscription, isLoading: isSubscriptionLoading, error: subscriptionError } = useSubscription();
+const mockInterviewBenefits = [
+  {
+    icon: <Target className="h-5 w-5 text-white" />,
+    title: 'Real Interview Scenarios',
+    description: 'Practice with questions from actual job interviews'
+  },
+  {
+    icon: <TrendingUp className="h-5 w-5 text-white" />,
+    title: 'Detailed Feedback',
+    description: 'Get AI-powered insights to improve your responses'
+  },
+  {
+    icon: <Zap className="h-5 w-5 text-white" />,
+    title: 'Build Confidence',
+    description: 'Master your interview skills before the big day'
+  },
+  {
+    icon: <CheckCircle className="h-5 w-5 text-white" />,
+    title: 'Track Progress',
+    description: 'Monitor your improvement over time'
+  }
+];
 
-  // Usage metrics with Premium user filtering (same logic as SubscriptionContent.tsx)
+const OverviewContent: React.FC<OverviewContentProps> = ({ 
+  userName, 
+  currentQuote,
+  subscription,
+  isLoading: isSubscriptionLoading,
+  error: subscriptionError 
+}) => {
+  // Usage metrics with Premium user filtering
   let usageMetrics = (subscription && subscription.usage) ? [
     {
       name: "Resume Generations",
@@ -64,27 +75,17 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
       used: subscription.usage.cover_letter_period_count,
       limit: subscription.subscription_plans?.cover_letter_limit_per_month ?? 'N/A',
     },
-    // {
-    //   name: "LinkedIn Optimizations",
-    //   used: subscription.usage.linkedin_optimize_period_count,
-    //   limit: subscription.subscription_plans?.linkedin_optimize_limit_per_month ?? 'N/A',
-    // },
     {
       name: "Mock Interview Sessions",
       used: (subscription.usage as any).mock_interview_session_lifetime_count ?? 0,
       limit: (subscription.subscription_plans as any)?.mock_interview_session ?? 0,
     },
-    // {
-    //   name: "Job Reveals",
-    //   used: subscription.usage.job_search_results_period_count ?? 0,
-    //   limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
-    // },
   ] : [];
 
-  // Filter metrics for Premium users (plan_id = 3) - only show Job Reveals and Mock Interview Sessions since they have unlimited access to others
+  // Filter metrics for Premium users
   if (subscription?.subscription_plans?.id === 3) {
     usageMetrics = usageMetrics.filter(
-      (metric) => metric.name === "Job Reveals" || metric.name === "Mock Interview Sessions"
+      (metric) => metric.name === "Mock Interview Sessions"
     );
   }
 
@@ -96,46 +97,123 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
           Hi {userName || 'there'}, welcome to Prepzo!
         </h1>
         <p className="text-lg text-gray-600">
-          We're working hard to build you the best career toolkit. Here's what you can do today.
+          Master your interviews with AI-powered practice and feedback.
         </p>
       </div>
       
+      {/* Hero Section - Mock Interview Spotlight */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-800 via-green-800 to-teal-900 p-8 md:p-10 shadow-xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-600/20 rounded-full -ml-24 -mb-24 blur-2xl"></div>
+        
+        <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
+          {/* Left: Content */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Featured Tool
+              </Badge>
+            </div>
+            
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <MessageSquare className="h-8 w-8 text-white" />
+                </div>
+                <h2 className="text-4xl font-bold text-white">Mock Interview</h2>
+              </div>
+              <p className="text-lg text-white/90">
+                Practice with AI, get instant feedback, and ace your next interview with confidence.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                size="lg" 
+                className="w-full bg-black text-white hover:bg-gray-900 font-semibold shadow-lg hover:shadow-xl transition-all"
+                onClick={() => window.location.href = '/dashboard/tools/mock-Interview'}
+              >
+                Start Practice Session
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-4 text-white/80 text-sm">
+              <div className="flex items-center gap-1">
+                <CheckCircle className="h-4 w-4" />
+                <span>Unlimited practice</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <CheckCircle className="h-4 w-4" />
+                <span>AI feedback</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Benefits Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {mockInterviewBenefits.map((benefit, index) => (
+              <div 
+                key={index}
+                className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 hover:bg-white/15 transition-all"
+              >
+                <div className="bg-white/20 rounded-lg p-2 w-fit mb-3">
+                  {benefit.icon}
+                </div>
+                <h3 className="font-semibold text-white mb-1 text-sm">{benefit.title}</h3>
+                <p className="text-xs text-white/70">{benefit.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 space-y-8 lg:space-y-0">
         
-        {/* Left Side: Tools & Quote */}
+        {/* Left Side: Other Tools & Quote */}
         <div className="lg:col-span-2 space-y-8">
-            {/* Tools Section */}
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-2xl font-bold">Get Started</CardTitle>
-                    <CardDescription>Jump right into our powerful AI tools.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {tools.map((tool) => (
-                        <Link key={tool.title} href={tool.link} passHref>
-                            <Card className="h-full hover:shadow-md hover:border-purple-300 transition-all duration-200 flex flex-col">
-                                <CardHeader className="flex-shrink-0">
-                                    {tool.icon}
-                                </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <h3 className="font-semibold text-lg">{tool.title}</h3>
-                                    <p className="text-sm text-gray-500 mt-1">{tool.description}</p>
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    ))}
-                </CardContent>
-            </Card>
-            {/* Quote of the Day */}
-            {currentQuote && (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 shadow-sm">
-                    <blockquote className="text-center">
-                    <p className="text-lg italic text-purple-800">"{currentQuote.quote}"</p>
-                    <footer className="mt-3 text-sm text-purple-600 font-medium">— {currentQuote.author}</footer>
-                    </blockquote>
-                </div>
-            )}
+          {/* Other Tools Section */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">More Tools</CardTitle>
+              <CardDescription>Additional resources to boost your career</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {otherTools.map((tool) => (
+                <Card 
+                  key={tool.title} 
+                  className="h-full hover:shadow-md hover:border-purple-300 transition-all duration-200 cursor-pointer"
+                  onClick={() => window.location.href = tool.link}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        {tool.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-base mb-1">{tool.title}</h3>
+                        <p className="text-sm text-gray-500">{tool.description}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Quote of the Day */}
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6 shadow-sm">
+            <blockquote className="text-center">
+              <p className="text-lg italic text-purple-800">
+                "{currentQuote?.quote || 'Success is not final, failure is not fatal: it is the courage to continue that counts.'}"
+              </p>
+              <footer className="mt-3 text-sm text-purple-600 font-medium">
+                — {currentQuote?.author || 'Winston Churchill'}
+              </footer>
+            </blockquote>
+          </div>
         </div>
 
         {/* Right Side: Usage */}
@@ -150,7 +228,7 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
                 Your plan: <span className="font-bold text-purple-600 capitalize">{subscription?.subscription_plans?.plan_name || '...'}</span>
                 {subscription?.subscription_plans?.id === 3 && (
                   <div className="text-xs text-green-600 mt-1">
-                    ✨ Unlimited Resume, Cover Letter, LinkedIn & Mock Interview access
+                    ✨ Unlimited access to all tools
                   </div>
                 )}
               </CardDescription>
@@ -197,12 +275,14 @@ const OverviewContent: React.FC<OverviewContentProps> = ({ userName, currentQuot
               )}
             </CardContent>
             <CardFooter>
-                 <Link href="/dashboard/settings/subscription" passHref className="w-full">
-                    <Button variant="outline" className="w-full">
-                        Manage My Subscription
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </Link>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => window.location.href = '/dashboard/settings/subscription'}
+              >
+                Manage My Subscription
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </CardFooter>
           </Card>
         </div>
