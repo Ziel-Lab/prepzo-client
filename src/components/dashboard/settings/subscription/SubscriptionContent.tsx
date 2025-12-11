@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { loadStripe } from "@stripe/stripe-js";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,76 +17,15 @@ import {
   Loader2,
   AlertCircle,
   Star,
-  XCircle,
   CheckCircle,
+  XCircle,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useSubscription, type SubscriptionStatus } from "@/contexts/SubscriptionContext";
 import { createClient } from "@/utils/supabase/client";
-import SubscriptionHistory from "./subscriptionHistory";
 import SubscriptionPricing from "./subscriptionPricing";
 import PricingBar from "./PricingBar";
 
-// --- Interfaces based on your backend schema ---
-
-interface SubscriptionPlanBase {
-  id: string | number;
-  name: string;
-  price: number;
-  resume_limit_per_month: number;
-  cover_letter_limit_per_month: number;
-  linkedin_optimize_limit_per_month: number;
-  job_application_limit_per_month: number;
-  job_search_results_limit_per_month?: number;
-}
-
-interface SubscriptionPlanExtended extends SubscriptionPlanBase {
-  mock_interview_session: number;
-  stripe_price_id: string;
-}
-
-type SubscriptionPlan = SubscriptionPlanBase & Partial<SubscriptionPlanExtended>;
-
-interface FeatureUsageBase {
-  resume_period_count: number;
-  cover_letter_period_count: number;
-  linkedin_optimize_period_count: number;
-  job_search_results_period_count: number;
-}
-
-interface FeatureUsageExtended extends FeatureUsageBase {
-  mock_interview_session_lifetime_count: number;
-  mock_interview_session_period_count: number;
-}
-
-type FeatureUsage = FeatureUsageBase & Partial<FeatureUsageExtended>;
-
-type SubscriptionStatusType = 
-  | "trialing"
-  | "past_due"
-  | "active"
-  | "processing"
-  | "canceling"
-  | "canceled"
-  | "free"  // Keep for backward compatibility during transition
-  | "free_trial";  // Keep for backward compatibility during transition
-
-interface SubscriptionStatus {
-  status: SubscriptionStatusType;
-  current_period_start: string;
-  current_period_end: string;    // now your single source of truth
-  subscription_plans: SubscriptionPlan;
-  usage: FeatureUsage;
-}
+type SubscriptionStatusType = SubscriptionStatus['status'];
 
 const SubscriptionContent = () => {
   const { subscription, isLoading, error: contextError, refetch } = useSubscription();
@@ -121,14 +59,20 @@ const SubscriptionContent = () => {
         throw new Error("Could not retrieve user session for upgrade.");
       }
 
-      // --- DEBUGGING STEP ---
-      console.log("Looking for payment link for plan:", plan);
-      // --- END DEBUGGING STEP ---
-
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (!backendUrl) {
         throw new Error("Backend URL is not configured.");
       }
+
+      // Map plan to Stripe price ID
+      // TODO: Move these to environment variables or fetch from backend
+      const priceIds = {
+        pro: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_monthly",
+        premium: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || "price_premium_monthly"
+      };
+
+      const successUrl = `${window.location.origin}/dashboard/settings/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${window.location.origin}/dashboard/settings/subscription?canceled=true`;
 
       const response = await fetch(`${backendUrl}/subscription/create-checkout-session`, {
         method: "POST",
@@ -137,7 +81,9 @@ const SubscriptionContent = () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          planId: plan === "pro" ? 2 : 3
+          price_id: priceIds[plan],
+          success_url: successUrl,
+          cancel_url: cancelUrl
         })
       });
 
@@ -146,92 +92,13 @@ const SubscriptionContent = () => {
         throw new Error(error.error?.message || "Failed to create checkout session");
       }
 
-      const { id: sessionId } = await response.json();
+      const { checkout_url } = await response.json();
       
       // Redirect to Stripe Checkout
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-      if (!stripe) {
-        throw new Error("Failed to load Stripe");
-      }
-      
-      const { error } = await stripe.redirectToCheckout({
-        sessionId
-      });
-
-      if (error) {
-        throw error;
-      }
+      window.location.href = checkout_url;
     } catch (err) {
       const error = err as Error;
       setActionError(error.message);
-      setIsProcessingAction(false);
-    }
-  };
-
-  const handleCancel = async () => {
-    setIsProcessingAction(true);
-    setActionError(null);
-    try {
-       const { data: sessionData, error: sessionError } =
-         await supabase.auth.getSession();
-       if (sessionError || !sessionData?.session?.access_token) {
-         throw new Error("Could not retrieve user session for cancellation.");
-       }
- 
-       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
-       const res = await fetch(
-         `${backendUrl}/subscription/stripe/cancel-subscription`,
-         {
-           method: "POST",
-           headers: {
-             Authorization: `Bearer ${sessionData.session.access_token}`,
-           },
-         }
-       );
-       const data = await res.json();
-       if (!res.ok) {
-         throw new Error(data.error || "Could not cancel subscription.");
-       }
- 
-       await refetch();
-    } catch (err) {
-      const error = err as Error;
-       setActionError(error.message);
-    } finally {
-        setIsProcessingAction(false);
-    }
-  };
-
-  const handleReactivate = async () => {
-    setIsProcessingAction(true);
-    setActionError(null);
-    try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.access_token) {
-        throw new Error("Could not retrieve user session for reactivation.");
-      }
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
-      const res = await fetch(
-        `${backendUrl}/subscription/stripe/reactivate-subscription`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-          },
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Could not reactivate subscription.");
-      }
-
-      await refetch(); // Refetch subscription status to update the UI
-    } catch (err) {
-      const error = err as Error;
-      setActionError(error.message);
-    } finally {
       setIsProcessingAction(false);
     }
   };
@@ -249,11 +116,17 @@ const SubscriptionContent = () => {
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL!;
-      const res = await fetch(`${backendUrl}/subscription/customer-portal`, {
+      const returnUrl = `${window.location.origin}/dashboard/settings/subscription`;
+      
+      const res = await fetch(`${backendUrl}/subscription/create-portal-session`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
         },
+        body: JSON.stringify({
+          return_url: returnUrl
+        })
       });
 
       const data = await res.json();
@@ -263,7 +136,8 @@ const SubscriptionContent = () => {
         );
       }
 
-      window.location.href = data.url;
+      // Redirect to Stripe customer portal
+      window.location.href = data.portal_url;
     } catch (err) {
       const error = err as Error;
       setActionError(error.message);
@@ -301,16 +175,16 @@ const SubscriptionContent = () => {
   const isTrialing = subscription.status === ("trialing" as SubscriptionStatusType) || subscription.status === ("free_trial" as SubscriptionStatusType);
   const isProUser =
     (subscription.status === "active" || isTrialing) &&
-    subscription.subscription_plans.name.toLowerCase().includes("pro");
+    subscription.subscription_plans.plan_name.toLowerCase().includes("pro");
   const isPremiumUser =
     (subscription.status === "active" || isTrialing) &&
-    subscription.subscription_plans.name.toLowerCase().includes("premium");
+    subscription.subscription_plans.plan_name.toLowerCase().includes("premium");
   const isPaidUser = isProUser || isPremiumUser;
   const isCanceling = subscription.status === "canceling";
   const isExpired = subscription.status === "canceled";
 
   // --- Usage metrics ---
-  let usageMetrics = [
+  const usageMetrics = [
     {
       name: "Resume Analyses",
       used: subscription.usage.resume_period_count,
@@ -327,22 +201,11 @@ const SubscriptionContent = () => {
       limit: subscription.subscription_plans.linkedin_optimize_limit_per_month,
     },
     {
-      name: "Mock Interview Sessions",
-      used: (subscription.usage as FeatureUsageExtended).mock_interview_session_lifetime_count ?? 0,
-      limit: (subscription.subscription_plans as SubscriptionPlanExtended).mock_interview_session ?? 0,
-    },
-    {
       name: "Job Reveals",
       used: subscription.usage.job_search_results_period_count,
       limit: subscription.subscription_plans.job_search_results_limit_per_month ?? 0,
     },
   ];
-
-  if (subscription.subscription_plans.id == 3) {
-    usageMetrics = usageMetrics.filter(
-      (metric) => metric.name === "Job Reveals" || metric.name === "Mock Interview Sessions"
-    );
-  }
 
   return (
     <>
@@ -454,63 +317,9 @@ const SubscriptionContent = () => {
             {isProcessingAction ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
-            Manage Billing
+            Manage Subscription
           </Button>
         )}
-        {isCanceling && (
-          <Button onClick={handleReactivate} disabled={isProcessingAction}>
-            {isProcessingAction ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle className="mr-2 h-4 w-4" />
-            )}
-            Reactivate Subscription
-          </Button>
-        )}
-        {isPaidUser && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="destructive" disabled={isProcessingAction}>
-                {isProcessingAction ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <XCircle className="mr-2 h-4 w-4" />
-                )}
-                Cancel Subscription
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Confirm Cancellation</DialogTitle>
-                <DialogDescription>
-                  You'll keep your Pro benefits until your current period ends, then you'll
-                  be downgraded to the Free plan. This can be undone by
-                  reactivating anytime before the period ends.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="ghost">Nevermind</Button>
-                </DialogClose>
-                <Button
-                  variant="destructive"
-                  onClick={handleCancel}
-                  disabled={isProcessingAction}
-                >
-                  {isProcessingAction ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    "Yes, Cancel Now"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-
-      <div className="mt-8">
-        <SubscriptionHistory />
       </div>
     </>
   );

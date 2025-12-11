@@ -84,7 +84,7 @@ export const AuthStatusDashboard: React.FC = () => {
       setRequestCount(prev => prev + 1);
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
       if (backendUrl) {
-        const response = await authClient.fetch(`${backendUrl}/subscription/status`);
+        const response = await authClient.fetch(`${backendUrl}/subscription/subscription-status`);
         console.log('Test request successful:', response.status);
         
         if (response.status === 200) {

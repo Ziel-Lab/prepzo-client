@@ -234,15 +234,47 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
     if (!user) return;
     setIsProcessingAction(true);
     try {
-      const res = await fetch(`/api/checkout/create-session`, {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error("Could not retrieve user session for upgrade.");
+      }
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_USER_PORTAL;
+      if (!backendUrl) {
+        throw new Error("Backend URL is not configured.");
+      }
+
+      // Map plan to Stripe price ID
+      const priceIds = {
+        pro: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || "price_pro_monthly",
+        premium: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID || "price_premium_monthly"
+      };
+
+      const successUrl = `${window.location.origin}/dashboard?login=success&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${window.location.origin}/dashboard?canceled=true`;
+
+      const response = await fetch(`${backendUrl}/subscription/create-checkout-session`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan, user_id: user.id }),
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          price_id: priceIds[plan],
+          success_url: successUrl,
+          cancel_url: cancelUrl
+        })
       });
-      if (!res.ok) throw new Error("Failed to create checkout session");
-      const payload = await res.json();
-      if (payload?.url) window.location.href = payload.url;
-      else console.warn("No checkout redirect url returned", payload);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || "Failed to create checkout session");
+      }
+
+      const { checkout_url } = await response.json();
+      
+      // Redirect to Stripe Checkout
+      window.location.href = checkout_url;
     } catch (err) {
       console.error("Upgrade error:", err);
     } finally {

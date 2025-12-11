@@ -44,10 +44,6 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   const isPro = currentPlanKey === "2" || currentPlanKey === "pro";
   const isPremium = currentPlanKey === "3" || currentPlanKey === "premium";
 
-  // Read public env links (available client-side when prefixed with NEXT_PUBLIC_)
-  const PRO_LINK = "https://buy.stripe.com/dRm7sKazu1bK6sK7WW00000";
-  const PREMIUM_LINK = "https://buy.stripe.com/4gM9ASgXSaMk3gy0uu00001";
-
   const plans: Plan[] = [
     {
       key: "pro",
@@ -91,32 +87,6 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
   const priceSize = compact ? "text-xl" : "text-3xl";
   const cardPadding = compact ? "p-4" : "p-6";
   const cardMinW = compact ? "min-w-[300px]" : "min-w-[360px]";
-
-  // Helper to open payment link (if configured) or fallback to provided handler
-  const openPaymentOrFallback = (planKey: "pro" | "premium") => {
-    const link = planKey === "pro" ? PRO_LINK : PREMIUM_LINK;
-    if (link) {
-      // prefer opening in same tab to behave like current window.location assignment
-      window.location.href = link;
-    } else {
-      // fallback to the programmatic checkout flow
-      handleUpgrade(planKey);
-    }
-  };
-
-  // Start trial should use same links per user's request; if no link, fall back to optional handler
-  const startTrialOrFallback = (planKey: "pro" | "premium") => {
-    const link = planKey === "pro" ? PRO_LINK : PREMIUM_LINK;
-    if (link) {
-      window.location.href = link;
-    } else if (handleFreeSignup) {
-      // if user provided a handler, call it (we pass planKey for context if they want it)
-      handleFreeSignup(planKey);
-    } else {
-      // nothing configured — no-op or you could show a toast
-      console.warn("No free signup handler or payment link configured for", planKey);
-    }
-  };
 
   return (
     <div className={`w-full ${containerMax} mx-auto`}>
@@ -166,7 +136,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
               <CardFooter className={`pt-4 px-0 pb-0 ${compact ? "mt-3" : ""}`}>
                 <div className="w-full px-0">
                   <Button
-                    onClick={() => openPaymentOrFallback(plan.key)}
+                    onClick={() => handleUpgrade(plan.key)}
                     disabled={plan.actionDisabled}
                     className={`w-full py-2 font-semibold rounded-md ${plan.isCurrent ? "bg-transparent border border-green-300 text-white cursor-not-allowed" : "bg-black text-white hover:bg-green-700"}`}
                   >
@@ -183,7 +153,7 @@ const SubscriptionPricing: React.FC<SubscriptionPricingProps> = ({
 
                   {!plan.isCurrent && (
                     <button
-                      onClick={() => startTrialOrFallback(plan.key)}
+                      onClick={() => handleUpgrade(plan.key)}
                       disabled={isProcessingAction}
                       className="mt-2 w-full text-sm py-2 rounded-md border border-black/5 hover:bg-black/5 bg-white"
                     >
