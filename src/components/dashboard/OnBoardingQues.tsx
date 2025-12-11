@@ -116,9 +116,6 @@ export default function OnBoardingQues({ user }: { user: User | null }) {
             .single()
         ]);
 
-        console.log('Profile Response:', profileResponse.data);
-        console.log('Subscription Response:', subscriptionResponse.data);
-
         if (profileResponse.error) {
           console.error("Error fetching profile:", profileResponse.error);
           const { error: createError } = await supabase

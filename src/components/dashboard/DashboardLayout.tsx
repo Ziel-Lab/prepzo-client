@@ -63,7 +63,7 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
         <Image src="/static/images/footer-logo.png" alt="Prepzo" width={125} height={125} />
         {/* <span className="ml-2 bg-white text-[#12231B] px-2 py-1 rounded-md text-sm font-semibold">Pro</span> */}
       </div>
-        <Button 
+        {/* <Button 
           className="w-full bg-[#1e3529] text-white hover:bg-[#2a4a3a] transition-colors"
           size="lg"
           onClick={() => {
@@ -71,7 +71,7 @@ const InternalSidebarLayout: React.FC<InternalSidebarLayoutProps> = memo((
           }}
         >
           Talk to Prepzo
-        </Button>
+        </Button> */}
       </SidebarHeader>
       <SidebarContent>
         {/* Adjusted height: consider header and footer heights if they are substantial */}
