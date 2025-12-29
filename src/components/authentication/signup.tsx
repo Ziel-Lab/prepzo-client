@@ -7,6 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Linkedin, Mail } from 'lucide-react';
+import { SignupLeftPanel } from './SignupLeftPanel';
 
 const SignUpForm = () => {
   const [loading, setLoading] = useState(false);
@@ -85,7 +86,13 @@ const SignUpForm = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+    <div className='grid lg:grid-cols-2'>
+      <div className='hidden lg:block bg-primary w-full'>
+        <SignupLeftPanel/>
+      </div>
+
+
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
       <Card className="w-full max-w-md mx-auto border shadow-lg">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold text-primary">
@@ -176,6 +183,8 @@ const SignUpForm = () => {
         </CardFooter>
       </Card>
     </div>
+    </div>
+    
   );
 };
 
