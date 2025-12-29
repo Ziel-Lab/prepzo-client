@@ -446,9 +446,9 @@ const MockInterview = () => {
                 </Button>
               </div>
               
-              <p className="text-sm text-primary">
+              {/* <p className="text-sm text-primary">
                 No credit card required. Start practicing in under 2 minutes.
-              </p>
+              </p> */}
             </div>
           </div>
         </section>

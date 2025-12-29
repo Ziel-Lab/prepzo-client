@@ -2,8 +2,8 @@ import { Check, Users, CreditCard, Shield } from "lucide-react";
 
 const badges = [
   { icon: Users, text: "800+ Professionals", subtext: "Practicing Today" },
-  { icon: CreditCard, text: "No Credit Card", subtext: "Required" },
-  { icon: Shield, text: "GDPR Compliant", subtext: "Secure" },
+  // { icon: CreditCard, text: "No Credit Card", subtext: "Required" },
+  // { icon: Shield, text: "GDPR Compliant", subtext: "Secure" },
 ];
 
 export function TrustBadges() {

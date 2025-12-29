@@ -90,9 +90,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onOpenAgentModal }) => {
                 Try Demo
               </Button> */}
             </div>
-            <p className="text-sm text-white/60">
+            {/* <p className="text-sm text-white/60">
               No credit card required. Start your free demo now.
-            </p>
+            </p> */}
           </div>
 
           <div className="relative animate-slide-up" style={{
